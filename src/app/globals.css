@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap");
+
+body {
+  background: #0a0f1c;
+  color: #f5f7fa;
+  font-family: "Inter", sans-serif;
+}
+
+.font-display {
+  font-family: "Oswald", sans-serif;
+}
+.font-mono {
+  font-family: "JetBrains Mono", monospace;
+}
+
+input,
+select,
+textarea {
+  background: #0f1729;
+  border: 1px solid #22304f;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #f5f7fa;
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #d4af37;
+}
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.6;
+}
