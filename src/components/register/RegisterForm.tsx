@@ -12,6 +12,11 @@ type Settings = {
   cricheroes_required: boolean;
   emirates_id_required: boolean;
   terms_and_conditions: string;
+  shirt_note?: string;
+  bank_account_name?: string;
+  bank_name?: string;
+  bank_account_number?: string;
+  bank_iban?: string;
 } | null;
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
@@ -22,21 +27,21 @@ function emptyForm() {
     emirate: "", uaeLocation: "", playerType: PLAYER_TYPES[0] as string, district: "", state: "",
     emiratesId: "", emiratesIdExpiry: "",
     cricheroes: "", role: PLAYING_ROLES[0] as string, battingStyle: BATTING_STYLES[0] as string, bowlingStyle: "",
-    battingPosition: "", currentTeam: "", previousTeams: "", experience: "", majorExperience: "",
-    achievements: "", uaeExperience: "", notes: "",
+    battingPosition: "", currentTeam: "", notes: "",
     paymentMethod: "", paymentRef: "",
     declarationAccepted: false,
   };
 }
 
-export default function RegisterForm({ settings }: { settings: Settings }) {
+export default function RegisterForm({ settings, closed, spotsRemaining }: { settings: Settings; closed?: boolean; spotsRemaining?: number }) {
   const router = useRouter();
   const supabase = createClient();
   const currency = settings?.currency ?? "AED";
   const fee = settings?.player_reg_fee ?? 25;
+  const shirtNote = settings?.shirt_note || "A team T-shirt will be provided to every registered player.";
 
   const [form, setForm] = useState(emptyForm());
-  const [files, setFiles] = useState<{ photo?: File; emiratesIdCopy?: File; receipt?: File }>({});
+  const [files, setFiles] = useState<{ photo?: File; receipt?: File }>({});
   const [fileErr, setFileErr] = useState<Record<string, string>>({});
   const [formErr, setFormErr] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -44,7 +49,7 @@ export default function RegisterForm({ settings }: { settings: Settings }) {
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  function handleFile(key: "photo" | "emiratesIdCopy" | "receipt") {
+  function handleFile(key: "photo" | "receipt") {
     return (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -88,9 +93,8 @@ export default function RegisterForm({ settings }: { settings: Settings }) {
 
     setSubmitting(true);
     try {
-      const [photoPath, emiratesIdPath, receiptPath] = await Promise.all([
+      const [photoPath, receiptPath] = await Promise.all([
         files.photo ? uploadTo("player-photos", files.photo) : Promise.resolve(null),
-        files.emiratesIdCopy ? uploadTo("emirates-ids", files.emiratesIdCopy) : Promise.resolve(null),
         files.receipt ? uploadTo("payment-receipts", files.receipt) : Promise.resolve(null),
       ]);
 
@@ -101,11 +105,10 @@ export default function RegisterForm({ settings }: { settings: Settings }) {
           emirate: form.emirate, uae_location: form.uaeLocation,
           player_type: form.playerType, district: form.district, state: form.state,
           nationality: "Indian",
-          emirates_id: form.emiratesId, emirates_id_expiry: form.emiratesIdExpiry || null, emirates_id_path: emiratesIdPath,
+          emirates_id: form.emiratesId, emirates_id_expiry: form.emiratesIdExpiry || null, emirates_id_path: null,
           cricheroes_url: form.cricheroes, playing_role: form.role, batting_style: form.battingStyle,
           bowling_style: form.bowlingStyle, batting_position: form.battingPosition,
-          current_team: form.currentTeam, previous_teams: form.previousTeams, experience: form.experience,
-          major_experience: form.majorExperience, achievements: form.achievements, uae_experience: form.uaeExperience,
+          current_team: form.currentTeam,
           payment_reference: form.paymentRef, payment_receipt_path: receiptPath,
           declaration_accepted: form.declarationAccepted,
         },
@@ -118,6 +121,20 @@ export default function RegisterForm({ settings }: { settings: Settings }) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (closed) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <Card className="max-w-md w-full p-8 text-center">
+          <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl bg-orange/15 text-orange">✕</div>
+          <h2 className="text-xl font-bold mb-2 font-display">Registration Closed</h2>
+          <p className="text-sm leading-relaxed text-muted">
+            Player registration has reached its maximum capacity for this season. Thank you to everyone who registered — approved players will be contacted ahead of the auction.
+          </p>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -136,6 +153,8 @@ export default function RegisterForm({ settings }: { settings: Settings }) {
             <li>• Registration does not guarantee selection in the auction.</li>
             <li>• The player registration fee is non-refundable even if the player is not selected.</li>
             <li>• No salary or auction money will be paid to players.</li>
+            <li>• 🎽 {shirtNote}</li>
+            {typeof spotsRemaining === "number" && <li>• {spotsRemaining} registration {spotsRemaining === 1 ? "spot" : "spots"} remaining.</li>}
           </ul>
         </Card>
 
@@ -197,16 +216,13 @@ export default function RegisterForm({ settings }: { settings: Settings }) {
 
           <FormSection title="Identification">
             <Card className="p-3 mb-4" style={{ background: "rgba(78,155,255,0.06)", borderColor: "rgba(78,155,255,0.25)" }}>
-              <p className="text-[11px] text-blue">Your Emirates ID is stored in a private, access-restricted bucket and is visible only to authorised tournament administrators.</p>
+              <p className="text-[11px] text-blue">Your Emirates ID number is kept private and is visible only to authorised tournament administrators.</p>
             </Card>
             <Field label="Emirates ID Number" required={settings?.emirates_id_required}>
               <input value={form.emiratesId} onChange={set("emiratesId")} required={settings?.emirates_id_required} />
             </Field>
             <Field label="Emirates ID Expiry Date">
               <input type="date" value={form.emiratesIdExpiry} onChange={set("emiratesIdExpiry")} />
-            </Field>
-            <Field label="Emirates ID Copy" hint={fileErr.emiratesIdCopy || files.emiratesIdCopy?.name}>
-              <input type="file" accept="image/*,.pdf" onChange={handleFile("emiratesIdCopy")} className="text-xs !p-0" />
             </Field>
           </FormSection>
 
@@ -226,14 +242,7 @@ export default function RegisterForm({ settings }: { settings: Settings }) {
               <Field label="Bowling Style"><input value={form.bowlingStyle} onChange={set("bowlingStyle")} placeholder="e.g. Right-arm medium" /></Field>
               <Field label="Preferred Batting Position"><input value={form.battingPosition} onChange={set("battingPosition")} /></Field>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Current Team"><input value={form.currentTeam} onChange={set("currentTeam")} /></Field>
-              <Field label="Previous Teams"><input value={form.previousTeams} onChange={set("previousTeams")} /></Field>
-            </div>
-            <Field label="Tennis Cricket Experience"><textarea value={form.experience} onChange={set("experience")} rows={3} /></Field>
-            <Field label="Major Tournament Experience"><textarea value={form.majorExperience} onChange={set("majorExperience")} rows={3} /></Field>
-            <Field label="Major Achievements"><textarea value={form.achievements} onChange={set("achievements")} rows={3} /></Field>
-            <Field label="UAE Tournament Experience"><textarea value={form.uaeExperience} onChange={set("uaeExperience")} rows={3} /></Field>
+            <Field label="Current Team"><input value={form.currentTeam} onChange={set("currentTeam")} /></Field>
           </FormSection>
 
           <FormSection title={`Payment — ${currency} ${fee}`}>
@@ -241,11 +250,27 @@ export default function RegisterForm({ settings }: { settings: Settings }) {
               <Field label="Payment Method">
                 <select value={form.paymentMethod} onChange={set("paymentMethod")}>
                   <option value="">Select</option>
-                  <option>Bank Transfer</option><option>Cash</option><option>Online Payment Link</option>
+                  <option>Bank Transfer</option><option>Cash</option>
                 </select>
               </Field>
               <Field label="Payment Reference"><input value={form.paymentRef} onChange={set("paymentRef")} /></Field>
             </div>
+
+            {form.paymentMethod === "Bank Transfer" && (
+              <Card className="p-4 mb-4" style={{ background: "rgba(212,175,55,0.06)", borderColor: "rgba(212,175,55,0.3)" }}>
+                <div className="text-xs font-bold uppercase tracking-wide mb-3 text-goldBright">Bank Account Details</div>
+                <div className="text-sm space-y-1.5 text-muted">
+                  {settings?.bank_account_name && <div><span className="text-mutedDim">Account Name: </span>{settings.bank_account_name}</div>}
+                  {settings?.bank_name && <div><span className="text-mutedDim">Bank: </span>{settings.bank_name}</div>}
+                  {settings?.bank_account_number && <div><span className="text-mutedDim">Account Number: </span>{settings.bank_account_number}</div>}
+                  {settings?.bank_iban && <div><span className="text-mutedDim">IBAN: </span>{settings.bank_iban}</div>}
+                  {!settings?.bank_account_name && !settings?.bank_name && (
+                    <div className="text-mutedDim">Bank details have not been set up yet — please contact the organising committee.</div>
+                  )}
+                </div>
+              </Card>
+            )}
+
             <Field label="Upload Payment Receipt" hint={fileErr.receipt || files.receipt?.name}>
               <input type="file" accept="image/*,.pdf" onChange={handleFile("receipt")} className="text-xs !p-0" />
             </Field>
