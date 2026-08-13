@@ -19,9 +19,9 @@ const MAX_FILE_BYTES = 8 * 1024 * 1024;
 function emptyForm() {
   return {
     fullName: "", dob: "", mobile: "", whatsapp: "", email: "",
-    emirate: "", uaeLocation: "", playerType: PLAYER_TYPES[0], district: "", state: "",
+    emirate: "", uaeLocation: "", playerType: PLAYER_TYPES[0] as string, district: "", state: "",
     emiratesId: "", emiratesIdExpiry: "",
-    cricheroes: "", role: PLAYING_ROLES[0], battingStyle: BATTING_STYLES[0], bowlingStyle: "",
+    cricheroes: "", role: PLAYING_ROLES[0] as string, battingStyle: BATTING_STYLES[0] as string, bowlingStyle: "",
     battingPosition: "", currentTeam: "", previousTeams: "", experience: "", majorExperience: "",
     achievements: "", uaeExperience: "", notes: "",
     paymentMethod: "", paymentRef: "",
