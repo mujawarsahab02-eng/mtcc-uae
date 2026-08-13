@@ -5,7 +5,7 @@ import { getCurrentProfile } from "@/lib/supabase/profile";
 import { SETTINGS_EDIT_ROLES } from "@/lib/constants";
 import { revalidatePath } from "next/cache";
 
-export async function addCategory(name: string) {
+export async function addCategory(name: string): Promise<any> {
   const profile = await getCurrentProfile();
   if (!profile || !SETTINGS_EDIT_ROLES.includes(profile.role)) return { error: "Not authorised." };
   const supabase = createClient();
@@ -16,7 +16,7 @@ export async function addCategory(name: string) {
   return { ok: true };
 }
 
-export async function removeCategory(name: string) {
+export async function removeCategory(name: string): Promise<any> {
   const profile = await getCurrentProfile();
   if (!profile || !SETTINGS_EDIT_ROLES.includes(profile.role)) return { error: "Not authorised." };
   const supabase = createClient();
