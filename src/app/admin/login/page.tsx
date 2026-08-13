@@ -34,7 +34,7 @@ function LoginForm() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="w-24 h-24 mx-auto rounded-2xl flex items-center justify-center mb-4 border-2 border-gold bg-bgCard shadow-[0_0_30px_rgba(212,175,55,0.3)] overflow-hidden">
-            <img src="/logo.png" alt="MTCC UAE" className="w-full h-full object-contain p-1.5" />
+            <img src="/logo.png" alt="MTCC UAE" className="w-full h-full object-contain p-0.5" />
           </div>
           <h1 className="text-xl font-bold font-display">Maharashtra Tennis Cricket Championship UAE</h1>
         </div>
