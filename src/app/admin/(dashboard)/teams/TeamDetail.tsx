@@ -42,6 +42,7 @@ export default function TeamDetail({ team, settings, canManage, canEditFinance, 
         entry_fee_amount: Number(draft.entry_fee_amount), amount_paid: Number(draft.amount_paid || 0),
         payment_status: draft.payment_status, payment_reference: draft.payment_reference,
         payment_date: draft.payment_date, payment_receipt_path: draft.payment_receipt_path,
+        auction_points: Number(draft.auction_points || 0),
       });
     }
     const res: any = await updateTeam(team.id, patch);
@@ -98,12 +99,12 @@ export default function TeamDetail({ team, settings, canManage, canEditFinance, 
               <Field label="Payment Receipt" hint={draft.payment_receipt_path || undefined}>
                 <input type="file" className="text-xs !p-0" onChange={(e) => e.target.files?.[0] && uploadReceipt(e.target.files[0])} />
               </Field>
+              <Field label="Auction Purse (points)" hint="This team's own starting purse — independent of the tournament-wide default in Settings">
+                <input type="number" value={draft.auction_points ?? 1000} onChange={set("auction_points")} />
+              </Field>
             </FormSection>
           </fieldset>
 
-          <div className="grid grid-cols-2 gap-3 mb-4 text-xs text-mutedDim">
-            <div>Auction Purse: <b className="text-goldBright">{draft.auction_points} pts</b></div>
-          </div>
           {err && <div className="text-xs mb-3 text-red">{err}</div>}
           {(canManage || canEditFinance) && (
             <Button variant="primary" className="w-full" onClick={handleSave} disabled={busy}>{busy ? "Saving…" : "Save Team"}</Button>
