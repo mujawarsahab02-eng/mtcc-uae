@@ -19,7 +19,8 @@ export default function SettingsForm({ settings, canEdit, canToggleOverseas, cur
 
   async function handleSave() {
     setSaving(true);
-    const { error } = await saveSettings(draft);
+    const saveResult: any = await saveSettings(draft);
+    const { error } = saveResult;
     setSaving(false);
     if (!error) {
       setSaved(true);
