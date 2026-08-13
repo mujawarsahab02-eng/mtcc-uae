@@ -6,7 +6,7 @@ import { SETTINGS_EDIT_ROLES } from "@/lib/constants";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 
-export async function saveSettings(next: Record<string, any>) {
+export async function saveSettings(next: Record<string, any>): Promise<any> {
   const profile = await getCurrentProfile();
   if (!profile || !SETTINGS_EDIT_ROLES.includes(profile.role)) {
     return { error: "You do not have permission to edit Tournament Settings." };
