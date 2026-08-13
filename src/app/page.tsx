@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui";
+import Logo from "@/components/Logo";
 
 export const revalidate = 60;
 
@@ -68,7 +69,7 @@ export default async function LandingPage() {
 
       <div className="relative z-10 flex flex-col items-center text-center px-6 pt-16 pb-10">
         <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl flex items-center justify-center mb-6 border-2 border-gold bg-bgCard shadow-[0_0_40px_rgba(212,175,55,0.35)] overflow-hidden" style={{ transform: "rotate(-3deg)" }}>
-          <img src="/logo.png" alt="MTCC UAE" className="w-full h-full object-contain p-0.5" style={{ transform: "rotate(3deg)" }} />
+          <Logo className="w-full h-full" rotate={3} />
         </div>
 
         <div className="text-[11px] uppercase tracking-[0.3em] font-bold mb-3 text-orange">
