@@ -19,7 +19,7 @@ export default async function UsersPage() {
     );
   }
 
-  const result = await listUsersWithProfiles();
+  const result: any = await listUsersWithProfiles();
   const supabase = createClient();
   const { data: teams } = await supabase.from("teams").select("id, name").order("created_at");
 
