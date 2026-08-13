@@ -7,7 +7,7 @@ import { validateSale, type PlayerRow, type TeamRow } from "@/lib/auction";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 
-async function requireAuctionRole() {
+async function requireAuctionRole(): Promise<any> {
   const profile = await getCurrentProfile();
   if (!profile || !AUCTION_ROLES.includes(profile.role)) {
     return { error: "Your role cannot run the live auction." } as const;
@@ -35,7 +35,7 @@ function revalidateAuctionPaths() {
   revalidatePath("/team");
 }
 
-export async function startAuction() {
+export async function startAuction(): Promise<any> {
   const guard = await requireAuctionRole();
   if ("error" in guard) return guard;
   const supabase = createClient();
@@ -68,7 +68,7 @@ export async function startAuction() {
   return { ok: true };
 }
 
-export async function pauseAuction() {
+export async function pauseAuction(): Promise<any> {
   const guard = await requireAuctionRole();
   if ("error" in guard) return guard;
   const supabase = createClient();
@@ -78,7 +78,7 @@ export async function pauseAuction() {
   return { ok: true };
 }
 
-export async function placeBid(teamId: string, nextAmount: number, override: boolean) {
+export async function placeBid(teamId: string, nextAmount: number, override: boolean): Promise<any> {
   const guard = await requireAuctionRole();
   if ("error" in guard) return guard;
   const { profile } = guard;
@@ -119,7 +119,7 @@ async function advancePool(supabase: ReturnType<typeof createClient>, auction: a
   }).eq("id", 1);
 }
 
-export async function markSold(override: boolean) {
+export async function markSold(override: boolean): Promise<any> {
   const guard = await requireAuctionRole();
   if ("error" in guard) return guard;
   const { profile } = guard;
@@ -155,7 +155,7 @@ export async function markSold(override: boolean) {
   return { ok: true };
 }
 
-export async function markUnsold() {
+export async function markUnsold(): Promise<any> {
   const guard = await requireAuctionRole();
   if ("error" in guard) return guard;
   const supabase = createClient();
@@ -181,7 +181,7 @@ export async function markUnsold() {
 
 // Item 11 & 12: DEFER PLAYER moves the current player to the end of the
 // remaining pool without changing their status — never lost.
-export async function deferPlayer() {
+export async function deferPlayer(): Promise<any> {
   const guard = await requireAuctionRole();
   if ("error" in guard) return guard;
   const supabase = createClient();
@@ -199,7 +199,7 @@ export async function deferPlayer() {
 }
 
 // Item 13: reverses the last SOLD/UNSOLD result only — not individual bids.
-export async function undoLastPlayerResult() {
+export async function undoLastPlayerResult(): Promise<any> {
   const guard = await requireAuctionRole();
   if ("error" in guard) return guard;
   const supabase = createClient();
