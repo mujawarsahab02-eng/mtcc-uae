@@ -18,7 +18,7 @@ export default function UsersClient({ initialUsers, teams }: any) {
   async function handleInvite() {
     if (!inviteEmail) return;
     setBusy(true); setMsg("");
-    const res = await inviteUser(inviteEmail, inviteRole, inviteRole === "Team Owner" ? inviteTeam || null : null);
+    const res: any = await inviteUser(inviteEmail, inviteRole, inviteRole === "Team Owner" ? inviteTeam || null : null);
     setBusy(false);
     if (res.error) setMsg(res.error);
     else { setInviteEmail(""); router.refresh(); }
