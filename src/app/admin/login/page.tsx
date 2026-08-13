@@ -33,8 +33,8 @@ function LoginForm() {
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[radial-gradient(circle_at_50%_0%,#16213D_0%,#0A0F1C_60%)]">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center mb-4 border-2 border-gold bg-bgCard">
-            <span className="font-display font-bold text-2xl text-gold">MTCC</span>
+          <div className="w-24 h-24 mx-auto rounded-2xl flex items-center justify-center mb-4 border-2 border-gold bg-bgCard shadow-[0_0_30px_rgba(212,175,55,0.3)] overflow-hidden">
+            <img src="/logo.png" alt="MTCC UAE" className="w-full h-full object-contain p-1.5" />
           </div>
           <h1 className="text-xl font-bold font-display">Maharashtra Tennis Cricket Championship UAE</h1>
         </div>
