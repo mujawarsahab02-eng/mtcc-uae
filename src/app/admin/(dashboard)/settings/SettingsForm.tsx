@@ -4,12 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Field, FormSection, SectionHeader, SeamDivider } from "@/components/ui";
 import { saveSettings } from "./actions";
+import { applyPurseToAllTeams } from "../teams/actions";
 
 export default function SettingsForm({ settings, canEdit, canToggleOverseas, currentRole }: any) {
   const router = useRouter();
   const [draft, setDraft] = useState<Record<string, any>>(settings ?? {});
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [applyingPurse, setApplyingPurse] = useState(false);
+  const [purseMsg, setPurseMsg] = useState("");
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const val = (e.target as HTMLInputElement).type === "checkbox" ? (e.target as HTMLInputElement).checked : e.target.value;
@@ -27,6 +30,15 @@ export default function SettingsForm({ settings, canEdit, canToggleOverseas, cur
       router.refresh();
       setTimeout(() => setSaved(false), 2000);
     }
+  }
+
+  async function handleApplyPurseToAll() {
+    setApplyingPurse(true);
+    setPurseMsg("");
+    const res: any = await applyPurseToAllTeams(Number(draft.auction_points_per_team ?? 1000));
+    setApplyingPurse(false);
+    if (res.error) setPurseMsg(res.error);
+    else { setPurseMsg("Applied to all teams ✓"); router.refresh(); setTimeout(() => setPurseMsg(""), 3000); }
   }
 
   return (
@@ -143,6 +155,17 @@ export default function SettingsForm({ settings, canEdit, canToggleOverseas, cur
           <Field label="Auction Points per Team" hint="Virtual points only — no real currency is paid to players">
             <input type="number" value={draft.auction_points_per_team ?? 1000} onChange={setNum("auction_points_per_team")} />
           </Field>
+          {canEdit && (
+            <div className="mb-4">
+              <Button variant="subtle" size="sm" onClick={handleApplyPurseToAll} disabled={applyingPurse}>
+                {applyingPurse ? "Applying…" : "Apply This Amount to All Existing Teams"}
+              </Button>
+              <p className="text-[11px] text-mutedDim mt-1.5">
+                Changing the amount above only affects new teams. Click this to reset every existing team's purse to match — safe to use before the auction starts; if the auction is already underway, this overwrites any points already spent tracking, so double-check before using it mid-auction.
+              </p>
+              {purseMsg && <div className="text-xs mt-1 text-goldBright">{purseMsg}</div>}
+            </div>
+          )}
         </FormSection>
 
         <FormSection title="Competition Rules">
