@@ -195,8 +195,8 @@ export default function RegisterForm({ settings, closed, spotsRemaining }: { set
         </svg>
 
         <div className="relative z-10 max-w-2xl mx-auto px-6 pt-12 pb-10 text-center">
-          <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-5 overflow-hidden" style={{ border: "1px solid rgba(212,175,55,0.6)", boxShadow: "0 0 0 4px rgba(212,175,55,0.08)" }}>
-            <img src="/logo.png" alt="MTCC UAE" className="w-full h-full object-contain p-1.5" />
+          <div className="w-24 h-24 mx-auto rounded-full flex items-center justify-center mb-5 overflow-hidden" style={{ border: "1px solid rgba(212,175,55,0.6)", boxShadow: "0 0 0 4px rgba(212,175,55,0.08)" }}>
+            <img src="/logo.png" alt="MTCC UAE" className="w-full h-full object-contain p-0" />
           </div>
           <div className="text-[10px] uppercase tracking-[0.35em] font-semibold mb-3 text-orange">Player Registration</div>
           <h1 className="font-serif-lux italic text-2xl sm:text-3xl text-ink mb-2 leading-snug">
