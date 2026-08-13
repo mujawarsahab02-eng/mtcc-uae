@@ -36,8 +36,8 @@ export default function Sidebar({ role, fullName }: { role: UserRole; fullName: 
   const content = (
     <div className="flex flex-col h-full">
       <div className="px-5 py-6 border-b border-line">
-        <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-3 border-2 border-gold bg-bgCard">
-          <span className="font-display font-bold text-base text-gold">MTCC</span>
+        <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-3 border-2 border-gold bg-bgCard overflow-hidden">
+          <img src="/logo.png" alt="MTCC UAE" className="w-full h-full object-contain p-1" />
         </div>
         <div className="text-sm font-bold leading-snug mt-0.5 font-display">{fullName || "MTCC UAE Admin"}</div>
         <div className="mt-2"><Badge tone="blue">{role}</Badge></div>
