@@ -93,6 +93,27 @@ export default function SettingsForm({ settings, canEdit, canToggleOverseas, cur
           </div>
         </FormSection>
 
+        <FormSection title="Registration Limit & Perks">
+          <Field label="Maximum Registrations" hint="Registration closes automatically once this many players have registered">
+            <input type="number" value={draft.max_registrations ?? 130} onChange={setNum("max_registrations")} />
+          </Field>
+          <Field label="Player Perks Note" hint="Shown on the registration page (e.g. T-shirt, welcome kit)">
+            <input value={draft.shirt_note || ""} onChange={set("shirt_note")} placeholder="A team T-shirt will be provided to every registered player." />
+          </Field>
+        </FormSection>
+
+        <FormSection title="Bank Transfer Details">
+          <p className="text-[11px] text-mutedDim mb-3">Shown to players on the registration page when they select &quot;Bank Transfer&quot; as their payment method.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Account Holder Name"><input value={draft.bank_account_name || ""} onChange={set("bank_account_name")} /></Field>
+            <Field label="Bank Name"><input value={draft.bank_name || ""} onChange={set("bank_name")} /></Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Account Number"><input value={draft.bank_account_number || ""} onChange={set("bank_account_number")} /></Field>
+            <Field label="IBAN"><input value={draft.bank_iban || ""} onChange={set("bank_iban")} /></Field>
+          </div>
+        </FormSection>
+
         <FormSection title="Eligibility">
           <Field label="Player Eligibility Mode">
             <select value={draft.eligibility_mode || "maharashtra_guest"} onChange={set("eligibility_mode")}>
