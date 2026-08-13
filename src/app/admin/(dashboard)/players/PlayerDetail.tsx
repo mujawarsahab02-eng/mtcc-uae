@@ -35,7 +35,7 @@ export default function PlayerDetail({ player, settings, categories, currentRole
   async function save(patch: Record<string, any>, action?: string) {
     setBusy(true);
     setErr("");
-    const res = await updatePlayer(player.id, patch, action);
+    const res: any = await updatePlayer(player.id, patch, action);
     setBusy(false);
     if (res.error) setErr(res.error);
     else {
