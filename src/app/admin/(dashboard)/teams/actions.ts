@@ -10,7 +10,7 @@ export async function updateTeam(id: string, patch: Record<string, any>): Promis
   const profile = await getCurrentProfile();
   if (!profile) return { error: "Not signed in." };
 
-  const financialFields = ["entry_fee_amount", "amount_paid", "payment_status", "payment_reference", "payment_date", "payment_receipt_path"];
+  const financialFields = ["entry_fee_amount", "amount_paid", "payment_status", "payment_reference", "payment_date", "payment_receipt_path", "auction_points"];
   const touchesFinancial = Object.keys(patch).some((k) => financialFields.includes(k));
   const touchesGeneral = Object.keys(patch).some((k) => !financialFields.includes(k));
 
@@ -36,6 +36,26 @@ export async function updateTeam(id: string, patch: Record<string, any>): Promis
 
   revalidatePath("/admin/teams");
   revalidatePath("/admin");
+  revalidatePath("/admin/auction");
+  return { ok: true };
+}
+
+// Pushes a purse value out to every existing team at once — used from the
+// Settings page next to "Auction Points per Team", since changing that
+// setting alone only affects teams created afterward, not existing ones.
+export async function applyPurseToAllTeams(points: number): Promise<any> {
+  const profile = await getCurrentProfile();
+  if (!profile || !DOCUMENT_ACCESS_ROLES.includes(profile.role)) {
+    return { error: "Only Super Admin, Tournament Admin or Finance Admin can update team purses." };
+  }
+  if (!Number.isFinite(points) || points < 0) return { error: "Enter a valid purse amount first." };
+
+  const supabase = createClient();
+  const { error } = await supabase.from("teams").update({ auction_points: points }).not("id", "is", null);
+  if (error) return { error: error.message };
+
+  await logAudit({ action: "Auction Purse Applied to All Teams", entity: "Team", entityId: "all", field: "auction_points", previousValue: "varied", newValue: points });
+  revalidatePath("/admin/teams");
   revalidatePath("/admin/auction");
   return { ok: true };
 }
