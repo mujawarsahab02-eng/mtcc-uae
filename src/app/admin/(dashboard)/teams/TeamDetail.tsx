@@ -44,7 +44,7 @@ export default function TeamDetail({ team, settings, canManage, canEditFinance, 
         payment_date: draft.payment_date, payment_receipt_path: draft.payment_receipt_path,
       });
     }
-    const res = await updateTeam(team.id, patch);
+    const res: any = await updateTeam(team.id, patch);
     setBusy(false);
     if (res.error) setErr(res.error);
     else { router.refresh(); onClose(); }
