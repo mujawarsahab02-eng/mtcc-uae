@@ -6,7 +6,7 @@ import { PLAYER_DECISION_ROLES, DOCUMENT_ACCESS_ROLES } from "@/lib/constants";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 
-export async function updatePlayer(id: string, patch: Record<string, any>, action?: string) {
+export async function updatePlayer(id: string, patch: Record<string, any>, action?: string): Promise<any> {
   const profile = await getCurrentProfile();
   if (!profile) return { error: "Not signed in." };
 
