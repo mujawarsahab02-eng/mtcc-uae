@@ -6,7 +6,7 @@ import { SETTINGS_EDIT_ROLES, DOCUMENT_ACCESS_ROLES } from "@/lib/constants";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 
-export async function updateTeam(id: string, patch: Record<string, any>) {
+export async function updateTeam(id: string, patch: Record<string, any>): Promise<any> {
   const profile = await getCurrentProfile();
   if (!profile) return { error: "Not signed in." };
 
