@@ -144,11 +144,11 @@ export default async function LandingPage() {
         </Link>
       </div>
 
-      {sponsors && sponsors.length > 0 && (
+      {sponsors && sponsors.filter((s) => !s.is_powered_by).length > 0 && (
         <div className="relative z-10 max-w-4xl mx-auto px-6 pb-14">
           <div className="text-center text-[10px] uppercase tracking-[0.3em] text-mutedDim mb-6">Our Sponsors</div>
           <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
-            {sponsors.map((s) => {
+            {sponsors.filter((s) => !s.is_powered_by).map((s) => {
               const logo = publicUrl("sponsor-logos", s.logo_path);
               const content = (
                 <div className="flex flex-col items-center gap-2 opacity-90 hover:opacity-100 transition-opacity">
@@ -168,16 +168,23 @@ export default async function LandingPage() {
         </div>
       )}
 
-      {(settings?.powered_by_name || settings?.powered_by_logo_path) && (
-        <div className="relative z-10 flex flex-col items-center gap-2 pb-10 border-t border-line pt-8 max-w-xs mx-auto">
+      {sponsors && sponsors.filter((s) => s.is_powered_by).length > 0 && (
+        <div className="relative z-10 flex flex-col items-center gap-3 pb-10 border-t border-line pt-8 max-w-md mx-auto">
           <span className="text-[10px] uppercase tracking-[0.25em] text-mutedDim">Powered By</span>
-          <div className="flex items-center gap-2">
-            {settings.powered_by_logo_path && (
-              <div className="w-6 h-6 rounded-md overflow-hidden bg-bgCard border border-line flex items-center justify-center shrink-0">
-                <img src={publicUrl("sponsor-logos", settings.powered_by_logo_path)!} alt={settings.powered_by_name || "Powered by"} className="w-full h-full object-contain" />
-              </div>
-            )}
-            {settings.powered_by_name && <span className="text-sm font-semibold text-muted">{settings.powered_by_name}</span>}
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            {sponsors.filter((s) => s.is_powered_by).map((s) => {
+              const logo = publicUrl("sponsor-logos", s.logo_path);
+              return (
+                <div key={s.id} className="flex items-center gap-2">
+                  {logo && (
+                    <div className="w-6 h-6 rounded-md overflow-hidden bg-bgCard border border-line flex items-center justify-center shrink-0">
+                      <img src={logo} alt={s.name} className="w-full h-full object-contain" />
+                    </div>
+                  )}
+                  <span className="text-sm font-semibold text-muted">{s.name}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
