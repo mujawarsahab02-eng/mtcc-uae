@@ -8,6 +8,12 @@ export const revalidate = 60;
 export default async function LandingPage() {
   const supabase = createClient();
   const { data: settings } = await supabase.from("tournament_settings").select("*").eq("id", 1).single();
+  const { data: sponsors } = await supabase.from("sponsors").select("*").order("sort_order");
+
+  function publicUrl(bucket: string, path: string | null) {
+    if (!path) return null;
+    return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+  }
 
   const stats = [
     { label: "Registration Fee", value: `${settings?.currency ?? "AED"} ${settings?.player_reg_fee ?? 25}` },
@@ -137,6 +143,44 @@ export default async function LandingPage() {
           Organiser / Team Owner Sign In →
         </Link>
       </div>
+
+      {sponsors && sponsors.length > 0 && (
+        <div className="relative z-10 max-w-4xl mx-auto px-6 pb-14">
+          <div className="text-center text-[10px] uppercase tracking-[0.3em] text-mutedDim mb-6">Our Sponsors</div>
+          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
+            {sponsors.map((s) => {
+              const logo = publicUrl("sponsor-logos", s.logo_path);
+              const content = (
+                <div className="flex flex-col items-center gap-2 opacity-90 hover:opacity-100 transition-opacity">
+                  <div className="w-16 h-16 rounded-xl bg-bgCard border border-line flex items-center justify-center overflow-hidden">
+                    {logo ? <img src={logo} alt={s.name} className="w-full h-full object-contain p-2" /> : <span className="text-[10px] text-mutedDim px-1 text-center">{s.name}</span>}
+                  </div>
+                  <span className="text-[11px] text-mutedDim">{s.name}</span>
+                </div>
+              );
+              return s.website_url ? (
+                <a key={s.id} href={s.website_url} target="_blank" rel="noreferrer">{content}</a>
+              ) : (
+                <div key={s.id}>{content}</div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {(settings?.powered_by_name || settings?.powered_by_logo_path) && (
+        <div className="relative z-10 flex flex-col items-center gap-2 pb-10 border-t border-line pt-8 max-w-xs mx-auto">
+          <span className="text-[10px] uppercase tracking-[0.25em] text-mutedDim">Powered By</span>
+          <div className="flex items-center gap-2">
+            {settings.powered_by_logo_path && (
+              <div className="w-6 h-6 rounded-md overflow-hidden bg-bgCard border border-line flex items-center justify-center shrink-0">
+                <img src={publicUrl("sponsor-logos", settings.powered_by_logo_path)!} alt={settings.powered_by_name || "Powered by"} className="w-full h-full object-contain" />
+              </div>
+            )}
+            {settings.powered_by_name && <span className="text-sm font-semibold text-muted">{settings.powered_by_name}</span>}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
