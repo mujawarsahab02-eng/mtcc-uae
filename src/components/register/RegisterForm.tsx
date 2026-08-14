@@ -76,55 +76,70 @@ function IconRow({ icon, children }: { icon: string; children: React.ReactNode }
   );
 }
 
-function SponsorsFooter({ sponsors, settings }: { sponsors: any[]; settings: Settings }) {
+function PoweredByCorner({ sponsors }: { sponsors: any[] }) {
+  const supabase = createClient();
+  function publicUrl(bucket: string, path?: string | null) {
+    if (!path) return null;
+    return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+  }
+  const poweredBy = (sponsors || []).filter((s) => s.is_powered_by);
+  if (poweredBy.length === 0) return null;
+
+  return (
+    <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-1.5">
+      <span className="text-[9px] uppercase tracking-[0.2em] text-mutedDim">Powered By</span>
+      <div className="flex items-center gap-2 flex-wrap justify-end">
+        {poweredBy.map((s) => {
+          const logo = publicUrl("sponsor-logos", s.logo_path);
+          return (
+            <div key={s.id} className="flex items-center gap-1.5 bg-bgCard/80 backdrop-blur border border-line rounded-full pl-1 pr-2.5 py-1">
+              {logo ? (
+                <div className="w-5 h-5 rounded-full overflow-hidden bg-bgCardHover flex items-center justify-center shrink-0">
+                  <img src={logo} alt={s.name} className="w-full h-full object-contain" />
+                </div>
+              ) : null}
+              <span className="text-[10px] font-semibold text-muted whitespace-nowrap">{s.name}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SponsorsFooter({ sponsors }: { sponsors: any[] }) {
   const supabase = createClient();
   function publicUrl(bucket: string, path?: string | null) {
     if (!path) return null;
     return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
   }
 
-  const hasSponsors = sponsors && sponsors.length > 0;
-  const hasPoweredBy = settings?.powered_by_name || settings?.powered_by_logo_path;
-  if (!hasSponsors && !hasPoweredBy) return null;
+  const regular = (sponsors || []).filter((s) => !s.is_powered_by);
+  if (regular.length === 0) return null;
 
   return (
     <div className="max-w-2xl mx-auto px-5 pt-4">
-      {hasSponsors && (
-        <div className="mb-8">
-          <div className="text-center text-[10px] uppercase tracking-[0.3em] text-mutedDim mb-5">Our Sponsors</div>
-          <div className="flex flex-wrap items-center justify-center gap-5 sm:gap-8">
-            {sponsors.map((s) => {
-              const logo = publicUrl("sponsor-logos", s.logo_path);
-              const content = (
-                <div className="flex flex-col items-center gap-1.5 opacity-90 hover:opacity-100 transition-opacity">
-                  <div className="w-14 h-14 rounded-xl bg-bgCard border border-line flex items-center justify-center overflow-hidden">
-                    {logo ? <img src={logo} alt={s.name} className="w-full h-full object-contain p-1.5" /> : <span className="text-[10px] text-mutedDim px-1 text-center">{s.name}</span>}
-                  </div>
-                  <span className="text-[10px] text-mutedDim">{s.name}</span>
+      <div className="mb-8">
+        <div className="text-center text-[10px] uppercase tracking-[0.3em] text-mutedDim mb-5">Our Sponsors</div>
+        <div className="flex flex-wrap items-center justify-center gap-5 sm:gap-8">
+          {regular.map((s) => {
+            const logo = publicUrl("sponsor-logos", s.logo_path);
+            const content = (
+              <div className="flex flex-col items-center gap-1.5 opacity-90 hover:opacity-100 transition-opacity">
+                <div className="w-14 h-14 rounded-xl bg-bgCard border border-line flex items-center justify-center overflow-hidden">
+                  {logo ? <img src={logo} alt={s.name} className="w-full h-full object-contain p-1.5" /> : <span className="text-[10px] text-mutedDim px-1 text-center">{s.name}</span>}
                 </div>
-              );
-              return s.website_url ? (
-                <a key={s.id} href={s.website_url} target="_blank" rel="noreferrer">{content}</a>
-              ) : (
-                <div key={s.id}>{content}</div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      {hasPoweredBy && (
-        <div className="flex flex-col items-center gap-2 pb-8 border-t border-line pt-6">
-          <span className="text-[10px] uppercase tracking-[0.25em] text-mutedDim">Powered By</span>
-          <div className="flex items-center gap-2">
-            {settings?.powered_by_logo_path && (
-              <div className="w-6 h-6 rounded-md overflow-hidden bg-bgCard border border-line flex items-center justify-center shrink-0">
-                <img src={publicUrl("sponsor-logos", settings.powered_by_logo_path)!} alt={settings.powered_by_name || "Powered by"} className="w-full h-full object-contain" />
+                <span className="text-[10px] text-mutedDim">{s.name}</span>
               </div>
-            )}
-            {settings?.powered_by_name && <span className="text-sm font-semibold text-muted">{settings.powered_by_name}</span>}
-          </div>
+            );
+            return s.website_url ? (
+              <a key={s.id} href={s.website_url} target="_blank" rel="noreferrer">{content}</a>
+            ) : (
+              <div key={s.id}>{content}</div>
+            );
+          })}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -229,7 +244,7 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
             Player registration has reached its maximum capacity for this season. Thank you to everyone who registered — approved players will be contacted ahead of the auction.
           </p>
         </Card>
-        <SponsorsFooter sponsors={sponsors} settings={settings} />
+        <SponsorsFooter sponsors={sponsors} />
       </div>
     );
   }
@@ -238,6 +253,7 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
     <div className="min-h-screen pb-20 bg-bg">
       {/* Premium hero banner */}
       <div className="relative overflow-hidden border-b border-line">
+        <PoweredByCorner sponsors={sponsors} />
         <div
           className="absolute inset-0"
           style={{ background: "radial-gradient(circle at 50% -10%, rgba(212,175,55,0.18) 0%, transparent 55%), linear-gradient(180deg, #0F1729 0%, #0A0F1C 100%)" }}
@@ -433,7 +449,7 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
         </form>
       </div>
 
-      <SponsorsFooter sponsors={sponsors} settings={settings} />
+      <SponsorsFooter sponsors={sponsors} />
     </div>
   );
 }
