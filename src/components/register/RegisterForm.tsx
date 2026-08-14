@@ -18,6 +18,8 @@ type Settings = {
   bank_name?: string;
   bank_account_number?: string;
   bank_iban?: string;
+  powered_by_name?: string;
+  powered_by_logo_path?: string;
 } | null;
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
@@ -74,7 +76,60 @@ function IconRow({ icon, children }: { icon: string; children: React.ReactNode }
   );
 }
 
-export default function RegisterForm({ settings, closed, spotsRemaining }: { settings: Settings; closed?: boolean; spotsRemaining?: number }) {
+function SponsorsFooter({ sponsors, settings }: { sponsors: any[]; settings: Settings }) {
+  const supabase = createClient();
+  function publicUrl(bucket: string, path?: string | null) {
+    if (!path) return null;
+    return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+  }
+
+  const hasSponsors = sponsors && sponsors.length > 0;
+  const hasPoweredBy = settings?.powered_by_name || settings?.powered_by_logo_path;
+  if (!hasSponsors && !hasPoweredBy) return null;
+
+  return (
+    <div className="max-w-2xl mx-auto px-5 pt-4">
+      {hasSponsors && (
+        <div className="mb-8">
+          <div className="text-center text-[10px] uppercase tracking-[0.3em] text-mutedDim mb-5">Our Sponsors</div>
+          <div className="flex flex-wrap items-center justify-center gap-5 sm:gap-8">
+            {sponsors.map((s) => {
+              const logo = publicUrl("sponsor-logos", s.logo_path);
+              const content = (
+                <div className="flex flex-col items-center gap-1.5 opacity-90 hover:opacity-100 transition-opacity">
+                  <div className="w-14 h-14 rounded-xl bg-bgCard border border-line flex items-center justify-center overflow-hidden">
+                    {logo ? <img src={logo} alt={s.name} className="w-full h-full object-contain p-1.5" /> : <span className="text-[10px] text-mutedDim px-1 text-center">{s.name}</span>}
+                  </div>
+                  <span className="text-[10px] text-mutedDim">{s.name}</span>
+                </div>
+              );
+              return s.website_url ? (
+                <a key={s.id} href={s.website_url} target="_blank" rel="noreferrer">{content}</a>
+              ) : (
+                <div key={s.id}>{content}</div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {hasPoweredBy && (
+        <div className="flex flex-col items-center gap-2 pb-8 border-t border-line pt-6">
+          <span className="text-[10px] uppercase tracking-[0.25em] text-mutedDim">Powered By</span>
+          <div className="flex items-center gap-2">
+            {settings?.powered_by_logo_path && (
+              <div className="w-6 h-6 rounded-md overflow-hidden bg-bgCard border border-line flex items-center justify-center shrink-0">
+                <img src={publicUrl("sponsor-logos", settings.powered_by_logo_path)!} alt={settings.powered_by_name || "Powered by"} className="w-full h-full object-contain" />
+              </div>
+            )}
+            {settings?.powered_by_name && <span className="text-sm font-semibold text-muted">{settings.powered_by_name}</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function RegisterForm({ settings, closed, spotsRemaining, sponsors = [] }: { settings: Settings; closed?: boolean; spotsRemaining?: number; sponsors?: any[] }) {
   const router = useRouter();
   const supabase = createClient();
   const currency = settings?.currency ?? "AED";
@@ -166,14 +221,15 @@ export default function RegisterForm({ settings, closed, spotsRemaining }: { set
 
   if (closed) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <Card className="max-w-md w-full p-8 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center p-6">
+        <Card className="max-w-md w-full p-8 text-center mb-8">
           <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl bg-orange/15 text-orange">✕</div>
           <h2 className="text-xl font-bold mb-2 font-display">Registration Closed</h2>
           <p className="text-sm leading-relaxed text-muted">
             Player registration has reached its maximum capacity for this season. Thank you to everyone who registered — approved players will be contacted ahead of the auction.
           </p>
         </Card>
+        <SponsorsFooter sponsors={sponsors} settings={settings} />
       </div>
     );
   }
@@ -376,6 +432,8 @@ export default function RegisterForm({ settings, closed, spotsRemaining }: { set
           </Button>
         </form>
       </div>
+
+      <SponsorsFooter sponsors={sponsors} settings={settings} />
     </div>
   );
 }
