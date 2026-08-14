@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Button, Card, Field, SectionHeader, SeamDivider } from "@/components/ui";
+import { Badge, Button, Card, Field, SectionHeader, SeamDivider } from "@/components/ui";
 import { addSponsor, updateSponsor, deleteSponsor } from "./actions";
 
 export default function SponsorsClient({ initialSponsors, canManage }: { initialSponsors: any[]; canManage: boolean }) {
@@ -14,6 +14,7 @@ export default function SponsorsClient({ initialSponsors, canManage }: { initial
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
+  const [isPoweredBy, setIsPoweredBy] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -24,7 +25,7 @@ export default function SponsorsClient({ initialSponsors, canManage }: { initial
   }
 
   function resetForm() {
-    setName(""); setWebsiteUrl(""); setLogoFile(null); setErr(""); setAdding(false); setEditing(null);
+    setName(""); setWebsiteUrl(""); setLogoFile(null); setIsPoweredBy(false); setErr(""); setAdding(false); setEditing(null);
   }
 
   async function handleAdd() {
@@ -37,7 +38,7 @@ export default function SponsorsClient({ initialSponsors, canManage }: { initial
         if (error) throw new Error(error.message);
         logoPath = path;
       }
-      const res: any = await addSponsor(name, logoPath, websiteUrl || null);
+      const res: any = await addSponsor(name, logoPath, websiteUrl || null, isPoweredBy);
       if (res.error) throw new Error(res.error);
       resetForm();
       router.refresh();
@@ -58,9 +59,9 @@ export default function SponsorsClient({ initialSponsors, canManage }: { initial
         if (error) throw new Error(error.message);
         logoPath = path;
       }
-      const res: any = await updateSponsor(sponsor.id, { name, website_url: websiteUrl || null, logo_path: logoPath });
+      const res: any = await updateSponsor(sponsor.id, { name, website_url: websiteUrl || null, logo_path: logoPath, is_powered_by: isPoweredBy });
       if (res.error) throw new Error(res.error);
-      setSponsors((prev) => prev.map((s) => (s.id === sponsor.id ? { ...s, name, website_url: websiteUrl, logo_path: logoPath } : s)));
+      setSponsors((prev) => prev.map((s) => (s.id === sponsor.id ? { ...s, name, website_url: websiteUrl, logo_path: logoPath, is_powered_by: isPoweredBy } : s)));
       resetForm();
       router.refresh();
     } catch (e: any) {
@@ -84,46 +85,19 @@ export default function SponsorsClient({ initialSponsors, canManage }: { initial
     setEditing(sponsor);
     setName(sponsor.name);
     setWebsiteUrl(sponsor.website_url || "");
+    setIsPoweredBy(!!sponsor.is_powered_by);
     setLogoFile(null);
     setAdding(false);
   }
 
-  return (
-    <div>
-      <SectionHeader
-        eyebrow="Admin"
-        title="Sponsors"
-        action={canManage && !adding && !editing && <Button variant="primary" onClick={() => { setAdding(true); setName(""); setWebsiteUrl(""); setLogoFile(null); }}>Add Sponsor</Button>}
-      />
-      <SeamDivider />
+  const poweredByList = sponsors.filter((s) => s.is_powered_by);
+  const regularList = sponsors.filter((s) => !s.is_powered_by);
 
-      {!canManage && (
-        <Card className="p-3 mb-5 text-xs text-orange" style={{ borderColor: "rgba(255,122,61,0.3)" }}>
-          Read-only for your role. Only Super Admin and Tournament Admin can manage sponsors.
-        </Card>
-      )}
-
-      {(adding || editing) && (
-        <Card className="p-5 mb-6">
-          <div className="text-xs font-bold uppercase tracking-wide mb-4 text-muted">{editing ? "Edit Sponsor" : "New Sponsor"}</div>
-          <Field label="Sponsor Name" required><input value={name} onChange={(e) => setName(e.target.value)} /></Field>
-          <Field label="Website URL (optional)"><input value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} placeholder="https://..." /></Field>
-          <Field label="Logo" hint={logoFile?.name || (editing?.logo_path ? "Leave blank to keep current logo" : undefined)}>
-            <input type="file" accept="image/*" className="text-xs !p-0" onChange={(e) => setLogoFile(e.target.files?.[0] || null)} />
-          </Field>
-          {err && <div className="text-xs mb-3 text-red">{err}</div>}
-          <div className="flex gap-2">
-            <Button variant="primary" onClick={() => (editing ? handleUpdate(editing) : handleAdd())} disabled={busy || !name.trim()}>
-              {busy ? "Saving…" : editing ? "Save Changes" : "Add Sponsor"}
-            </Button>
-            <Button variant="ghost" onClick={resetForm} disabled={busy}>Cancel</Button>
-          </div>
-        </Card>
-      )}
-
+  function SponsorGrid({ list }: { list: any[] }) {
+    return (
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {sponsors.length === 0 && <Card className="p-8 text-center text-sm text-mutedDim col-span-full">No sponsors added yet.</Card>}
-        {sponsors.map((s) => (
+        {list.length === 0 && <Card className="p-6 text-center text-sm text-mutedDim col-span-full">None added yet.</Card>}
+        {list.map((s) => (
           <Card key={s.id} className="p-4">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0 bg-bgCardHover overflow-hidden border border-line">
@@ -143,6 +117,57 @@ export default function SponsorsClient({ initialSponsors, canManage }: { initial
           </Card>
         ))}
       </div>
+    );
+  }
+
+  return (
+    <div>
+      <SectionHeader
+        eyebrow="Admin"
+        title="Sponsors & Powered By"
+        action={canManage && !adding && !editing && <Button variant="primary" onClick={() => { resetForm(); setAdding(true); }}>Add Entry</Button>}
+      />
+      <SeamDivider />
+
+      {!canManage && (
+        <Card className="p-3 mb-5 text-xs text-orange" style={{ borderColor: "rgba(255,122,61,0.3)" }}>
+          Read-only for your role. Only Super Admin and Tournament Admin can manage sponsors.
+        </Card>
+      )}
+
+      {(adding || editing) && (
+        <Card className="p-5 mb-6">
+          <div className="text-xs font-bold uppercase tracking-wide mb-4 text-muted">{editing ? "Edit Entry" : "New Entry"}</div>
+          <Field label="Name" required><input value={name} onChange={(e) => setName(e.target.value)} /></Field>
+          <Field label="Website URL (optional)"><input value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} placeholder="https://..." /></Field>
+          <Field label="Logo" hint={logoFile?.name || (editing?.logo_path ? "Leave blank to keep current logo" : undefined)}>
+            <input type="file" accept="image/*" className="text-xs !p-0" onChange={(e) => setLogoFile(e.target.files?.[0] || null)} />
+          </Field>
+          <label className="flex items-center gap-2 text-sm mb-4 text-muted">
+            <input type="checkbox" className="!w-auto" checked={isPoweredBy} onChange={(e) => setIsPoweredBy(e.target.checked)} />
+            Show in the &quot;Powered By&quot; spot (top corner) instead of the main sponsors row
+          </label>
+          {err && <div className="text-xs mb-3 text-red">{err}</div>}
+          <div className="flex gap-2">
+            <Button variant="primary" onClick={() => (editing ? handleUpdate(editing) : handleAdd())} disabled={busy || !name.trim()}>
+              {busy ? "Saving…" : editing ? "Save Changes" : "Add Entry"}
+            </Button>
+            <Button variant="ghost" onClick={resetForm} disabled={busy}>Cancel</Button>
+          </div>
+        </Card>
+      )}
+
+      <div className="mb-3 flex items-center gap-2">
+        <div className="text-xs font-bold uppercase tracking-wide text-muted">Powered By</div>
+        <Badge tone="gold">{poweredByList.length}</Badge>
+      </div>
+      <div className="mb-8"><SponsorGrid list={poweredByList} /></div>
+
+      <div className="mb-3 flex items-center gap-2">
+        <div className="text-xs font-bold uppercase tracking-wide text-muted">Sponsors</div>
+        <Badge tone="gold">{regularList.length}</Badge>
+      </div>
+      <SponsorGrid list={regularList} />
     </div>
   );
 }
