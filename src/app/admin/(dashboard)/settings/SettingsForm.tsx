@@ -3,16 +3,19 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Field, FormSection, SectionHeader, SeamDivider } from "@/components/ui";
+import { createClient } from "@/lib/supabase/client";
 import { saveSettings } from "./actions";
 import { applyPurseToAllTeams } from "../teams/actions";
 
 export default function SettingsForm({ settings, canEdit, canToggleOverseas, currentRole }: any) {
   const router = useRouter();
+  const supabase = createClient();
   const [draft, setDraft] = useState<Record<string, any>>(settings ?? {});
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [applyingPurse, setApplyingPurse] = useState(false);
   const [purseMsg, setPurseMsg] = useState("");
+  const [poweredByLogoFile, setPoweredByLogoFile] = useState<File | null>(null);
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const val = (e.target as HTMLInputElement).type === "checkbox" ? (e.target as HTMLInputElement).checked : e.target.value;
@@ -22,11 +25,18 @@ export default function SettingsForm({ settings, canEdit, canToggleOverseas, cur
 
   async function handleSave() {
     setSaving(true);
-    const saveResult: any = await saveSettings(draft);
+    let finalDraft = draft;
+    if (poweredByLogoFile) {
+      const path = `powered-by-${crypto.randomUUID()}-${poweredByLogoFile.name.replace(/\s+/g, "_")}`;
+      const { error: uploadError } = await supabase.storage.from("sponsor-logos").upload(path, poweredByLogoFile);
+      if (!uploadError) finalDraft = { ...draft, powered_by_logo_path: path };
+    }
+    const saveResult: any = await saveSettings(finalDraft);
     const { error } = saveResult;
     setSaving(false);
     if (!error) {
       setSaved(true);
+      setPoweredByLogoFile(null);
       router.refresh();
       setTimeout(() => setSaved(false), 2000);
     }
@@ -124,6 +134,14 @@ export default function SettingsForm({ settings, canEdit, canToggleOverseas, cur
             <Field label="Account Number"><input value={draft.bank_account_number || ""} onChange={set("bank_account_number")} /></Field>
             <Field label="IBAN"><input value={draft.bank_iban || ""} onChange={set("bank_iban")} /></Field>
           </div>
+        </FormSection>
+
+        <FormSection title="Powered By">
+          <p className="text-[11px] text-mutedDim mb-3">Shown as a small credit on the public homepage.</p>
+          <Field label="Powered By Name"><input value={draft.powered_by_name || ""} onChange={set("powered_by_name")} placeholder="e.g. Imperial Aura Events" /></Field>
+          <Field label="Powered By Logo" hint={poweredByLogoFile?.name || (draft.powered_by_logo_path ? "Leave blank to keep current logo" : undefined)}>
+            <input type="file" accept="image/*" className="text-xs !p-0" onChange={(e) => setPoweredByLogoFile(e.target.files?.[0] || null)} />
+          </Field>
         </FormSection>
 
         <FormSection title="Eligibility">
