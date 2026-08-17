@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui";
 import Logo from "@/components/Logo";
+import Countdown from "@/components/Countdown";
 
 export const revalidate = 60;
 
@@ -14,6 +15,9 @@ export default async function LandingPage() {
     if (!path) return null;
     return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
   }
+
+  const countdownTarget = settings?.auction_date_time || (settings?.tournament_date ? `${settings.tournament_date}T00:00:00` : null);
+  const countdownLabel = settings?.auction_date_time ? "Auction Begins In" : "Tournament Begins In";
 
   const stats = [
     { label: "Registration Fee", value: `${settings?.currency ?? "AED"} ${settings?.player_reg_fee ?? 25}` },
@@ -88,7 +92,7 @@ export default async function LandingPage() {
           {settings?.format ?? "One-Day, Tennis Cricket, Grass Ground"} — where every player earns their spot in the auction.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-4 mb-14">
+        <div className="flex flex-col sm:flex-row gap-4 mb-10">
           <Link href="/register">
             <Button variant="primary" size="lg" className="!px-10 !py-4 !text-lg shadow-[0_8px_30px_rgba(212,175,55,0.4)]">
               Register as a Player →
@@ -100,6 +104,17 @@ export default async function LandingPage() {
             </Button>
           </Link>
         </div>
+
+        <div className="flex gap-6 mb-12 text-sm">
+          <Link href="/standings" className="text-goldBright underline underline-offset-4 font-semibold">Points Table</Link>
+          <Link href="/squads" className="text-goldBright underline underline-offset-4 font-semibold">Team Squads</Link>
+        </div>
+
+        {countdownTarget && (
+          <div className="mb-4">
+            <Countdown targetDate={countdownTarget} label={countdownLabel} />
+          </div>
+        )}
       </div>
 
       {/* Bold diagonal stat strip */}
