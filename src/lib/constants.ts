@@ -46,9 +46,9 @@ export const OVERRIDE_ROLES: UserRole[] = ["Super Admin"];
 export const EMIRATES = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Umm Al Quwain", "Ras Al Khaimah", "Fujairah"];
 
 export function statusTone(status: string) {
-  if (["Approved for Auction", "Sold / Selected", "Verified", "Paid"].includes(status)) return "green";
-  if (["Rejected", "Unsold / Not Selected"].includes(status)) return "red";
-  if (["Under Review", "Pending", "Auction Pool", "Partial"].includes(status)) return "gold";
+  if (["Approved for Auction", "Sold / Selected", "Verified", "Paid", "Completed"].includes(status)) return "green";
+  if (["Rejected", "Unsold / Not Selected", "Abandoned"].includes(status)) return "red";
+  if (["Under Review", "Pending", "Auction Pool", "Partial", "Live"].includes(status)) return "gold";
   if (["Withdrawn"].includes(status)) return "default";
   return "blue";
 }
