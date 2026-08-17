@@ -17,6 +17,7 @@ const NAV: { href: string; label: string; icon: string; roles?: UserRole[] }[] =
   { href: "/admin/auction", label: "Live Auction", icon: "⚡" },
   { href: "/admin/squads", label: "Team Squads", icon: "🏆" },
   { href: "/admin/sponsors", label: "Sponsors", icon: "🤝" },
+  { href: "/admin/fixtures", label: "Fixtures & Results", icon: "📅" },
   { href: "/admin/users", label: "User & Roles", icon: "👤", roles: ["Super Admin"] },
   { href: "/admin/audit", label: "Audit Log", icon: "🛡", roles: ["Super Admin"] },
 ];
