@@ -240,7 +240,7 @@ function LiveScoring({ match, teamA, teamB, innings, balls, battingSquad, bowlin
       <div className="grid grid-cols-2 gap-3 mb-4">
         <Card className="p-4">
           <div className="text-[11px] uppercase text-mutedDim mb-2">Batting</div>
-          {[state.striker, state.nonStriker].filter(Boolean).map((id: string) => (
+         {[state.striker, state.nonStriker].filter((id): id is string => !!id).map((id) => (
             <div key={id} className="flex justify-between text-sm py-0.5">
               <span>{playerName(id)}{id === state.striker ? " *" : ""}</span>
               <span className="text-mutedDim">{state.batting[id]?.runs ?? 0} ({state.batting[id]?.balls ?? 0})</span>
