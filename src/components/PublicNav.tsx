@@ -1,44 +1,89 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "@/components/Logo";
 
 const LINKS = [
-  { href: "/register", label: "Register" },
-  { href: "/standings", label: "Standings" },
+  { href: "/", label: "Home" },
   { href: "/squads", label: "Squads" },
+  { href: "/standings", label: "Standings" },
   { href: "/rules", label: "Rules" },
+  { href: "/#sponsors", label: "Sponsors" },
 ];
 
 export default function PublicNav() {
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
 
   return (
-    <div className="sticky top-0 z-30 border-b border-line backdrop-blur-md" style={{ background: "rgba(10,15,28,0.75)" }}>
-      <div className="max-w-5xl mx-auto px-5 py-3 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-lg overflow-hidden border border-gold/50 bg-bgCard shrink-0">
+    <div className="sticky top-0 z-30 bg-warmWhite/95 backdrop-blur-md border-b border-black/5 shadow-sm">
+      <div className="max-w-6xl mx-auto px-5 py-3 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2.5 shrink-0">
+          <div className="w-10 h-10 rounded-full overflow-hidden border border-gold/60 bg-white shrink-0">
             <Logo className="w-full h-full" />
           </div>
-          <span className="font-display font-bold text-sm tracking-wide hidden sm:inline">MTCC UAE</span>
+          <span className="font-display font-bold text-sm tracking-wide text-navyText hidden sm:inline">MTCC U.A.E.</span>
         </Link>
-        <nav className="flex items-center gap-1 sm:gap-2">
+
+        <nav className="hidden md:flex items-center gap-1">
           {LINKS.map((l) => {
             const active = pathname === l.href;
             return (
               <Link
                 key={l.href}
                 href={l.href}
-                className="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors"
-                style={{ color: active ? "#F0C94A" : "#8B98B5", background: active ? "rgba(212,175,55,0.1)" : "transparent" }}
+                className="px-3 py-2 rounded-lg text-sm font-semibold transition-colors"
+                style={{ color: active ? "#0B1F3A" : "#566274" }}
               >
                 {l.label}
               </Link>
             );
           })}
         </nav>
+
+        <div className="flex items-center gap-2">
+          <Link
+            href="/register"
+            className="hidden sm:inline-flex items-center px-5 py-2.5 rounded-full text-sm font-bold text-white transition-transform hover:-translate-y-0.5"
+            style={{ background: "linear-gradient(135deg, #D4AF37, #F37032)" }}
+          >
+            Register Now
+          </Link>
+          <button
+            className="md:hidden w-10 h-10 rounded-lg flex items-center justify-center border border-black/10"
+            onClick={() => setOpen((o) => !o)}
+            aria-label="Toggle menu"
+          >
+            <span className="text-navyText text-lg">{open ? "✕" : "☰"}</span>
+          </button>
+        </div>
       </div>
+
+      {open && (
+        <div className="md:hidden border-t border-black/5 bg-warmWhite px-5 py-3">
+          {LINKS.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              onClick={() => setOpen(false)}
+              className="block py-3 text-sm font-semibold border-b border-black/5 last:border-0"
+              style={{ color: "#152238" }}
+            >
+              {l.label}
+            </Link>
+          ))}
+          <Link
+            href="/register"
+            onClick={() => setOpen(false)}
+            className="block text-center mt-3 px-5 py-3 rounded-full text-sm font-bold text-white"
+            style={{ background: "linear-gradient(135deg, #D4AF37, #F37032)" }}
+          >
+            Register Now
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
