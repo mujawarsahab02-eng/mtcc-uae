@@ -80,9 +80,13 @@ export default function AuctionDisplayPage() {
       )}
 
       {!player ? (
-        <div className="rounded-xl border border-line bg-bgCard p-10 text-center max-w-md">
-          <div className="text-xl font-bold mb-2 font-display">{!auction?.pool_order?.length ? "Auction has not started yet" : "Auction Complete"}</div>
-          <div className="text-sm text-mutedDim">Stay tuned for the next update.</div>
+        <div className="rounded-2xl border border-gold/25 bg-bgCard p-10 text-center max-w-md" style={{ boxShadow: "0 0 60px rgba(212,175,55,0.08)" }}>
+          <div className="text-3xl font-black mb-2 font-display text-goldBright">
+            {!auction?.pool_order?.length ? "Coming Soon" : "Auction Complete"}
+          </div>
+          <div className="text-sm text-mutedDim">
+            {!auction?.pool_order?.length ? "The live auction hasn't begun yet — check back soon." : "All players have been auctioned. Thanks for watching!"}
+          </div>
         </div>
       ) : (
         <div className="rounded-xl border border-line bg-bgCard p-8 max-w-xl w-full text-center">
