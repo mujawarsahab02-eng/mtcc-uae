@@ -7,7 +7,7 @@ export default async function RulesPage() {
   const supabase = createClient();
   const { data: settings } = await supabase.from("tournament_settings").select("*").eq("id", 1).single();
 
-  const sections = [
+  const sections: { title: string; text: string | undefined; numbered?: boolean }[] = [
     { title: "General Tournament Rules", text: settings?.general_rules, numbered: true },
     { title: "Player Eligibility", text: settings?.player_eligibility_rules },
     { title: "Qualification", text: settings?.qualification_rules },
@@ -18,7 +18,7 @@ export default async function RulesPage() {
     { title: "Super Over Details", text: settings?.super_over_rules, numbered: true },
     { title: "Substitutions", text: settings?.substitution_rules, numbered: true },
     { title: "Terms & Conditions", text: settings?.terms_and_conditions },
-  ].filter((s) => s.text && s.text.trim().length > 0);
+  ].filter((s: { title: string; text: string | undefined; numbered?: boolean }) => s.text && s.text.trim().length > 0);
 
   return (
     <div className="min-h-screen bg-bg pb-16">
@@ -40,7 +40,7 @@ export default async function RulesPage() {
             <h2 className="text-lg font-bold font-display mb-3 pb-2 border-b border-line text-goldBright">{s.title}</h2>
             {s.numbered ? (
               <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted leading-relaxed">
-                {s.text!.split("\n").filter((line) => line.trim()).map((line, i) => (
+                {s.text!.split("\n").filter((line: string) => line.trim()).map((line: string, i: number) => (
                   <li key={i}>{line.replace(/^\d+[\.\)]\s*/, "")}</li>
                 ))}
               </ol>
