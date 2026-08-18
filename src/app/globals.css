@@ -91,3 +91,34 @@ textarea:disabled {
   border: 1px solid rgba(212,175,55,0.3);
   box-shadow: 0 4px 14px rgba(212,175,55,0.15);
 }
+
+/* ---------- Light-theme form inputs, scoped to .light-form only ----------
+   The global input/select/textarea rules above stay dark (Admin, Team Owner,
+   Auction Control Room all rely on them unchanged). Any form wrapped in a
+   `.light-form` container gets white inputs with a subtle grey border and a
+   gold focus ring instead, per the public-site redesign spec. */
+.light-form input,
+.light-form select,
+.light-form textarea {
+  background: #FFFFFF;
+  border: 1px solid #E2E5EA;
+  color: #152238;
+  box-shadow: none;
+}
+.light-form input::placeholder,
+.light-form textarea::placeholder {
+  color: #9AA3B2;
+}
+.light-form input:focus,
+.light-form select:focus,
+.light-form textarea:focus {
+  border-color: #D4AF37;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.18);
+}
+.light-form input:disabled,
+.light-form select:disabled,
+.light-form textarea:disabled {
+  background: #F3F4F6;
+  opacity: 1;
+  color: #6B7280;
+}
