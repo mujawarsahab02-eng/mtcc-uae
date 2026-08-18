@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui";
 import Logo from "@/components/Logo";
 import Countdown from "@/components/Countdown";
+import PublicNav from "@/components/PublicNav";
 
 export const revalidate = 60;
 
@@ -23,14 +24,16 @@ export default async function LandingPage() {
   const missionPoints = (settings?.mission_points || "").split("\n").filter((l: string) => l.trim());
 
   const stats = [
-    { label: "Registration Fee", value: `${settings?.currency ?? "AED"} ${settings?.player_reg_fee ?? 25}` },
-    { label: "Squad Size", value: `${settings?.max_squad_size ?? 14}` },
-    { label: "Guest Quota", value: `${settings?.guest_quota ?? 3}` },
-    { label: "Teams", value: `${settings?.number_of_teams ?? 8}` },
+    { icon: "💰", label: "Registration Fee", value: `${settings?.currency ?? "AED"} ${settings?.player_reg_fee ?? 25}` },
+    { icon: "👥", label: "Squad Size", value: `${settings?.max_squad_size ?? 14}` },
+    { icon: "🌏", label: "Guest Quota", value: `${settings?.guest_quota ?? 3}` },
+    { icon: "🏆", label: "Teams", value: `${settings?.number_of_teams ?? 8}` },
   ];
 
   return (
     <main className="min-h-screen relative overflow-hidden bg-bg">
+      <PublicNav />
+
       {/* Angled gold/orange energy band behind the hero */}
       <div
         className="absolute top-0 left-0 w-full h-[560px] -z-0"
@@ -45,9 +48,14 @@ export default async function LandingPage() {
           background: "radial-gradient(circle at 15% 10%, rgba(212,175,55,0.25) 0%, transparent 45%), radial-gradient(circle at 85% 30%, rgba(255,122,61,0.2) 0%, transparent 40%)",
         }}
       />
+      {/* Ambient pulsing glow behind the logo for extra depth */}
+      <div
+        className="absolute top-[60px] left-1/2 -translate-x-1/2 w-[420px] h-[420px] rounded-full -z-0"
+        style={{ background: "radial-gradient(circle, rgba(212,175,55,0.18) 0%, transparent 70%)", animation: "shimmerPulse 4s ease-in-out infinite" }}
+      />
 
-      {/* Decorative cricket-ball seam watermark, top-right of hero */}
-      <svg className="absolute top-4 right-[-60px] w-[420px] h-[420px] opacity-[0.08] -z-0 hidden sm:block" viewBox="0 0 200 200" fill="none">
+      {/* Decorative cricket-ball seam watermark, top-right of hero — gentle float */}
+      <svg className="absolute top-4 right-[-60px] w-[420px] h-[420px] opacity-[0.09] -z-0 hidden sm:block float-slow" viewBox="0 0 200 200" fill="none">
         <circle cx="100" cy="100" r="92" stroke="#D4AF37" strokeWidth="1.5" />
         <path d="M30 40 Q100 90 30 160" stroke="#D4AF37" strokeWidth="2" fill="none" />
         <path d="M170 40 Q100 90 170 160" stroke="#D4AF37" strokeWidth="2" fill="none" />
@@ -56,8 +64,8 @@ export default async function LandingPage() {
         ))}
       </svg>
 
-      {/* Decorative cricket stumps + bails watermark, bottom-left of hero */}
-      <svg className="absolute bottom-6 left-[-30px] w-[220px] h-[260px] opacity-[0.10] -z-0 hidden sm:block" viewBox="0 0 120 160" fill="none">
+      {/* Decorative cricket stumps + bails watermark, bottom-left of hero — gentle float */}
+      <svg className="absolute bottom-6 left-[-30px] w-[220px] h-[260px] opacity-[0.11] -z-0 hidden sm:block float-slow-rev" viewBox="0 0 120 160" fill="none">
         <rect x="20" y="30" width="6" height="110" fill="#FF7A3D" />
         <rect x="57" y="20" width="6" height="120" fill="#FF7A3D" />
         <rect x="94" y="30" width="6" height="110" fill="#FF7A3D" />
@@ -65,7 +73,7 @@ export default async function LandingPage() {
         <ellipse cx="82" cy="18" rx="14" ry="5" fill="#FF7A3D" />
       </svg>
 
-      {/* Warli-art-inspired geometric border band (original motif, not a reproduction of any specific artwork) */}
+      {/* Warli-art-inspired geometric border band (original motif) */}
       <svg className="absolute top-[0px] left-0 w-full h-[18px] -z-0 opacity-40" viewBox="0 0 400 18" preserveAspectRatio="none">
         {Array.from({ length: 40 }).map((_, i) => (
           <g key={i}>
@@ -75,27 +83,22 @@ export default async function LandingPage() {
         ))}
       </svg>
 
-      <div
-        className="absolute top-[460px] left-0 w-full h-[6px] -z-0"
-        style={{ background: "linear-gradient(90deg, transparent, #D4AF37 20%, #FF7A3D 50%, #D4AF37 80%, transparent)", transform: "skewY(-2deg)" }}
-      />
-
-      <div className="relative z-10 flex flex-col items-center text-center px-6 pt-16 pb-10">
-        <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl flex items-center justify-center mb-6 border-2 border-gold bg-bgCard shadow-[0_0_40px_rgba(212,175,55,0.35)] overflow-hidden" style={{ transform: "rotate(-3deg)" }}>
+      <div className="relative z-10 flex flex-col items-center text-center px-6 pt-14 pb-10">
+        <div className="fade-up w-28 h-28 sm:w-32 sm:h-32 rounded-3xl flex items-center justify-center mb-6 border-2 border-gold bg-bgCard shadow-[0_0_40px_rgba(212,175,55,0.35)] overflow-hidden" style={{ transform: "rotate(-3deg)" }}>
           <Logo className="w-full h-full" rotate={3} />
         </div>
 
-        <div className="text-[11px] uppercase tracking-[0.3em] font-bold mb-3 text-orange">
+        <div className="fade-up text-[11px] uppercase tracking-[0.3em] font-bold mb-3 text-orange" style={{ animationDelay: "0.1s" }}>
           {settings?.season ?? "Season 1"} · {settings?.country ?? "UAE"} · Auction-Based
         </div>
-        <h1 className="text-4xl sm:text-6xl font-black font-display mb-4 max-w-3xl leading-[1.05] tracking-tight">
+        <h1 className="fade-up text-4xl sm:text-6xl font-black font-display mb-4 max-w-3xl leading-[1.05] tracking-tight" style={{ animationDelay: "0.18s" }}>
           {settings?.tournament_name ?? "Maharashtra Tennis Cricket Championship UAE"}
         </h1>
-        <p className="text-muted text-base sm:text-lg max-w-lg mb-6">
+        <p className="fade-up text-muted text-base sm:text-lg max-w-lg mb-6" style={{ animationDelay: "0.26s" }}>
           {settings?.format ?? "One-Day, Tennis Cricket, Grass Ground"} — where every player earns their spot in the auction.
         </p>
 
-        <div className="flex items-center gap-2 mb-8 px-4 py-2 rounded-full border border-lineBright bg-bgCard">
+        <div className="fade-up flex items-center gap-2 mb-8 px-4 py-2 rounded-full border border-lineBright bg-bgCard" style={{ animationDelay: "0.34s" }}>
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-green"></span>
@@ -103,47 +106,53 @@ export default async function LandingPage() {
           <span className="text-xs font-semibold text-muted">LIVE — <span className="text-goldBright font-bold">{playerCount ?? 0}</span> / {maxReg} players registered</span>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="fade-up flex flex-col sm:flex-row gap-4 mb-6" style={{ animationDelay: "0.42s" }}>
           <Link href="/register">
-            <Button variant="primary" size="lg" className="!px-10 !py-4 !text-lg shadow-[0_8px_30px_rgba(212,175,55,0.4)]">
+            <Button variant="primary" size="lg" className="!px-10 !py-4 !text-lg shadow-[0_8px_30px_rgba(212,175,55,0.4)] hover:shadow-[0_8px_40px_rgba(212,175,55,0.6)] hover:-translate-y-0.5 transition-all">
               Register as a Player →
             </Button>
           </Link>
           <Link href="/auction/display">
-            <Button variant="ghost" size="lg" className="!px-10 !py-4 !text-lg border-2">
+            <Button variant="ghost" size="lg" className="!px-10 !py-4 !text-lg border-2 hover:-translate-y-0.5 transition-transform">
               ⚡ Live Auction Display
             </Button>
           </Link>
         </div>
 
-        <div className="flex gap-6 mb-12 text-sm flex-wrap justify-center">
-          <Link href="/standings" className="text-goldBright underline underline-offset-4 font-semibold">Points Table</Link>
-          <Link href="/squads" className="text-goldBright underline underline-offset-4 font-semibold">Team Squads</Link>
-          <Link href="/rules" className="text-goldBright underline underline-offset-4 font-semibold">Tournament Rules</Link>
+        <div className="fade-up flex gap-6 text-sm flex-wrap justify-center" style={{ animationDelay: "0.5s" }}>
+          <Link href="/standings" className="text-goldBright underline underline-offset-4 font-semibold hover:text-white transition-colors">Points Table</Link>
+          <Link href="/squads" className="text-goldBright underline underline-offset-4 font-semibold hover:text-white transition-colors">Team Squads</Link>
+          <Link href="/rules" className="text-goldBright underline underline-offset-4 font-semibold hover:text-white transition-colors">Tournament Rules</Link>
         </div>
-
-        {countdownTarget && (
-          <div className="mb-4">
-            <Countdown targetDate={countdownTarget} label={countdownLabel} />
-          </div>
-        )}
       </div>
 
-      {/* Bold diagonal stat strip */}
-      <div className="relative z-10 max-w-5xl mx-auto px-6 -mt-4 mb-16">
+      {countdownTarget && (
+        <div className="relative z-10 flex justify-center pb-10 fade-up" style={{ animationDelay: "0.56s" }}>
+          <Countdown targetDate={countdownTarget} label={countdownLabel} />
+        </div>
+      )}
+
+      {/* Section divider — proper document-flow element now, not an absolutely
+          positioned overlay, so it can never drift across text again */}
+      <div className="relative z-10 max-w-5xl mx-auto px-6">
+        <div
+          className="h-[3px] w-full rounded-full"
+          style={{ background: "linear-gradient(90deg, transparent, #D4AF37 20%, #FF7A3D 50%, #D4AF37 80%, transparent)" }}
+        />
+      </div>
+
+      {/* Stat strip with icons and glass-card hover depth */}
+      <div className="relative z-10 max-w-5xl mx-auto px-6 pt-8 pb-16">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           {stats.map((s, i) => (
             <div
               key={s.label}
-              className="relative bg-bgCard border border-lineBright rounded-2xl p-5 sm:p-6 text-center overflow-hidden"
-              style={{ transform: i % 2 === 0 ? "translateY(-6px)" : "translateY(6px)" }}
+              className="glass-card rounded-2xl p-5 sm:p-6 text-center fade-up"
+              style={{ animationDelay: `${0.6 + i * 0.08}s` }}
             >
-              <div
-                className="absolute -top-6 -right-6 w-16 h-16 rounded-full opacity-20"
-                style={{ background: i % 2 === 0 ? "#D4AF37" : "#FF7A3D" }}
-              />
-              <div className="text-3xl sm:text-4xl font-black font-display text-goldBright relative z-10">{s.value}</div>
-              <div className="text-[10px] sm:text-xs uppercase tracking-wider font-bold text-mutedDim mt-1 relative z-10">{s.label}</div>
+              <div className="icon-badge mx-auto mb-3">{s.icon}</div>
+              <div className="text-3xl sm:text-4xl font-black font-display text-goldBright">{s.value}</div>
+              <div className="text-[10px] sm:text-xs uppercase tracking-wider font-bold text-mutedDim mt-1">{s.label}</div>
             </div>
           ))}
         </div>
@@ -151,18 +160,21 @@ export default async function LandingPage() {
 
       {(settings?.about_text || settings?.vision_text || missionPoints.length > 0) && (
         <div className="relative z-10 max-w-2xl mx-auto px-6 pb-16">
-          <div className="text-center text-[10px] uppercase tracking-[0.3em] text-orange mb-3">About MTCC</div>
+          <div className="text-center mb-3">
+            <div className="icon-badge mx-auto mb-3" style={{ fontSize: 18 }}>📖</div>
+            <div className="text-[10px] uppercase tracking-[0.3em] text-orange">About MTCC</div>
+          </div>
           {settings?.about_text && (
             <p className="text-center text-muted leading-relaxed mb-8">{settings.about_text}</p>
           )}
           {settings?.vision_text && (
-            <div className="rounded-2xl border border-line bg-bgCard p-6 text-center mb-6">
+            <div className="glass-card rounded-2xl p-6 text-center mb-6">
               <div className="text-[10px] uppercase tracking-wide text-mutedDim mb-2">Our Vision</div>
               <p className="font-serif-lux italic text-lg text-ink">&ldquo;{settings.vision_text}&rdquo;</p>
             </div>
           )}
           {missionPoints.length > 0 && (
-            <div className="rounded-2xl border border-line bg-bgCard p-6">
+            <div className="glass-card rounded-2xl p-6">
               <div className="text-[10px] uppercase tracking-wide text-mutedDim mb-3">Our Mission</div>
               <ul className="space-y-2">
                 {missionPoints.map((point: string, i: number) => (
@@ -177,15 +189,15 @@ export default async function LandingPage() {
         </div>
       )}
 
-      {/* Journey section — how the platform actually works, mirrors the registration/auction flow already built */}
+      {/* Journey section */}
       <div className="relative z-10 max-w-4xl mx-auto px-6 pb-16">
         <div className="text-center mb-8">
           <div className="text-[10px] uppercase tracking-[0.3em] text-orange mb-2">Your Season Journey</div>
           <h2 className="text-2xl font-bold font-display">Choose Your Place In The Story</h2>
         </div>
         <div className="grid sm:grid-cols-2 gap-5">
-          <div className="rounded-2xl border border-line bg-bgCard p-6">
-            <div className="text-2xl mb-2">🏏</div>
+          <div className="glass-card rounded-2xl p-6">
+            <div className="icon-badge mb-3">🏏</div>
             <div className="text-xs uppercase tracking-wide text-orange font-semibold mb-1">For Players</div>
             <h3 className="font-bold font-display mb-4">Get registered. Get noticed. Get auctioned.</h3>
             <ol className="space-y-2.5 text-sm text-muted">
@@ -195,10 +207,10 @@ export default async function LandingPage() {
               <li><b className="text-goldBright">04</b> Enter the live auction pool</li>
               <li><b className="text-goldBright">05</b> Join the team that wins your bid</li>
             </ol>
-            <Link href="/register" className="inline-block mt-5 text-sm font-semibold text-goldBright underline underline-offset-4">Register as a Player →</Link>
+            <Link href="/register" className="inline-block mt-5 text-sm font-semibold text-goldBright underline underline-offset-4 hover:text-white transition-colors">Register as a Player →</Link>
           </div>
-          <div className="rounded-2xl border border-line bg-bgCard p-6">
-            <div className="text-2xl mb-2">🏆</div>
+          <div className="glass-card rounded-2xl p-6">
+            <div className="icon-badge mb-3">🏆</div>
             <div className="text-xs uppercase tracking-wide text-orange font-semibold mb-1">For Team Owners</div>
             <h3 className="font-bold font-display mb-4">Build your squad. Manage your purse. Chase the title.</h3>
             <ol className="space-y-2.5 text-sm text-muted">
@@ -214,7 +226,7 @@ export default async function LandingPage() {
       </div>
 
       <div className="relative z-10 max-w-2xl mx-auto px-6 pb-6">
-        <div className="rounded-2xl border border-line bg-bgCard p-6 relative overflow-hidden">
+        <div className="glass-card rounded-2xl p-6 relative overflow-hidden">
           <svg className="absolute -bottom-8 -right-8 w-32 h-32 opacity-[0.06]" viewBox="0 0 100 100" fill="none">
             <circle cx="50" cy="50" r="46" stroke="#FF7A3D" strokeWidth="2" />
             <path d="M18 25 Q50 50 18 75" stroke="#FF7A3D" strokeWidth="2" fill="none" />
@@ -230,7 +242,7 @@ export default async function LandingPage() {
       </div>
 
       <div className="relative z-10 flex justify-center pb-12">
-        <Link href="/admin/login" className="text-xs text-mutedDim underline">
+        <Link href="/admin/login" className="text-xs text-mutedDim underline hover:text-muted transition-colors">
           Organiser / Team Owner Sign In →
         </Link>
       </div>
@@ -242,7 +254,7 @@ export default async function LandingPage() {
             {sponsors.filter((s) => !s.is_powered_by).map((s) => {
               const logo = publicUrl("sponsor-logos", s.logo_path);
               const content = (
-                <div className="flex flex-col items-center gap-2 opacity-90 hover:opacity-100 transition-opacity">
+                <div className="flex flex-col items-center gap-2 opacity-90 hover:opacity-100 hover:-translate-y-1 transition-all">
                   <div className="w-16 h-16 rounded-xl bg-bgCard border border-line flex items-center justify-center overflow-hidden">
                     {logo ? <img src={logo} alt={s.name} className="w-full h-full object-contain p-2" /> : <span className="text-[10px] text-mutedDim px-1 text-center">{s.name}</span>}
                   </div>
