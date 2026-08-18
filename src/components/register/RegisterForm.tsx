@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Button, Card } from "@/components/ui";
+import { Button } from "@/components/ui";
 import Logo from "@/components/Logo";
+import { IconShieldCheck, IconClipboardCheck, IconCricketBall, IconWallet } from "@/components/Icons";
 import { PLAYING_ROLES, BATTING_STYLES, PLAYER_TYPES, EMIRATES } from "@/lib/constants";
 
 type Settings = {
@@ -24,6 +25,14 @@ type Settings = {
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
 
+const STEPS = [
+  { key: "personal", label: "Personal", icon: IconClipboardCheck },
+  { key: "identification", label: "Identification", icon: IconShieldCheck },
+  { key: "cricket", label: "Cricket", icon: IconCricketBall },
+  { key: "payment", label: "Payment", icon: IconWallet },
+  { key: "declaration", label: "Submit", icon: IconClipboardCheck },
+];
+
 function emptyForm() {
   return {
     fullName: "", dob: "", mobile: "", whatsapp: "", email: "",
@@ -36,42 +45,39 @@ function emptyForm() {
   };
 }
 
-// Premium editorial section wrapper: numbered gold badge + serif title +
-// hairline divider, used only on the public registration page.
-function LuxSection({ n, title, children }: { n: string; title: string; children: React.ReactNode }) {
+// Section wrapper: white card, navy heading, gold step badge — replaces the
+// old dark "LuxSection" editorial look with the light form-card style.
+function Section({ n, title, sectionRef, children }: { n: string; title: string; sectionRef?: React.RefObject<HTMLDivElement>; children: React.ReactNode }) {
   return (
-    <div className="mb-8">
+    <div ref={sectionRef} className="bg-white rounded-2xl shadow-sm border border-black/5 p-6 mb-5 scroll-mt-32">
       <div className="flex items-center gap-3 mb-5">
-        <div className="w-8 h-8 rounded-full border border-gold flex items-center justify-center shrink-0">
-          <span className="font-serif-lux text-xs text-goldBright">{n}</span>
+        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white" style={{ background: "linear-gradient(135deg, #D4AF37, #F37032)" }}>
+          {n}
         </div>
-        <h2 className="font-serif-lux text-lg sm:text-xl italic text-ink tracking-wide">{title}</h2>
-        <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, rgba(212,175,55,0.5), transparent)" }} />
+        <h2 className="font-display font-bold text-lg text-navyText">{title}</h2>
       </div>
-      <div className="pl-11">{children}</div>
+      {children}
     </div>
   );
 }
 
-function LuxField({ label, required, hint, children }: { label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
+function Field({ label, required, hint, children }: { label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
   return (
     <label className="block mb-5">
-      <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] mb-2 text-mutedDim">
+      <span className="block text-[11px] font-bold uppercase tracking-[0.1em] mb-2 text-slateText">
         {label} {required && <span className="text-orange">*</span>}
       </span>
       {children}
-      {hint && <span className="block text-[11px] mt-1.5 text-mutedDim italic">{hint}</span>}
+      {hint && <span className="block text-[11px] mt-1.5 text-slateText italic">{hint}</span>}
     </label>
   );
 }
 
-function IconRow({ icon, children }: { icon: string; children: React.ReactNode }) {
+function SummaryPoint({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3 py-2">
-      <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs" style={{ background: "rgba(212,175,55,0.12)" }}>
-        {icon}
-      </div>
-      <div className="text-sm text-muted leading-relaxed pt-0.5">{children}</div>
+    <div className="flex items-start gap-2.5 py-1.5">
+      <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-white text-[10px] font-bold mt-0.5" style={{ background: "#D4AF37" }}>✓</span>
+      <span className="text-sm text-slateText leading-relaxed">{children}</span>
     </div>
   );
 }
@@ -87,18 +93,18 @@ function PoweredByCorner({ sponsors }: { sponsors: any[] }) {
 
   return (
     <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-1.5">
-      <span className="text-[9px] uppercase tracking-[0.2em] text-mutedDim">Powered By</span>
+      <span className="text-[9px] uppercase tracking-[0.2em] text-white/50">Powered By</span>
       <div className="flex items-center gap-2 flex-wrap justify-end">
         {poweredBy.map((s) => {
           const logo = publicUrl("sponsor-logos", s.logo_path);
           return (
-            <div key={s.id} className="flex items-center gap-1.5 bg-bgCard/80 backdrop-blur border border-line rounded-full pl-1 pr-2.5 py-1">
+            <div key={s.id} className="flex items-center gap-1.5 bg-white/10 backdrop-blur border border-white/15 rounded-full pl-1 pr-2.5 py-1">
               {logo ? (
-                <div className="w-5 h-5 rounded-full overflow-hidden bg-bgCardHover flex items-center justify-center shrink-0">
+                <div className="w-5 h-5 rounded-full overflow-hidden bg-white/20 flex items-center justify-center shrink-0">
                   <img src={logo} alt={s.name} className="w-full h-full object-contain" />
                 </div>
               ) : null}
-              <span className="text-[10px] font-semibold text-muted whitespace-nowrap">{s.name}</span>
+              <span className="text-[10px] font-semibold text-white/80 whitespace-nowrap">{s.name}</span>
             </div>
           );
         })}
@@ -120,16 +126,16 @@ function SponsorsFooter({ sponsors }: { sponsors: any[] }) {
   return (
     <div className="max-w-2xl mx-auto px-5 pt-4">
       <div className="mb-8">
-        <div className="text-center text-[10px] uppercase tracking-[0.3em] text-mutedDim mb-5">Our Sponsors</div>
+        <div className="text-center text-[10px] uppercase tracking-[0.3em] text-slateText mb-5">Our Sponsors</div>
         <div className="flex flex-wrap items-center justify-center gap-5 sm:gap-8">
           {regular.map((s) => {
             const logo = publicUrl("sponsor-logos", s.logo_path);
             const content = (
               <div className="flex flex-col items-center gap-1.5 opacity-90 hover:opacity-100 transition-opacity">
-                <div className="w-14 h-14 rounded-xl bg-bgCard border border-line flex items-center justify-center overflow-hidden">
-                  {logo ? <img src={logo} alt={s.name} className="w-full h-full object-contain p-1.5" /> : <span className="text-[10px] text-mutedDim px-1 text-center">{s.name}</span>}
+                <div className="w-14 h-14 rounded-xl bg-white border border-black/5 shadow-sm flex items-center justify-center overflow-hidden">
+                  {logo ? <img src={logo} alt={s.name} className="w-full h-full object-contain p-1.5" /> : <span className="text-[10px] text-slateText px-1 text-center">{s.name}</span>}
                 </div>
-                <span className="text-[10px] text-mutedDim">{s.name}</span>
+                <span className="text-[10px] text-slateText">{s.name}</span>
               </div>
             );
             return s.website_url ? (
@@ -138,6 +144,43 @@ function SponsorsFooter({ sponsors }: { sponsors: any[] }) {
               <div key={s.id}>{content}</div>
             );
           })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Sticky step progress bar — tracks which form section is currently in view
+// via IntersectionObserver and highlights it. Purely presentational; the
+// form itself stays a single scrollable page and still submits only through
+// the one existing handleSubmit flow (no multi-step server logic).
+function StepProgress({ activeIndex }: { activeIndex: number }) {
+  return (
+    <div className="sticky top-0 z-20 bg-cream/95 backdrop-blur-md border-b border-black/5">
+      <div className="max-w-2xl mx-auto px-5 py-3">
+        <div className="hidden sm:flex items-center justify-between">
+          {STEPS.map((step, i) => (
+            <div key={step.key} className="flex items-center flex-1 last:flex-none">
+              <div className="flex flex-col items-center gap-1">
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors"
+                  style={{
+                    background: i <= activeIndex ? "linear-gradient(135deg, #D4AF37, #F37032)" : "#E2E5EA",
+                    color: i <= activeIndex ? "#fff" : "#9AA3B2",
+                  }}
+                >
+                  {i + 1}
+                </div>
+                <span className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: i <= activeIndex ? "#152238" : "#9AA3B2" }}>{step.label}</span>
+              </div>
+              {i < STEPS.length - 1 && (
+                <div className="flex-1 h-px mx-1.5 mt-[-14px]" style={{ background: i < activeIndex ? "#D4AF37" : "#E2E5EA" }} />
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="sm:hidden text-center text-xs font-bold text-navyText">
+          Step {activeIndex + 1} of {STEPS.length} — {STEPS[activeIndex]?.label}
         </div>
       </div>
     </div>
@@ -156,6 +199,31 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
   const [fileErr, setFileErr] = useState<Record<string, string>>({});
   const [formErr, setFormErr] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [activeStep, setActiveStep] = useState(0);
+
+  const personalRef = useRef<HTMLDivElement>(null);
+  const idRef = useRef<HTMLDivElement>(null);
+  const cricketRef = useRef<HTMLDivElement>(null);
+  const paymentSectionRef = useRef<HTMLDivElement>(null);
+  const declarationRef = useRef<HTMLDivElement>(null);
+  const sectionRefs = [personalRef, idRef, cricketRef, paymentSectionRef, declarationRef];
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const idx = sectionRefs.findIndex((r) => r.current === entry.target);
+            if (idx !== -1) setActiveStep(idx);
+          }
+        });
+      },
+      { rootMargin: "-120px 0px -60% 0px", threshold: 0 }
+    );
+    sectionRefs.forEach((r) => r.current && observer.observe(r.current));
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -236,216 +304,201 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
 
   if (closed) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6">
-        <Card className="max-w-md w-full p-8 text-center mb-8">
-          <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl bg-orange/15 text-orange">✕</div>
-          <h2 className="text-xl font-bold mb-2 font-display">Registration Closed</h2>
-          <p className="text-sm leading-relaxed text-muted">
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-cream">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-black/5 p-8 text-center mb-8">
+          <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl bg-orange/10 text-orange">✕</div>
+          <h2 className="text-xl font-bold mb-2 font-display text-navyText">Registration Closed</h2>
+          <p className="text-sm leading-relaxed text-slateText">
             Player registration has reached its maximum capacity for this season. Thank you to everyone who registered — approved players will be contacted ahead of the auction.
           </p>
-        </Card>
+        </div>
         <SponsorsFooter sponsors={sponsors} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-20 bg-bg">
-      {/* Premium hero banner */}
-      <div className="relative overflow-hidden border-b border-line">
+    <div className="min-h-screen pb-20 bg-cream light-form">
+      {/* Compact dark header banner */}
+      <div className="relative overflow-hidden" style={{ background: "linear-gradient(180deg, #0F1729 0%, #0A0F1C 100%)" }}>
         <PoweredByCorner sponsors={sponsors} />
-        <div
-          className="absolute inset-0"
-          style={{ background: "radial-gradient(circle at 50% -10%, rgba(212,175,55,0.18) 0%, transparent 55%), linear-gradient(180deg, #0F1729 0%, #0A0F1C 100%)" }}
-        />
-        <svg className="absolute inset-0 w-full h-full opacity-[0.05]" preserveAspectRatio="none">
-          <defs>
-            <pattern id="hairline" width="26" height="26" patternUnits="userSpaceOnUse">
-              <path d="M0 26 L26 0" stroke="#D4AF37" strokeWidth="0.5" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#hairline)" />
-        </svg>
-
-        <div className="relative z-10 max-w-2xl mx-auto px-6 pt-12 pb-10 text-center">
-          <div className="w-24 h-24 mx-auto rounded-full flex items-center justify-center mb-5 overflow-hidden" style={{ border: "1px solid rgba(212,175,55,0.6)", boxShadow: "0 0 0 4px rgba(212,175,55,0.08)" }}>
+        <div className="relative z-10 max-w-2xl mx-auto px-6 pt-10 pb-8 text-center">
+          <div className="w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4 overflow-hidden" style={{ border: "1px solid rgba(212,175,55,0.6)", boxShadow: "0 0 0 4px rgba(212,175,55,0.08)" }}>
             <Logo className="w-full h-full" />
           </div>
-          <div className="text-[10px] uppercase tracking-[0.35em] font-semibold mb-3 text-orange">Player Registration</div>
-          <h1 className="font-serif-lux italic text-2xl sm:text-3xl text-ink mb-2 leading-snug">
-            Maharashtra Tennis Cricket<br className="hidden sm:block" /> Championship UAE
+          <div className="text-[10px] uppercase tracking-[0.35em] font-semibold mb-2 text-orange">Player Registration</div>
+          <h1 className="font-display font-bold text-xl sm:text-2xl text-white leading-snug">
+            Maharashtra Tennis Cricket Championship U.A.E.
           </h1>
-          <div className="flex items-center justify-center gap-3 mt-4">
-            <div className="w-10 h-px" style={{ background: "linear-gradient(90deg, transparent, #D4AF37)" }} />
-            <span className="text-goldBright text-xs">✦</span>
-            <div className="w-10 h-px" style={{ background: "linear-gradient(270deg, transparent, #D4AF37)" }} />
-          </div>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-5 pt-8">
-        {/* Fee & perks — refined ticket-style card */}
-        <div
-          className="rounded-2xl border p-6 mb-10 relative overflow-hidden"
-          style={{ borderColor: "rgba(212,175,55,0.3)", background: "linear-gradient(160deg, rgba(212,175,55,0.07), rgba(255,122,61,0.04))" }}
-        >
+      <StepProgress activeIndex={activeStep} />
+
+      <div className="max-w-2xl mx-auto px-5 pt-6">
+        {/* Registration summary card */}
+        <div className="rounded-2xl border border-gold/25 shadow-sm p-6 mb-6 bg-white">
           <div className="text-center mb-4">
-            <div className="text-[10px] uppercase tracking-[0.3em] text-mutedDim mb-1">Registration Fee</div>
-            <div className="font-serif-lux text-4xl text-goldBright">{currency} {fee}</div>
+            <div className="text-[10px] uppercase tracking-[0.3em] text-slateText mb-1">Registration Fee</div>
+            <div className="font-display font-black text-4xl text-navyText">{currency} {fee}</div>
             {typeof spotsRemaining === "number" && (
-              <div className="text-[11px] text-mutedDim mt-1">{spotsRemaining} registration {spotsRemaining === 1 ? "spot" : "spots"} remaining this season</div>
+              <div className="text-[11px] text-slateText mt-1">{spotsRemaining} registration {spotsRemaining === 1 ? "spot" : "spots"} remaining this season</div>
             )}
           </div>
-          <div className="w-full h-px my-4" style={{ background: "rgba(212,175,55,0.2)" }} />
-          <IconRow icon="📋">Registration does not guarantee selection in the auction.</IconRow>
-          <IconRow icon="🔒">The registration fee is non-refundable even if the player is not selected.</IconRow>
-          <IconRow icon="💰">No salary or auction money will be paid to players.</IconRow>
-          <IconRow icon="🎽">{shirtNote}</IconRow>
+          <div className="w-full h-px my-3 bg-black/5" />
+          <SummaryPoint>Registration does not guarantee auction selection.</SummaryPoint>
+          <SummaryPoint>The fee is non-refundable.</SummaryPoint>
+          <SummaryPoint>No auction salary/payment is paid to players.</SummaryPoint>
+          <SummaryPoint>{shirtNote}</SummaryPoint>
+          {settings?.emirates_id_required && <SummaryPoint>Emirates ID is mandatory.</SummaryPoint>}
+          {settings?.cricheroes_required && <SummaryPoint>CricHeroes profile is mandatory.</SummaryPoint>}
         </div>
 
         <form onSubmit={handleSubmit}>
-          <LuxSection n="01" title="Personal Details">
-            <LuxField label="Full Name (as per Emirates ID)" required>
+          <Section n="1" title="Personal Details" sectionRef={personalRef}>
+            <Field label="Full Name (as per Emirates ID)" required>
               <input value={form.fullName} onChange={set("fullName")} required />
-            </LuxField>
-            <div className="grid grid-cols-2 gap-3">
-              <LuxField label="Date of Birth" required>
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Date of Birth" required>
                 <input type="date" value={form.dob} onChange={set("dob")} required />
-              </LuxField>
-              <LuxField label="Nationality" hint="Required to be Indian for this category">
+              </Field>
+              <Field label="Nationality" hint="Required to be Indian for this category">
                 <input value="Indian" disabled />
-              </LuxField>
+              </Field>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <LuxField label="Mobile Number" required>
-                <input value={form.mobile} onChange={set("mobile")} required />
-              </LuxField>
-              <LuxField label="WhatsApp Number">
-                <input value={form.whatsapp} onChange={set("whatsapp")} />
-              </LuxField>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Mobile Number" required>
+                <input value={form.mobile} onChange={set("mobile")} required inputMode="tel" />
+              </Field>
+              <Field label="WhatsApp Number">
+                <input value={form.whatsapp} onChange={set("whatsapp")} inputMode="tel" />
+              </Field>
             </div>
-            <LuxField label="Email Address">
-              <input type="email" value={form.email} onChange={set("email")} />
-            </LuxField>
-            <div className="grid grid-cols-2 gap-3">
-              <LuxField label="Current Emirate" required>
+            <Field label="Email Address">
+              <input type="email" value={form.email} onChange={set("email")} inputMode="email" />
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Current Emirate" required>
                 <select value={form.emirate} onChange={set("emirate")} required>
                   <option value="">Select</option>
                   {EMIRATES.map((e) => <option key={e}>{e}</option>)}
                 </select>
-              </LuxField>
-              <LuxField label="Current UAE Location">
+              </Field>
+              <Field label="Current UAE Location">
                 <input value={form.uaeLocation} onChange={set("uaeLocation")} />
-              </LuxField>
+              </Field>
             </div>
 
-            <LuxField label="Player Type" required>
+            <Field label="Player Type" required>
               <select value={form.playerType} onChange={set("playerType")}>
                 {PLAYER_TYPES.map((t) => <option key={t}>{t}</option>)}
               </select>
-            </LuxField>
+            </Field>
             {form.playerType === "Maharashtra Player" ? (
-              <LuxField label="Maharashtra District / Home Town" required>
+              <Field label="Maharashtra District / Home Town" required>
                 <input value={form.district} onChange={set("district")} required />
-              </LuxField>
+              </Field>
             ) : (
-              <LuxField label="State in India" required>
+              <Field label="State in India" required>
                 <input value={form.state} onChange={set("state")} required />
-              </LuxField>
+              </Field>
             )}
 
-            <LuxField label="Profile Photo" hint={fileErr.photo || files.photo?.name}>
-              <input type="file" accept="image/*" onChange={handleFile("photo")} className="text-xs !p-0" />
-            </LuxField>
-          </LuxSection>
+            <Field label="Profile Photo" hint={fileErr.photo || files.photo?.name}>
+              <input type="file" accept="image/*" onChange={handleFile("photo")} className="text-xs !p-2" />
+            </Field>
+          </Section>
 
-          <LuxSection n="02" title="Identification">
-            <div className="rounded-xl p-3 mb-4 border" style={{ background: "rgba(78,155,255,0.06)", borderColor: "rgba(78,155,255,0.25)" }}>
+          <Section n="2" title="Identification" sectionRef={idRef}>
+            <div className="rounded-xl p-3 mb-4 border" style={{ background: "rgba(78,155,255,0.06)", borderColor: "rgba(78,155,255,0.2)" }}>
               <p className="text-[11px] text-blue">Your Emirates ID number is kept private and is visible only to authorised tournament administrators.</p>
             </div>
-            <LuxField label="Emirates ID Number" required={settings?.emirates_id_required}>
+            <Field label="Emirates ID Number" required={settings?.emirates_id_required}>
               <input value={form.emiratesId} onChange={set("emiratesId")} required={settings?.emirates_id_required} />
-            </LuxField>
-            <LuxField label="Emirates ID Expiry Date">
+            </Field>
+            <Field label="Emirates ID Expiry Date">
               <input type="date" value={form.emiratesIdExpiry} onChange={set("emiratesIdExpiry")} />
-            </LuxField>
-          </LuxSection>
+            </Field>
+          </Section>
 
-          <LuxSection n="03" title="Cricket Information">
-            <LuxField label="CricHeroes Profile Link" required={settings?.cricheroes_required} hint="Mandatory">
+          <Section n="3" title="Cricket Information" sectionRef={cricketRef}>
+            <Field label="CricHeroes Profile Link" required={settings?.cricheroes_required} hint="Mandatory">
               <input value={form.cricheroes} onChange={set("cricheroes")} placeholder="https://cricheroes.com/player/..." required={settings?.cricheroes_required} />
-            </LuxField>
-            <div className="grid grid-cols-2 gap-3">
-              <LuxField label="Primary Playing Role" required>
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Primary Playing Role" required>
                 <select value={form.role} onChange={set("role")}>{PLAYING_ROLES.map((r) => <option key={r}>{r}</option>)}</select>
-              </LuxField>
-              <LuxField label="Batting Style">
+              </Field>
+              <Field label="Batting Style">
                 <select value={form.battingStyle} onChange={set("battingStyle")}>{BATTING_STYLES.map((r) => <option key={r}>{r}</option>)}</select>
-              </LuxField>
+              </Field>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <LuxField label="Bowling Style"><input value={form.bowlingStyle} onChange={set("bowlingStyle")} placeholder="e.g. Right-arm medium" /></LuxField>
-              <LuxField label="Preferred Batting Position"><input value={form.battingPosition} onChange={set("battingPosition")} /></LuxField>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Bowling Style"><input value={form.bowlingStyle} onChange={set("bowlingStyle")} placeholder="e.g. Right-arm medium" /></Field>
+              <Field label="Preferred Batting Position"><input value={form.battingPosition} onChange={set("battingPosition")} /></Field>
             </div>
-            <LuxField label="Current Team"><input value={form.currentTeam} onChange={set("currentTeam")} /></LuxField>
-          </LuxSection>
+            <Field label="Current Team"><input value={form.currentTeam} onChange={set("currentTeam")} /></Field>
+          </Section>
 
-          <LuxSection n="04" title={`Payment — ${currency} ${fee}`}>
-            <div className="grid grid-cols-2 gap-3">
-              <LuxField label="Payment Method">
+          <Section n="4" title={`Payment — ${currency} ${fee}`} sectionRef={paymentSectionRef}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Payment Method">
                 <select value={form.paymentMethod} onChange={set("paymentMethod")}>
                   <option value="">Select</option>
                   <option>Bank Transfer</option><option>Cash</option>
                 </select>
-              </LuxField>
-              <LuxField label="Payment Reference"><input value={form.paymentRef} onChange={set("paymentRef")} /></LuxField>
+              </Field>
+              <Field label="Payment Reference"><input value={form.paymentRef} onChange={set("paymentRef")} /></Field>
             </div>
 
             {form.paymentMethod === "Bank Transfer" && (
-              <div className="rounded-xl p-4 mb-5 border" style={{ background: "rgba(212,175,55,0.06)", borderColor: "rgba(212,175,55,0.3)" }}>
-                <div className="text-[11px] font-bold uppercase tracking-wider mb-3 text-goldBright">Bank Account Details</div>
-                <div className="text-sm space-y-1.5 text-muted">
-                  {settings?.bank_account_name && <div><span className="text-mutedDim">Account Name: </span>{settings.bank_account_name}</div>}
-                  {settings?.bank_name && <div><span className="text-mutedDim">Bank: </span>{settings.bank_name}</div>}
-                  {settings?.bank_account_number && <div><span className="text-mutedDim">Account Number: </span>{settings.bank_account_number}</div>}
-                  {settings?.bank_iban && <div><span className="text-mutedDim">IBAN: </span>{settings.bank_iban}</div>}
+              <div className="rounded-xl p-4 mb-5 border" style={{ background: "rgba(212,175,55,0.05)", borderColor: "rgba(212,175,55,0.25)" }}>
+                <div className="text-[11px] font-bold uppercase tracking-wider mb-3 text-orange">Bank Account Details</div>
+                <div className="text-sm space-y-1.5 text-navyText">
+                  {settings?.bank_account_name && <div><span className="text-slateText">Account Name: </span>{settings.bank_account_name}</div>}
+                  {settings?.bank_name && <div><span className="text-slateText">Bank: </span>{settings.bank_name}</div>}
+                  {settings?.bank_account_number && <div><span className="text-slateText">Account Number: </span>{settings.bank_account_number}</div>}
+                  {settings?.bank_iban && <div><span className="text-slateText">IBAN: </span>{settings.bank_iban}</div>}
                   {!settings?.bank_account_name && !settings?.bank_name && (
-                    <div className="text-mutedDim">Bank details have not been set up yet — please contact the organising committee.</div>
+                    <div className="text-slateText">Bank details have not been set up yet — please contact the organising committee.</div>
                   )}
                 </div>
               </div>
             )}
 
-            <LuxField label="Upload Payment Receipt" hint={fileErr.receipt || files.receipt?.name}>
-              <input type="file" accept="image/*,.pdf" onChange={handleFile("receipt")} className="text-xs !p-0" />
-            </LuxField>
-          </LuxSection>
+            <Field label="Upload Payment Receipt" hint={fileErr.receipt || files.receipt?.name}>
+              <input type="file" accept="image/*,.pdf" onChange={handleFile("receipt")} className="text-xs !p-2" />
+            </Field>
+          </Section>
 
-          <div className="rounded-xl p-5 mb-5 text-xs leading-relaxed text-mutedDim border-l-2" style={{ borderColor: "#D4AF37", background: "rgba(255,255,255,0.02)" }}>
-            {settings?.terms_and_conditions}
+          <div ref={declarationRef} className="scroll-mt-32">
+            <div className="rounded-xl p-5 mb-5 text-xs leading-relaxed text-slateText bg-white border border-black/5 border-l-4" style={{ borderLeftColor: "#D4AF37" }}>
+              {settings?.terms_and_conditions}
+            </div>
+
+            <label className="flex items-start gap-3 mb-6 p-4 rounded-xl border cursor-pointer text-sm text-navyText bg-white" style={{ borderColor: "rgba(212,175,55,0.3)" }}>
+              <input
+                type="checkbox"
+                checked={form.declarationAccepted}
+                onChange={(e) => setForm((f) => ({ ...f, declarationAccepted: e.target.checked }))}
+                className="mt-0.5 !w-auto"
+              />
+              <span>I have read and agree to the tournament eligibility rules, auction conditions and the non-refundable {currency} {fee} registration fee.</span>
+            </label>
+
+            {formErr && <div className="text-xs mb-3 font-semibold text-red bg-red/10 rounded-lg p-3">{formErr}</div>}
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              className="w-full !py-4 !text-base tracking-wide shadow-[0_10px_40px_rgba(212,175,55,0.3)]"
+              disabled={!form.declarationAccepted || submitting}
+            >
+              {submitting ? "Submitting…" : "Complete Registration →"}
+            </Button>
           </div>
-
-          <label className="flex items-start gap-3 mb-6 p-4 rounded-xl border cursor-pointer text-sm text-muted" style={{ borderColor: "rgba(212,175,55,0.25)", background: "rgba(212,175,55,0.03)" }}>
-            <input
-              type="checkbox"
-              checked={form.declarationAccepted}
-              onChange={(e) => setForm((f) => ({ ...f, declarationAccepted: e.target.checked }))}
-              className="mt-0.5 !w-auto"
-            />
-            <span>I have read and agree to the tournament eligibility rules, auction conditions and the non-refundable {currency} {fee} registration fee.</span>
-          </label>
-
-          {formErr && <div className="text-xs mb-3 font-semibold text-red">{formErr}</div>}
-
-          <Button
-            type="submit"
-            variant="primary"
-            size="lg"
-            className="w-full !py-4 !text-base tracking-wide shadow-[0_10px_40px_rgba(212,175,55,0.3)]"
-            disabled={!form.declarationAccepted || submitting}
-          >
-            {submitting ? "Submitting…" : "Complete Registration →"}
-          </Button>
         </form>
       </div>
 
