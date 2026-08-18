@@ -73,8 +73,8 @@ export default async function StandingsPage() {
         <h2 className="text-xl font-bold font-display mb-4">Fixtures & Results</h2>
         <div className="space-y-2">
           {fixtures.length === 0 && <div className="text-sm text-mutedDim text-center py-8">Fixtures will be announced soon.</div>}
-          {fixtures.map((m) => (
-            <div key={m.id} className="rounded-xl border border-line bg-bgCard p-4">
+          {fixtures.map((m) => {
+            const cardInner = (
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
                   <div className="text-[11px] text-mutedDim mb-1">{m.stage}{m.match_number ? ` · Match ${m.match_number}` : ""}</div>
@@ -90,8 +90,20 @@ export default async function StandingsPage() {
                 </div>
                 <Badge tone={m.status === "Completed" ? "green" : m.status === "Live" ? "gold" : m.status === "Abandoned" ? "red" : "blue"}>{m.status}</Badge>
               </div>
-            </div>
-          ))}
+            );
+            if (m.status === "Live" || m.status === "Completed") {
+              return (
+                <Link key={m.id} href={`/matches/${m.id}`} className="rounded-xl border border-line bg-bgCard p-4 block hover:opacity-90 transition-opacity">
+                  {cardInner}
+                </Link>
+              );
+            }
+            return (
+              <div key={m.id} className="rounded-xl border border-line bg-bgCard p-4">
+                {cardInner}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
