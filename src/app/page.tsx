@@ -10,6 +10,7 @@ export default async function LandingPage() {
   const supabase = createClient();
   const { data: settings } = await supabase.from("tournament_settings").select("*").eq("id", 1).single();
   const { data: sponsors } = await supabase.from("sponsors").select("*").order("sort_order");
+  const { count: playerCount } = await supabase.from("players").select("*", { count: "exact", head: true });
 
   function publicUrl(bucket: string, path: string | null) {
     if (!path) return null;
@@ -18,6 +19,8 @@ export default async function LandingPage() {
 
   const countdownTarget = settings?.auction_date_time || (settings?.tournament_date ? `${settings.tournament_date}T00:00:00` : null);
   const countdownLabel = settings?.auction_date_time ? "Auction Begins In" : "Tournament Begins In";
+  const maxReg = settings?.max_registrations ?? 130;
+  const missionPoints = (settings?.mission_points || "").split("\n").filter((l: string) => l.trim());
 
   const stats = [
     { label: "Registration Fee", value: `${settings?.currency ?? "AED"} ${settings?.player_reg_fee ?? 25}` },
@@ -88,11 +91,19 @@ export default async function LandingPage() {
         <h1 className="text-4xl sm:text-6xl font-black font-display mb-4 max-w-3xl leading-[1.05] tracking-tight">
           {settings?.tournament_name ?? "Maharashtra Tennis Cricket Championship UAE"}
         </h1>
-        <p className="text-muted text-base sm:text-lg max-w-lg mb-10">
+        <p className="text-muted text-base sm:text-lg max-w-lg mb-6">
           {settings?.format ?? "One-Day, Tennis Cricket, Grass Ground"} — where every player earns their spot in the auction.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-4 mb-10">
+        <div className="flex items-center gap-2 mb-8 px-4 py-2 rounded-full border border-lineBright bg-bgCard">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-green"></span>
+          </span>
+          <span className="text-xs font-semibold text-muted">LIVE — <span className="text-goldBright font-bold">{playerCount ?? 0}</span> / {maxReg} players registered</span>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <Link href="/register">
             <Button variant="primary" size="lg" className="!px-10 !py-4 !text-lg shadow-[0_8px_30px_rgba(212,175,55,0.4)]">
               Register as a Player →
@@ -105,9 +116,10 @@ export default async function LandingPage() {
           </Link>
         </div>
 
-        <div className="flex gap-6 mb-12 text-sm">
+        <div className="flex gap-6 mb-12 text-sm flex-wrap justify-center">
           <Link href="/standings" className="text-goldBright underline underline-offset-4 font-semibold">Points Table</Link>
           <Link href="/squads" className="text-goldBright underline underline-offset-4 font-semibold">Team Squads</Link>
+          <Link href="/rules" className="text-goldBright underline underline-offset-4 font-semibold">Tournament Rules</Link>
         </div>
 
         {countdownTarget && (
@@ -134,6 +146,70 @@ export default async function LandingPage() {
               <div className="text-[10px] sm:text-xs uppercase tracking-wider font-bold text-mutedDim mt-1 relative z-10">{s.label}</div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {(settings?.about_text || settings?.vision_text || missionPoints.length > 0) && (
+        <div className="relative z-10 max-w-2xl mx-auto px-6 pb-16">
+          <div className="text-center text-[10px] uppercase tracking-[0.3em] text-orange mb-3">About MTCC</div>
+          {settings?.about_text && (
+            <p className="text-center text-muted leading-relaxed mb-8">{settings.about_text}</p>
+          )}
+          {settings?.vision_text && (
+            <div className="rounded-2xl border border-line bg-bgCard p-6 text-center mb-6">
+              <div className="text-[10px] uppercase tracking-wide text-mutedDim mb-2">Our Vision</div>
+              <p className="font-serif-lux italic text-lg text-ink">&ldquo;{settings.vision_text}&rdquo;</p>
+            </div>
+          )}
+          {missionPoints.length > 0 && (
+            <div className="rounded-2xl border border-line bg-bgCard p-6">
+              <div className="text-[10px] uppercase tracking-wide text-mutedDim mb-3">Our Mission</div>
+              <ul className="space-y-2">
+                {missionPoints.map((point: string, i: number) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-muted">
+                    <span className="text-goldBright mt-0.5">✦</span>
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Journey section — how the platform actually works, mirrors the registration/auction flow already built */}
+      <div className="relative z-10 max-w-4xl mx-auto px-6 pb-16">
+        <div className="text-center mb-8">
+          <div className="text-[10px] uppercase tracking-[0.3em] text-orange mb-2">Your Season Journey</div>
+          <h2 className="text-2xl font-bold font-display">Choose Your Place In The Story</h2>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-5">
+          <div className="rounded-2xl border border-line bg-bgCard p-6">
+            <div className="text-2xl mb-2">🏏</div>
+            <div className="text-xs uppercase tracking-wide text-orange font-semibold mb-1">For Players</div>
+            <h3 className="font-bold font-display mb-4">Get registered. Get noticed. Get auctioned.</h3>
+            <ol className="space-y-2.5 text-sm text-muted">
+              <li><b className="text-goldBright">01</b> Register with your profile and CricHeroes link</li>
+              <li><b className="text-goldBright">02</b> Pay the registration fee (bank transfer)</li>
+              <li><b className="text-goldBright">03</b> Get reviewed and approved by the committee</li>
+              <li><b className="text-goldBright">04</b> Enter the live auction pool</li>
+              <li><b className="text-goldBright">05</b> Join the team that wins your bid</li>
+            </ol>
+            <Link href="/register" className="inline-block mt-5 text-sm font-semibold text-goldBright underline underline-offset-4">Register as a Player →</Link>
+          </div>
+          <div className="rounded-2xl border border-line bg-bgCard p-6">
+            <div className="text-2xl mb-2">🏆</div>
+            <div className="text-xs uppercase tracking-wide text-orange font-semibold mb-1">For Team Owners</div>
+            <h3 className="font-bold font-display mb-4">Build your squad. Manage your purse. Chase the title.</h3>
+            <ol className="space-y-2.5 text-sm text-muted">
+              <li><b className="text-goldBright">01</b> Get your team set up by the organising committee</li>
+              <li><b className="text-goldBright">02</b> Pay the team entry fee</li>
+              <li><b className="text-goldBright">03</b> Receive your auction purse</li>
+              <li><b className="text-goldBright">04</b> Bid for players in the live auction</li>
+              <li><b className="text-goldBright">05</b> Track your squad and remaining purse live</li>
+            </ol>
+            <span className="inline-block mt-5 text-xs text-mutedDim">Contact the organising committee to register a team</span>
+          </div>
         </div>
       </div>
 
