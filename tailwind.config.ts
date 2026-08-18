@@ -21,6 +21,17 @@ const config: Config = {
         green: "#3DDC97",
         red: "#FF5D6C",
         blue: "#4E9BFF",
+        // ---- Light "premium sports event" theme, used only on public-facing
+        // marketing pages (homepage, register, squads, standings, rules).
+        // Purely additive — the dark tokens above are untouched, so Admin,
+        // Team Owner, the Auction Control Room and the public Auction Display
+        // (which is meant to stay dark/cinematic) keep working exactly as
+        // they did before this palette existed.
+        warmWhite: "#FFFDF8",
+        cream: "#F7F3EA",
+        navy: "#0B1F3A",
+        navyText: "#152238",
+        slateText: "#566274",
       },
       fontFamily: {
         display: ["Oswald", "sans-serif"],
