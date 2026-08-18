@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Badge, Button, Card, Field, SectionHeader, SeamDivider, StatusBadge } from "@/components/ui";
 import { addMatch, updateMatch, deleteMatch } from "./actions";
 
@@ -184,6 +185,14 @@ export default function FixturesClient({ initialMatches, teams, canManage }: { i
               </div>
               <div className="flex flex-col items-end gap-2">
                 <StatusBadge status={m.status} />
+                {canManage && m.status !== "Completed" && (
+                  <Link href={`/admin/scoring/${m.id}`} onClick={(e) => e.stopPropagation()}>
+                    <Button variant="orange" size="sm">⚡ Score</Button>
+                  </Link>
+                )}
+                {m.status === "Completed" && (
+                  <Link href={`/matches/${m.id}`} onClick={(e) => e.stopPropagation()} className="text-[11px] text-blue underline">Scorecard</Link>
+                )}
                 {canManage && <Button variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}>Remove</Button>}
               </div>
             </div>
