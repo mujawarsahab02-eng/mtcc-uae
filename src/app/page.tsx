@@ -31,118 +31,137 @@ export default async function LandingPage() {
   ];
 
   return (
-    <main className="min-h-screen relative overflow-hidden bg-bg">
+    <main className="min-h-screen relative overflow-hidden" style={{ background: "#05070d" }}>
       <PublicNav />
 
-      {/* Angled gold/orange energy band behind the hero */}
-      <div
-        className="absolute top-0 left-0 w-full h-[560px] -z-0"
-        style={{
-          background: "linear-gradient(115deg, #0A0F1C 0%, #16213D 40%, #1a2544 100%)",
-          clipPath: "polygon(0 0, 100% 0, 100% 84%, 0 100%)",
-        }}
-      />
-      <div
-        className="absolute top-0 left-0 w-full h-[560px] -z-0 opacity-70"
-        style={{
-          background: "radial-gradient(circle at 15% 10%, rgba(212,175,55,0.25) 0%, transparent 45%), radial-gradient(circle at 85% 30%, rgba(255,122,61,0.2) 0%, transparent 40%)",
-        }}
-      />
-      {/* Ambient pulsing glow behind the logo for extra depth */}
-      <div
-        className="absolute top-[60px] left-1/2 -translate-x-1/2 w-[420px] h-[420px] rounded-full -z-0"
-        style={{ background: "radial-gradient(circle, rgba(212,175,55,0.18) 0%, transparent 70%)", animation: "shimmerPulse 4s ease-in-out infinite" }}
-      />
-
-      {/* Decorative cricket-ball seam watermark, top-right of hero — gentle float */}
-      <svg className="absolute top-4 right-[-60px] w-[420px] h-[420px] opacity-[0.09] -z-0 hidden sm:block float-slow" viewBox="0 0 200 200" fill="none">
-        <circle cx="100" cy="100" r="92" stroke="#D4AF37" strokeWidth="1.5" />
-        <path d="M30 40 Q100 90 30 160" stroke="#D4AF37" strokeWidth="2" fill="none" />
-        <path d="M170 40 Q100 90 170 160" stroke="#D4AF37" strokeWidth="2" fill="none" />
-        {Array.from({ length: 14 }).map((_, i) => (
-          <line key={`l-${i}`} x1={26 + i * 2.2} y1={38 + i * 8.5} x2={34 + i * 2.2} y2={38 + i * 8.5} stroke="#D4AF37" strokeWidth="1.2" />
-        ))}
-      </svg>
-
-      {/* Decorative cricket stumps + bails watermark, bottom-left of hero — gentle float */}
-      <svg className="absolute bottom-6 left-[-30px] w-[220px] h-[260px] opacity-[0.11] -z-0 hidden sm:block float-slow-rev" viewBox="0 0 120 160" fill="none">
-        <rect x="20" y="30" width="6" height="110" fill="#FF7A3D" />
-        <rect x="57" y="20" width="6" height="120" fill="#FF7A3D" />
-        <rect x="94" y="30" width="6" height="110" fill="#FF7A3D" />
-        <ellipse cx="38" cy="24" rx="14" ry="5" fill="#FF7A3D" />
-        <ellipse cx="82" cy="18" rx="14" ry="5" fill="#FF7A3D" />
-      </svg>
-
-      {/* Warli-art-inspired geometric border band (original motif) */}
-      <svg className="absolute top-[0px] left-0 w-full h-[18px] -z-0 opacity-40" viewBox="0 0 400 18" preserveAspectRatio="none">
-        {Array.from({ length: 40 }).map((_, i) => (
-          <g key={i}>
-            <polygon points={`${i * 10},18 ${i * 10 + 5},4 ${i * 10 + 10},18`} fill="none" stroke="#D4AF37" strokeWidth="0.6" />
-            <circle cx={i * 10 + 5} cy="10" r="0.8" fill="#D4AF37" />
-          </g>
-        ))}
-      </svg>
-
-      <div className="relative z-10 flex flex-col items-center text-center px-6 pt-14 pb-10">
-        <div className="fade-up w-28 h-28 sm:w-32 sm:h-32 rounded-3xl flex items-center justify-center mb-6 border-2 border-gold bg-bgCard shadow-[0_0_40px_rgba(212,175,55,0.35)] overflow-hidden" style={{ transform: "rotate(-3deg)" }}>
-          <Logo className="w-full h-full" rotate={3} />
-        </div>
-
-        <div className="fade-up text-[11px] uppercase tracking-[0.3em] font-bold mb-3 text-orange" style={{ animationDelay: "0.1s" }}>
-          {settings?.season ?? "Season 1"} · {settings?.country ?? "UAE"} · Auction-Based
-        </div>
-        <h1 className="fade-up text-4xl sm:text-6xl font-black font-display mb-4 max-w-3xl leading-[1.05] tracking-tight" style={{ animationDelay: "0.18s" }}>
-          {settings?.tournament_name ?? "Maharashtra Tennis Cricket Championship UAE"}
-        </h1>
-        <p className="fade-up text-muted text-base sm:text-lg max-w-lg mb-6" style={{ animationDelay: "0.26s" }}>
-          {settings?.format ?? "One-Day, Tennis Cricket, Grass Ground"} — where every player earns their spot in the auction.
-        </p>
-
-        <div className="fade-up flex items-center gap-2 mb-8 px-4 py-2 rounded-full border border-lineBright bg-bgCard" style={{ animationDelay: "0.34s" }}>
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green"></span>
-          </span>
-          <span className="text-xs font-semibold text-muted">LIVE — <span className="text-goldBright font-bold">{playerCount ?? 0}</span> / {maxReg} players registered</span>
-        </div>
-
-        <div className="fade-up flex flex-col sm:flex-row gap-4 mb-6" style={{ animationDelay: "0.42s" }}>
-          <Link href="/register">
-            <Button variant="primary" size="lg" className="!px-10 !py-4 !text-lg shadow-[0_8px_30px_rgba(212,175,55,0.4)] hover:shadow-[0_8px_40px_rgba(212,175,55,0.6)] hover:-translate-y-0.5 transition-all">
-              Register as a Player →
-            </Button>
-          </Link>
-          <Link href="/auction/display">
-            <Button variant="ghost" size="lg" className="!px-10 !py-4 !text-lg border-2 hover:-translate-y-0.5 transition-transform">
-              ⚡ Live Auction Display
-            </Button>
-          </Link>
-        </div>
-
-        <div className="fade-up flex gap-6 text-sm flex-wrap justify-center" style={{ animationDelay: "0.5s" }}>
-          <Link href="/standings" className="text-goldBright underline underline-offset-4 font-semibold hover:text-white transition-colors">Points Table</Link>
-          <Link href="/squads" className="text-goldBright underline underline-offset-4 font-semibold hover:text-white transition-colors">Team Squads</Link>
-          <Link href="/rules" className="text-goldBright underline underline-offset-4 font-semibold hover:text-white transition-colors">Tournament Rules</Link>
-        </div>
-      </div>
-
-      {countdownTarget && (
-        <div className="relative z-10 flex justify-center pb-10 fade-up" style={{ animationDelay: "0.56s" }}>
-          <Countdown targetDate={countdownTarget} label={countdownLabel} />
-        </div>
-      )}
-
-      {/* Section divider — proper document-flow element now, not an absolutely
-          positioned overlay, so it can never drift across text again */}
-      <div className="relative z-10 max-w-5xl mx-auto px-6">
+      {/* ---------- Stadium night-match hero ---------- */}
+      <div className="relative overflow-hidden">
+        {/* Deep near-black base with a faint warm glow rising from the pitch */}
         <div
-          className="h-[3px] w-full rounded-full"
-          style={{ background: "linear-gradient(90deg, transparent, #D4AF37 20%, #FF7A3D 50%, #D4AF37 80%, transparent)" }}
+          className="absolute inset-0 -z-10"
+          style={{ background: "radial-gradient(ellipse 900px 500px at 50% 100%, #16213D 0%, #0A0F1C 45%, #05070d 75%)" }}
         />
+
+        {/* Floodlight beam — top left, angled inward toward the title */}
+        <div
+          className="absolute -top-24 -left-32 w-[420px] h-[900px] -z-10"
+          style={{
+            background: "radial-gradient(ellipse 180px 700px at 50% 0%, rgba(255,244,214,0.32), rgba(255,244,214,0.06) 45%, transparent 72%)",
+            transform: "rotate(38deg)",
+            transformOrigin: "top center",
+            mixBlendMode: "screen",
+          }}
+        />
+        {/* Floodlight beam — top right, mirrored */}
+        <div
+          className="absolute -top-24 -right-32 w-[420px] h-[900px] -z-10"
+          style={{
+            background: "radial-gradient(ellipse 180px 700px at 50% 0%, rgba(255,244,214,0.32), rgba(255,244,214,0.06) 45%, transparent 72%)",
+            transform: "rotate(-38deg)",
+            transformOrigin: "top center",
+            mixBlendMode: "screen",
+          }}
+        />
+        {/* Floodlight fixture glints at the two top corners */}
+        <div className="absolute top-8 left-8 w-3 h-3 rounded-full -z-10 hidden sm:block" style={{ background: "#FFF4D6", boxShadow: "0 0 40px 18px rgba(255,244,214,0.45), 0 0 90px 40px rgba(255,244,214,0.18)" }} />
+        <div className="absolute top-8 right-8 w-3 h-3 rounded-full -z-10 hidden sm:block" style={{ background: "#FFF4D6", boxShadow: "0 0 40px 18px rgba(255,244,214,0.45), 0 0 90px 40px rgba(255,244,214,0.18)" }} />
+
+        {/* Vignette to keep focus centered and deepen the "night" mood */}
+        <div className="absolute inset-0 -z-10" style={{ background: "radial-gradient(ellipse at 50% 25%, transparent 25%, rgba(0,0,0,0.55) 100%)" }} />
+
+        {/* Fine grain texture for a cinematic finish */}
+        <div className="absolute inset-0 -z-10 opacity-[0.05]" style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px)", backgroundSize: "3px 3px" }} />
+
+        {/* Decorative cricket-ball seam watermark — gentle float */}
+        <svg className="absolute top-16 right-[-70px] w-[400px] h-[400px] opacity-[0.05] -z-10 hidden lg:block float-slow" viewBox="0 0 200 200" fill="none">
+          <circle cx="100" cy="100" r="92" stroke="#D4AF37" strokeWidth="1.5" />
+          <path d="M30 40 Q100 90 30 160" stroke="#D4AF37" strokeWidth="2" fill="none" />
+          <path d="M170 40 Q100 90 170 160" stroke="#D4AF37" strokeWidth="2" fill="none" />
+        </svg>
+        {/* Decorative stumps watermark — gentle float */}
+        <svg className="absolute bottom-10 left-[-40px] w-[200px] h-[240px] opacity-[0.06] -z-10 hidden lg:block float-slow-rev" viewBox="0 0 120 160" fill="none">
+          <rect x="20" y="30" width="6" height="110" fill="#FF7A3D" />
+          <rect x="57" y="20" width="6" height="120" fill="#FF7A3D" />
+          <rect x="94" y="30" width="6" height="110" fill="#FF7A3D" />
+        </svg>
+
+        <div className="relative z-10 flex flex-col items-center text-center px-6 pt-16 pb-12">
+          {/* Clean, straight logo medallion — no tilt */}
+          <div
+            className="fade-up w-32 h-32 sm:w-36 sm:h-36 rounded-full flex items-center justify-center mb-7 overflow-hidden"
+            style={{ border: "3px solid rgba(212,175,55,0.75)", boxShadow: "0 0 0 6px rgba(212,175,55,0.08), 0 25px 60px rgba(0,0,0,0.55), 0 0 50px rgba(255,244,214,0.12)" }}
+          >
+            <Logo className="w-full h-full" />
+          </div>
+
+          <div className="fade-up text-xs uppercase tracking-[0.4em] font-bold mb-4 text-orange" style={{ animationDelay: "0.1s" }}>
+            {settings?.season ?? "Season 1"} · {settings?.country ?? "UAE"} · Auction-Based
+          </div>
+
+          <h1
+            className="fade-up font-serif-lux font-bold text-4xl sm:text-6xl md:text-7xl mb-5 max-w-4xl leading-[1.08] tracking-tight"
+            style={{ animationDelay: "0.18s", textShadow: "0 0 50px rgba(255,244,214,0.35), 0 0 100px rgba(212,175,55,0.25)" }}
+          >
+            {settings?.tournament_name ?? "Maharashtra Tennis Cricket Championship UAE"}
+          </h1>
+
+          <p className="fade-up text-muted text-base sm:text-lg max-w-lg mb-7" style={{ animationDelay: "0.26s" }}>
+            {settings?.format ?? "One-Day, Tennis Cricket, Grass Ground"} — where every player earns their spot in the auction.
+          </p>
+
+          {/* Bolder LIVE indicator */}
+          <div
+            className="fade-up inline-flex items-center gap-3 mb-9 pl-3 pr-5 py-2.5 rounded-full"
+            style={{ animationDelay: "0.34s", background: "linear-gradient(135deg, rgba(16,185,129,0.16), rgba(16,185,129,0.04))", border: "1px solid rgba(16,185,129,0.45)", boxShadow: "0 0 30px rgba(16,185,129,0.18)" }}
+          >
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green opacity-60"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-green" style={{ boxShadow: "0 0 12px #10B981" }}></span>
+            </span>
+            <span className="text-sm font-black tracking-widest text-white">LIVE</span>
+            <span className="w-px h-4" style={{ background: "rgba(255,255,255,0.2)" }} />
+            <span className="text-sm font-semibold text-muted"><span className="text-goldBright font-bold">{playerCount ?? 0}</span> / {maxReg} registered</span>
+          </div>
+
+          <div className="fade-up flex flex-col sm:flex-row gap-4 mb-6" style={{ animationDelay: "0.42s" }}>
+            <Link href="/register">
+              <Button variant="primary" size="lg" className="!px-10 !py-4 !text-lg shadow-[0_8px_30px_rgba(212,175,55,0.4)] hover:shadow-[0_8px_45px_rgba(212,175,55,0.65)] hover:-translate-y-0.5 transition-all">
+                Register as a Player →
+              </Button>
+            </Link>
+            <Link href="/auction/display">
+              <Button variant="ghost" size="lg" className="!px-10 !py-4 !text-lg border-2 hover:-translate-y-0.5 transition-transform">
+                ⚡ Live Auction Display
+              </Button>
+            </Link>
+          </div>
+
+          <div className="fade-up flex gap-6 text-sm flex-wrap justify-center" style={{ animationDelay: "0.5s" }}>
+            <Link href="/standings" className="text-goldBright underline underline-offset-4 font-semibold hover:text-white transition-colors">Points Table</Link>
+            <Link href="/squads" className="text-goldBright underline underline-offset-4 font-semibold hover:text-white transition-colors">Team Squads</Link>
+            <Link href="/rules" className="text-goldBright underline underline-offset-4 font-semibold hover:text-white transition-colors">Tournament Rules</Link>
+          </div>
+        </div>
+
+        {countdownTarget && (
+          <div className="relative z-10 flex justify-center pb-12 fade-up" style={{ animationDelay: "0.56s" }}>
+            <Countdown targetDate={countdownTarget} label={countdownLabel} />
+          </div>
+        )}
+
+        {/* Warli-art-inspired geometric border band, closing out the hero */}
+        <svg className="relative z-10 w-full h-[18px] opacity-40" viewBox="0 0 400 18" preserveAspectRatio="none">
+          {Array.from({ length: 40 }).map((_, i) => (
+            <g key={i}>
+              <polygon points={`${i * 10},18 ${i * 10 + 5},4 ${i * 10 + 10},18`} fill="none" stroke="#D4AF37" strokeWidth="0.6" />
+              <circle cx={i * 10 + 5} cy="10" r="0.8" fill="#D4AF37" />
+            </g>
+          ))}
+        </svg>
       </div>
 
-      {/* Stat strip with icons and glass-card hover depth */}
-      <div className="relative z-10 max-w-5xl mx-auto px-6 pt-8 pb-16">
+      {/* ---------- Stat strip ---------- */}
+      <div className="relative z-10 max-w-5xl mx-auto px-6 pt-10 pb-16">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           {stats.map((s, i) => (
             <div
@@ -160,17 +179,17 @@ export default async function LandingPage() {
 
       {(settings?.about_text || settings?.vision_text || missionPoints.length > 0) && (
         <div className="relative z-10 max-w-2xl mx-auto px-6 pb-16">
-          <div className="text-center mb-3">
+          <div className="text-center mb-6">
             <div className="icon-badge mx-auto mb-3" style={{ fontSize: 18 }}>📖</div>
-            <div className="text-[10px] uppercase tracking-[0.3em] text-orange">About MTCC</div>
+            <div className="text-xs uppercase tracking-[0.4em] text-orange">About MTCC</div>
           </div>
           {settings?.about_text && (
-            <p className="text-center text-muted leading-relaxed mb-8">{settings.about_text}</p>
+            <p className="text-center text-muted leading-relaxed mb-8 text-[15px]">{settings.about_text}</p>
           )}
           {settings?.vision_text && (
             <div className="glass-card rounded-2xl p-6 text-center mb-6">
               <div className="text-[10px] uppercase tracking-wide text-mutedDim mb-2">Our Vision</div>
-              <p className="font-serif-lux italic text-lg text-ink">&ldquo;{settings.vision_text}&rdquo;</p>
+              <p className="font-serif-lux italic text-xl text-ink">&ldquo;{settings.vision_text}&rdquo;</p>
             </div>
           )}
           {missionPoints.length > 0 && (
@@ -189,17 +208,17 @@ export default async function LandingPage() {
         </div>
       )}
 
-      {/* Journey section */}
+      {/* ---------- Journey section ---------- */}
       <div className="relative z-10 max-w-4xl mx-auto px-6 pb-16">
-        <div className="text-center mb-8">
-          <div className="text-[10px] uppercase tracking-[0.3em] text-orange mb-2">Your Season Journey</div>
-          <h2 className="text-2xl font-bold font-display">Choose Your Place In The Story</h2>
+        <div className="text-center mb-9">
+          <div className="text-xs uppercase tracking-[0.4em] text-orange mb-2">Your Season Journey</div>
+          <h2 className="font-serif-lux font-bold italic text-3xl">Choose Your Place In The Story</h2>
         </div>
         <div className="grid sm:grid-cols-2 gap-5">
           <div className="glass-card rounded-2xl p-6">
             <div className="icon-badge mb-3">🏏</div>
             <div className="text-xs uppercase tracking-wide text-orange font-semibold mb-1">For Players</div>
-            <h3 className="font-bold font-display mb-4">Get registered. Get noticed. Get auctioned.</h3>
+            <h3 className="font-bold font-display text-lg mb-4">Get registered. Get noticed. Get auctioned.</h3>
             <ol className="space-y-2.5 text-sm text-muted">
               <li><b className="text-goldBright">01</b> Register with your profile and CricHeroes link</li>
               <li><b className="text-goldBright">02</b> Pay the registration fee (bank transfer)</li>
@@ -212,7 +231,7 @@ export default async function LandingPage() {
           <div className="glass-card rounded-2xl p-6">
             <div className="icon-badge mb-3">🏆</div>
             <div className="text-xs uppercase tracking-wide text-orange font-semibold mb-1">For Team Owners</div>
-            <h3 className="font-bold font-display mb-4">Build your squad. Manage your purse. Chase the title.</h3>
+            <h3 className="font-bold font-display text-lg mb-4">Build your squad. Manage your purse. Chase the title.</h3>
             <ol className="space-y-2.5 text-sm text-muted">
               <li><b className="text-goldBright">01</b> Get your team set up by the organising committee</li>
               <li><b className="text-goldBright">02</b> Pay the team entry fee</li>
