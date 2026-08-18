@@ -42,32 +42,31 @@ export default async function LandingPage() {
           style={{ background: "radial-gradient(ellipse 900px 500px at 50% 100%, #16213D 0%, #0A0F1C 45%, #05070d 75%)" }}
         />
 
-        {/* Floodlight beam — top left, angled inward toward the title */}
+        {/* Floodlight beams — true light cones anchored at the exact top corners,
+            converging on the title. Vignette is painted BEFORE the beams so the
+            beams render on top and stay visible, instead of being cancelled out
+            by the corner-darkening vignette (that was the bug last time). */}
         <div
-          className="absolute -top-24 -left-32 w-[420px] h-[900px] -z-10"
+          className="absolute inset-0 -z-10"
+          style={{ background: "radial-gradient(ellipse at 50% 30%, transparent 35%, rgba(0,0,0,0.4) 100%)" }}
+        />
+        <div
+          className="absolute inset-0 -z-10"
           style={{
-            background: "radial-gradient(ellipse 180px 700px at 50% 0%, rgba(255,244,214,0.32), rgba(255,244,214,0.06) 45%, transparent 72%)",
-            transform: "rotate(38deg)",
-            transformOrigin: "top center",
+            background: "conic-gradient(from 108deg at 0% 0%, transparent 0deg, rgba(255,244,214,0.45) 10deg, rgba(255,244,214,0.15) 20deg, transparent 32deg)",
             mixBlendMode: "screen",
           }}
         />
-        {/* Floodlight beam — top right, mirrored */}
         <div
-          className="absolute -top-24 -right-32 w-[420px] h-[900px] -z-10"
+          className="absolute inset-0 -z-10"
           style={{
-            background: "radial-gradient(ellipse 180px 700px at 50% 0%, rgba(255,244,214,0.32), rgba(255,244,214,0.06) 45%, transparent 72%)",
-            transform: "rotate(-38deg)",
-            transformOrigin: "top center",
+            background: "conic-gradient(from 212deg at 100% 0%, transparent 0deg, rgba(255,244,214,0.45) 10deg, rgba(255,244,214,0.15) 20deg, transparent 32deg)",
             mixBlendMode: "screen",
           }}
         />
         {/* Floodlight fixture glints at the two top corners */}
         <div className="absolute top-8 left-8 w-3 h-3 rounded-full -z-10 hidden sm:block" style={{ background: "#FFF4D6", boxShadow: "0 0 40px 18px rgba(255,244,214,0.45), 0 0 90px 40px rgba(255,244,214,0.18)" }} />
         <div className="absolute top-8 right-8 w-3 h-3 rounded-full -z-10 hidden sm:block" style={{ background: "#FFF4D6", boxShadow: "0 0 40px 18px rgba(255,244,214,0.45), 0 0 90px 40px rgba(255,244,214,0.18)" }} />
-
-        {/* Vignette to keep focus centered and deepen the "night" mood */}
-        <div className="absolute inset-0 -z-10" style={{ background: "radial-gradient(ellipse at 50% 25%, transparent 25%, rgba(0,0,0,0.55) 100%)" }} />
 
         {/* Fine grain texture for a cinematic finish */}
         <div className="absolute inset-0 -z-10 opacity-[0.05]" style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px)", backgroundSize: "3px 3px" }} />
