@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { computeAge } from "@/lib/constants";
 
 // Public, unauthenticated route. Only reads from player_public / team_public
 // / auction_state — none of which ever include Emirates ID, contact info,
@@ -91,12 +92,36 @@ export default function AuctionDisplayPage() {
       ) : (
         <div className="rounded-xl border border-line bg-bgCard p-8 max-w-xl w-full text-center">
           <span className="px-2 py-0.5 rounded text-[11px] font-semibold uppercase bg-gold/15 text-goldBright">{player.auction_category || "Unassigned"}</span>
-          <div className="w-24 h-24 rounded-full mx-auto my-4 flex items-center justify-center text-4xl font-bold border-3 border-gold bg-bgCardHover text-gold">
-            {(player.full_name || "?").slice(0, 1).toUpperCase()}
+          <div className="w-24 h-24 rounded-full mx-auto my-4 overflow-hidden flex items-center justify-center text-4xl font-bold border-2 border-gold bg-bgCardHover text-gold">
+            {player.photo_path ? (
+              <img src={supabase.storage.from("player-photos").getPublicUrl(player.photo_path).data.publicUrl} alt={player.full_name} className="w-full h-full object-cover" />
+            ) : (
+              (player.full_name || "?").slice(0, 1).toUpperCase()
+            )}
           </div>
           <div className="text-3xl font-bold font-display">{player.full_name}</div>
-          <div className="text-sm mt-1 text-muted">{player.playing_role} · {player.batting_style}{player.bowling_style ? ` · ${player.bowling_style}` : ""}</div>
+          <div className="text-sm mt-1 text-muted">
+            {player.playing_role} · {player.batting_style}{player.bowling_style ? ` · ${player.bowling_style}` : ""}
+            {computeAge(player.dob) != null ? ` · ${computeAge(player.dob)} yrs` : ""}
+          </div>
           <div className="text-xs mt-1 text-mutedDim">{player.district || player.state}</div>
+
+          {(player.cricheroes_matches || player.cricheroes_runs || player.cricheroes_wickets) && (
+            <div className="grid grid-cols-3 gap-3 mt-5">
+              <div className="rounded-xl bg-bgCardHover border border-line py-3">
+                <div className="text-2xl font-black font-display text-goldBright">{player.cricheroes_matches ?? "—"}</div>
+                <div className="text-[10px] uppercase tracking-wide text-mutedDim mt-0.5">Matches</div>
+              </div>
+              <div className="rounded-xl bg-bgCardHover border border-line py-3">
+                <div className="text-2xl font-black font-display text-goldBright">{player.cricheroes_runs ?? "—"}</div>
+                <div className="text-[10px] uppercase tracking-wide text-mutedDim mt-0.5">Runs</div>
+              </div>
+              <div className="rounded-xl bg-bgCardHover border border-line py-3">
+                <div className="text-2xl font-black font-display text-goldBright">{player.cricheroes_wickets ?? "—"}</div>
+                <div className="text-[10px] uppercase tracking-wide text-mutedDim mt-0.5">Wickets</div>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center gap-1 my-4">
             <div className="flex-1 h-px bg-line" />
