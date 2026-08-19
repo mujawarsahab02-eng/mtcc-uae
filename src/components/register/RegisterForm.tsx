@@ -21,6 +21,7 @@ type Settings = {
   bank_iban?: string;
   powered_by_name?: string;
   powered_by_logo_path?: string;
+  ziina_qr_path?: string;
 } | null;
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
@@ -269,6 +270,14 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
       setFormErr("You must accept the registration declaration to submit.");
       return;
     }
+    if (!form.paymentMethod) {
+      setFormErr("Please select a payment method.");
+      return;
+    }
+    if (!files.receipt) {
+      setFormErr("Please upload a screenshot of your payment before submitting.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -443,10 +452,10 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
 
           <Section n="4" title={`Payment — ${currency} ${fee}`} sectionRef={paymentSectionRef}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Payment Method">
-                <select value={form.paymentMethod} onChange={set("paymentMethod")}>
+              <Field label="Payment Method" required>
+                <select value={form.paymentMethod} onChange={set("paymentMethod")} required>
                   <option value="">Select</option>
-                  <option>Bank Transfer</option><option>Cash</option>
+                  <option>Bank Transfer</option><option>Ziina</option>
                 </select>
               </Field>
               <Field label="Payment Reference"><input value={form.paymentRef} onChange={set("paymentRef")} /></Field>
@@ -467,8 +476,23 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
               </div>
             )}
 
-            <Field label="Upload Payment Receipt" hint={fileErr.receipt || files.receipt?.name}>
-              <input type="file" accept="image/*,.pdf" onChange={handleFile("receipt")} className="text-xs !p-2" />
+            {form.paymentMethod === "Ziina" && (
+              <div className="rounded-xl p-4 mb-5 border text-center" style={{ background: "rgba(212,175,55,0.05)", borderColor: "rgba(212,175,55,0.25)" }}>
+                <div className="text-[11px] font-bold uppercase tracking-wider mb-3 text-orange">Scan to Pay with Ziina</div>
+                {settings?.ziina_qr_path ? (
+                  <img
+                    src={supabase.storage.from("payment-assets").getPublicUrl(settings.ziina_qr_path).data.publicUrl}
+                    alt="Ziina QR Code"
+                    className="w-48 h-48 mx-auto rounded-xl border border-black/10 bg-white p-2"
+                  />
+                ) : (
+                  <div className="text-sm text-slateText">Ziina QR code has not been set up yet — please contact the organising committee.</div>
+                )}
+              </div>
+            )}
+
+            <Field label="Upload Payment Screenshot" required hint={fileErr.receipt || files.receipt?.name || "Required — upload proof of your bank transfer or Ziina payment"}>
+              <input type="file" accept="image/*,.pdf" onChange={handleFile("receipt")} className="text-xs !p-2" required />
             </Field>
           </Section>
 
