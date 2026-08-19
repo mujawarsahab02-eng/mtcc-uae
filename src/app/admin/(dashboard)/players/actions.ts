@@ -41,3 +41,28 @@ export async function updatePlayer(id: string, patch: Record<string, any>, actio
   revalidatePath("/admin/segregation");
   return { ok: true };
 }
+
+export async function deletePlayer(id: string): Promise<any> {
+  const profile = await getCurrentProfile();
+  if (!profile || !PLAYER_DECISION_ROLES.includes(profile.role)) {
+    return { error: "Only Super Admin or Tournament Admin can delete a player." };
+  }
+
+  const supabase = createClient();
+  const { data: player } = await supabase.from("players").select("full_name, application_status, team_id, sold_points").eq("id", id).single();
+  if (!player) return { error: "Player not found." };
+
+  if (player.application_status === "Sold / Selected" || player.team_id) {
+    return { error: "This player has already been sold to a team — remove them from the team/auction result first before deleting." };
+  }
+
+  const { error } = await supabase.from("players").delete().eq("id", id);
+  if (error) return { error: error.message };
+
+  await logAudit({ action: "Player Deleted", entity: "Player", entityId: id, field: "full_name", previousValue: player.full_name, newValue: "—" });
+
+  revalidatePath("/admin/players");
+  revalidatePath("/admin");
+  revalidatePath("/admin/segregation");
+  return { ok: true };
+}
