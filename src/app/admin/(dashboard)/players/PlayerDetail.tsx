@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Field, FormSection, StatusBadge } from "@/components/ui";
 import { APPLICATION_STATUSES, PAYMENT_STATUSES, PLAYER_CATEGORIES, DOCUMENT_ACCESS_ROLES, PLAYER_DECISION_ROLES, computeAge } from "@/lib/constants";
-import { updatePlayer } from "./actions";
+import { updatePlayer, deletePlayer } from "./actions";
 import { createClient } from "@/lib/supabase/client";
 
 export default function PlayerDetail({ player, settings, categories, currentRole, onClose }: any) {
@@ -16,10 +16,12 @@ export default function PlayerDetail({ player, settings, categories, currentRole
   const [receiptUrl, setReceiptUrl] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [err, setErr] = useState("");
 
   const canViewDocs = DOCUMENT_ACCESS_ROLES.includes(currentRole);
   const canDecide = PLAYER_DECISION_ROLES.includes(currentRole) || currentRole === "Auction Admin";
+  const canDelete = PLAYER_DECISION_ROLES.includes(currentRole);
   const canEditFinance = DOCUMENT_ACCESS_ROLES.includes(currentRole);
   const visibleCategories = PLAYER_CATEGORIES.filter(
     (c) => c !== "Overseas / Special Category" || (settings?.allow_overseas_category && currentRole === "Super Admin") || player.category === c
@@ -42,6 +44,16 @@ export default function PlayerDetail({ player, settings, categories, currentRole
       Object.assign(player, patch);
       router.refresh();
     }
+  }
+
+  async function handleDelete() {
+    if (!window.confirm(`Permanently delete ${player.full_name}'s registration? This cannot be undone.`)) return;
+    setDeleting(true);
+    setErr("");
+    const res: any = await deletePlayer(player.id);
+    setDeleting(false);
+    if (res.error) setErr(res.error);
+    else { router.refresh(); onClose(); }
   }
 
   async function fetchSignedUrl(bucket: string, path: string, setter: (u: string) => void) {
@@ -214,6 +226,16 @@ export default function PlayerDetail({ player, settings, categories, currentRole
             </div>
           )}
           {!canDecide && <div className="text-xs mt-2 text-mutedDim">Your role ({currentRole}) cannot approve or reject players.</div>}
+
+          {canDelete && (
+            <div className="mt-6 pt-4 border-t border-line">
+              <div className="text-[11px] font-bold uppercase tracking-wide mb-2 text-red">Danger Zone</div>
+              <Button variant="danger" size="sm" onClick={handleDelete} disabled={deleting || busy}>
+                {deleting ? "Deleting…" : "Delete Player Registration"}
+              </Button>
+              <p className="text-[11px] mt-1.5 text-mutedDim">Permanently removes this player. Blocked if they've already been sold to a team.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
