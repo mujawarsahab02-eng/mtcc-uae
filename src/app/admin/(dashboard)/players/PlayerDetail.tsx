@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Field, FormSection, StatusBadge } from "@/components/ui";
-import { APPLICATION_STATUSES, PAYMENT_STATUSES, PLAYER_CATEGORIES, DOCUMENT_ACCESS_ROLES, PLAYER_DECISION_ROLES } from "@/lib/constants";
+import { APPLICATION_STATUSES, PAYMENT_STATUSES, PLAYER_CATEGORIES, DOCUMENT_ACCESS_ROLES, PLAYER_DECISION_ROLES, computeAge } from "@/lib/constants";
 import { updatePlayer } from "./actions";
 import { createClient } from "@/lib/supabase/client";
 
@@ -74,6 +74,7 @@ export default function PlayerDetail({ player, settings, categories, currentRole
 
           <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-sm mb-5">
             <Row label="Player ID" value={player.player_code} mono />
+            <Row label="Age" value={computeAge(player.dob) != null ? `${computeAge(player.dob)}` : undefined} />
             <Row label="Role" value={player.playing_role} />
             <Row label="Batting Style" value={player.batting_style} />
             <Row label="Bowling Style" value={player.bowling_style} />
@@ -90,6 +91,21 @@ export default function PlayerDetail({ player, settings, categories, currentRole
               Open CricHeroes Profile ↗
             </a>
           )}
+
+          <FormSection title="CricHeroes Stats">
+            <p className="text-[11px] text-mutedDim mb-3">Read these off the player&apos;s CricHeroes profile yourself — never taken from what the player types in.</p>
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Matches">
+                <input type="number" defaultValue={player.cricheroes_matches ?? ""} onBlur={(e) => save({ cricheroes_matches: e.target.value ? Number(e.target.value) : null })} />
+              </Field>
+              <Field label="Runs">
+                <input type="number" defaultValue={player.cricheroes_runs ?? ""} onBlur={(e) => save({ cricheroes_runs: e.target.value ? Number(e.target.value) : null })} />
+              </Field>
+              <Field label="Wickets">
+                <input type="number" defaultValue={player.cricheroes_wickets ?? ""} onBlur={(e) => save({ cricheroes_wickets: e.target.value ? Number(e.target.value) : null })} />
+              </Field>
+            </div>
+          </FormSection>
 
           <div className="p-3 mb-4 rounded-xl border" style={{ background: "rgba(78,155,255,0.06)", borderColor: "rgba(78,155,255,0.25)" }}>
             <div className="flex items-center justify-between mb-2">
