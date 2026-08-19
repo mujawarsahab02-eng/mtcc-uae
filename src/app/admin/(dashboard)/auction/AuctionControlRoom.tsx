@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Badge, Button, Card, SectionHeader, SeamDivider, StatCard } from "@/components/ui";
-import { AUCTION_ROLES, OVERRIDE_ROLES } from "@/lib/constants";
+import { AUCTION_ROLES, OVERRIDE_ROLES, computeAge } from "@/lib/constants";
 import { computeRemainingPoints, computeSquad, computeGuestCount, validateSale } from "@/lib/auction";
 import { startAuction, pauseAuction, placeBid, markSold, markUnsold, deferPlayer, undoLastPlayerResult } from "./actions";
 
@@ -139,10 +139,21 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
         <>
           <Card className="p-5 mb-5">
             <div className="flex justify-between items-start mb-3 flex-wrap gap-2">
-              <div>
-                <Badge tone="gold">{currentPlayer.auction_category || "Unassigned"}</Badge>
-                <h2 className="text-2xl font-bold mt-2 font-display">{currentPlayer.full_name}</h2>
-                <div className="text-xs font-mono mt-0.5 text-mutedDim">{currentPlayer.player_code}</div>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-gold bg-bgCardHover flex items-center justify-center shrink-0">
+                  {currentPlayer.photo_path ? (
+                    <img src={supabase.storage.from("player-photos").getPublicUrl(currentPlayer.photo_path).data.publicUrl} alt={currentPlayer.full_name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-xl font-bold text-gold">{(currentPlayer.full_name || "?").slice(0, 1).toUpperCase()}</span>
+                  )}
+                </div>
+                <div>
+                  <Badge tone="gold">{currentPlayer.auction_category || "Unassigned"}</Badge>
+                  <h2 className="text-2xl font-bold mt-2 font-display">{currentPlayer.full_name}</h2>
+                  <div className="text-xs font-mono mt-0.5 text-mutedDim">
+                    {currentPlayer.player_code}{computeAge(currentPlayer.dob) != null ? ` · ${computeAge(currentPlayer.dob)} yrs` : ""}
+                  </div>
+                </div>
               </div>
               <div className="text-right text-[11px] text-mutedDim">Player {auction.pool_index + 1} of {auction.pool_order.length}</div>
             </div>
@@ -152,6 +163,13 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
               <MiniRow label="Bowling" value={currentPlayer.bowling_style} />
               <MiniRow label="District" value={currentPlayer.district} />
             </div>
+            {(currentPlayer.cricheroes_matches || currentPlayer.cricheroes_runs || currentPlayer.cricheroes_wickets) && (
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <StatMini label="Matches" value={currentPlayer.cricheroes_matches} />
+                <StatMini label="Runs" value={currentPlayer.cricheroes_runs} />
+                <StatMini label="Wickets" value={currentPlayer.cricheroes_wickets} />
+              </div>
+            )}
             {currentPlayer.cricheroes_url && <a href={currentPlayer.cricheroes_url} target="_blank" rel="noreferrer" className="text-xs font-semibold underline text-blue">CricHeroes Profile ↗</a>}
           </Card>
 
@@ -211,6 +229,15 @@ function MiniRow({ label, value }: { label: string; value?: string }) {
   return (
     <div className="flex justify-between border-b border-line py-1">
       <span className="text-mutedDim">{label}</span><span>{value || "—"}</span>
+    </div>
+  );
+}
+
+function StatMini({ label, value }: { label: string; value?: number | null }) {
+  return (
+    <div className="rounded-lg bg-bgCardHover border border-line py-2 text-center">
+      <div className="text-lg font-bold font-display text-goldBright">{value ?? "—"}</div>
+      <div className="text-[10px] uppercase tracking-wide text-mutedDim">{label}</div>
     </div>
   );
 }
