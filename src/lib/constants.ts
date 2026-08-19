@@ -45,6 +45,20 @@ export const OVERRIDE_ROLES: UserRole[] = ["Super Admin"];
 
 export const EMIRATES = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Umm Al Quwain", "Ras Al Khaimah", "Fujairah"];
 
+// Computes an age in years from a date-of-birth string. Only the derived
+// number should ever be displayed — never the raw dob — since dob is only
+// exposed publicly for this purpose (see player_public view).
+export function computeAge(dob: string | null | undefined): number | null {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  if (isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+}
+
 export function statusTone(status: string) {
   if (["Approved for Auction", "Sold / Selected", "Verified", "Paid", "Completed"].includes(status)) return "green";
   if (["Rejected", "Unsold / Not Selected", "Abandoned"].includes(status)) return "red";
