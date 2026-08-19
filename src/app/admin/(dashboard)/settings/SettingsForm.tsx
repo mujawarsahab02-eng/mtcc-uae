@@ -16,6 +16,7 @@ export default function SettingsForm({ settings, canEdit, canToggleOverseas, cur
   const [applyingPurse, setApplyingPurse] = useState(false);
   const [purseMsg, setPurseMsg] = useState("");
   const [poweredByLogoFile, setPoweredByLogoFile] = useState<File | null>(null);
+  const [ziinaQrFile, setZiinaQrFile] = useState<File | null>(null);
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const val = (e.target as HTMLInputElement).type === "checkbox" ? (e.target as HTMLInputElement).checked : e.target.value;
@@ -29,7 +30,12 @@ export default function SettingsForm({ settings, canEdit, canToggleOverseas, cur
     if (poweredByLogoFile) {
       const path = `powered-by-${crypto.randomUUID()}-${poweredByLogoFile.name.replace(/\s+/g, "_")}`;
       const { error: uploadError } = await supabase.storage.from("sponsor-logos").upload(path, poweredByLogoFile);
-      if (!uploadError) finalDraft = { ...draft, powered_by_logo_path: path };
+      if (!uploadError) finalDraft = { ...finalDraft, powered_by_logo_path: path };
+    }
+    if (ziinaQrFile) {
+      const path = `ziina-qr-${crypto.randomUUID()}-${ziinaQrFile.name.replace(/\s+/g, "_")}`;
+      const { error: uploadError } = await supabase.storage.from("payment-assets").upload(path, ziinaQrFile);
+      if (!uploadError) finalDraft = { ...finalDraft, ziina_qr_path: path };
     }
     const saveResult: any = await saveSettings(finalDraft);
     const { error } = saveResult;
@@ -37,6 +43,7 @@ export default function SettingsForm({ settings, canEdit, canToggleOverseas, cur
     if (!error) {
       setSaved(true);
       setPoweredByLogoFile(null);
+      setZiinaQrFile(null);
       router.refresh();
       setTimeout(() => setSaved(false), 2000);
     }
@@ -134,6 +141,13 @@ export default function SettingsForm({ settings, canEdit, canToggleOverseas, cur
             <Field label="Account Number"><input value={draft.bank_account_number || ""} onChange={set("bank_account_number")} /></Field>
             <Field label="IBAN"><input value={draft.bank_iban || ""} onChange={set("bank_iban")} /></Field>
           </div>
+        </FormSection>
+
+        <FormSection title="Ziina Payment">
+          <p className="text-[11px] text-mutedDim mb-3">Shown to players on the registration page when they select &quot;Ziina&quot; as their payment method — upload your Ziina QR scanner image.</p>
+          <Field label="Ziina QR Code Image" hint={ziinaQrFile?.name || (draft.ziina_qr_path ? "Leave blank to keep current image" : undefined)}>
+            <input type="file" accept="image/*" className="text-xs !p-0" onChange={(e) => setZiinaQrFile(e.target.files?.[0] || null)} />
+          </Field>
         </FormSection>
 
         <FormSection title="Powered By">
