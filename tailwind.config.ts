@@ -32,6 +32,7 @@ const config: Config = {
         navy: "#0B1F3A",
         navyText: "#152238",
         slateText: "#566274",
+        adminBg: "#F5F7FA",
       },
       fontFamily: {
         display: ["Oswald", "sans-serif"],
