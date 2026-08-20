@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { SectionHeader, SeamDivider, StatCard, Card, StatusBadge } from "@/components/ui";
+import { LightSectionHeader, LightSeamDivider, LightStatCard, LightCard, LightStatusBadge } from "@/components/ui/light";
 
 export const revalidate = 0;
 
@@ -35,44 +35,44 @@ export default async function DashboardPage() {
   const recent = [...p].sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 6);
 
   return (
-    <div>
-      <SectionHeader eyebrow={`${settings?.country ?? "UAE"} · ${settings?.format ?? ""}`} title="Admin Dashboard" />
-      <SeamDivider />
+    <div className="-mx-4 sm:-mx-6 -mt-20 md:-mt-8 -mb-16 px-4 sm:px-6 pt-20 md:pt-8 pb-16 bg-adminBg" style={{ minHeight: "100vh" }}>
+      <LightSectionHeader eyebrow={`${settings?.country ?? "UAE"} · ${settings?.format ?? ""}`} title="Admin Dashboard" />
+      <LightSeamDivider />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 my-6">
-        <StatCard label="Teams" value={settings?.number_of_teams ?? "—"} tone="gold" />
-        <StatCard label="Registered Players" value={stats.total} tone="blue" />
-        <StatCard label="Approved for Auction" value={stats.approved} tone="green" />
-        <StatCard label="Tournament Countdown" value={daysLeft} tone="orange" />
-        <StatCard label="Player Fees Collected" value={`${settings?.currency ?? "AED"} ${stats.feesCollected}`} tone="gold" />
-        <StatCard label="Team Fees Collected" value={`${settings?.currency ?? "AED"} ${stats.teamFees}`} tone="gold" />
-        <StatCard label="Payments Pending" value={stats.pending} tone="red" />
-        <StatCard label="Sold Players" value={stats.sold} tone="green" />
+        <LightStatCard label="Teams" value={settings?.number_of_teams ?? "—"} tone="gold" />
+        <LightStatCard label="Registered Players" value={stats.total} tone="blue" />
+        <LightStatCard label="Approved for Auction" value={stats.approved} tone="green" />
+        <LightStatCard label="Tournament Countdown" value={daysLeft} tone="orange" />
+        <LightStatCard label="Player Fees Collected" value={`${settings?.currency ?? "AED"} ${stats.feesCollected}`} tone="gold" />
+        <LightStatCard label="Team Fees Collected" value={`${settings?.currency ?? "AED"} ${stats.teamFees}`} tone="gold" />
+        <LightStatCard label="Payments Pending" value={stats.pending} tone="red" />
+        <LightStatCard label="Sold Players" value={stats.sold} tone="green" />
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        <Card className="p-5">
-          <div className="text-xs font-bold uppercase tracking-wide mb-4 text-muted">Recent Registrations</div>
-          {recent.length === 0 && <div className="text-sm text-mutedDim">No players registered yet.</div>}
+        <LightCard className="p-5">
+          <div className="text-xs font-bold uppercase tracking-wide mb-4 text-slateText">Recent Registrations</div>
+          {recent.length === 0 && <div className="text-sm text-slateText">No players registered yet.</div>}
           <div className="space-y-2">
             {recent.map((pl) => (
-              <div key={pl.id} className="flex items-center justify-between py-2 border-b last:border-0 border-line">
+              <div key={pl.id} className="flex items-center justify-between py-2 border-b last:border-0 border-black/5">
                 <div>
-                  <div className="text-sm font-semibold">{pl.full_name || "Unnamed"}</div>
-                  <div className="text-[11px] font-mono text-mutedDim">{pl.player_code}</div>
+                  <div className="text-sm font-semibold text-navyText">{pl.full_name || "Unnamed"}</div>
+                  <div className="text-[11px] font-mono text-slateText">{pl.player_code}</div>
                 </div>
-                <StatusBadge status={pl.application_status} />
+                <LightStatusBadge status={pl.application_status} />
               </div>
             ))}
           </div>
-        </Card>
+        </LightCard>
 
-        <Card className="p-5">
-          <div className="text-xs font-bold uppercase tracking-wide mb-4 text-muted">Pending Actions</div>
-          <ul className="space-y-3 text-sm text-muted">
-            <li className="flex justify-between"><span>Players awaiting review</span><b className="text-ink">{stats.newOrReview}</b></li>
-            <li className="flex justify-between"><span>Teams with pending entry fee</span><b className="text-ink">{stats.teamsPending}</b></li>
+        <LightCard className="p-5">
+          <div className="text-xs font-bold uppercase tracking-wide mb-4 text-slateText">Pending Actions</div>
+          <ul className="space-y-3 text-sm text-slateText">
+            <li className="flex justify-between"><span>Players awaiting review</span><b className="text-navyText">{stats.newOrReview}</b></li>
+            <li className="flex justify-between"><span>Teams with pending entry fee</span><b className="text-navyText">{stats.teamsPending}</b></li>
           </ul>
-        </Card>
+        </LightCard>
       </div>
     </div>
   );
