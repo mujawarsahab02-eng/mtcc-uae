@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Badge, Card, SectionHeader, SeamDivider, Button } from "@/components/ui";
+import { LightBadge, LightCard, LightSectionHeader, LightSeamDivider, LightButton } from "@/components/ui/light";
 import { PLAYING_ROLES, SETTINGS_EDIT_ROLES } from "@/lib/constants";
 import { addCategory, removeCategory } from "./actions";
 import { updatePlayer } from "../players/actions";
@@ -64,57 +64,57 @@ export default function SegregationClient({ initialPlayers, initialCategories, c
   }
 
   return (
-    <div>
-      <SectionHeader eyebrow="Pre-Auction" title="Player Segregation" />
-      <SeamDivider />
+    <div className="-mx-4 sm:-mx-6 -mt-20 md:-mt-8 -mb-16 px-4 sm:px-6 pt-20 md:pt-8 pb-16 bg-adminBg light-form" style={{ minHeight: "100vh" }}>
+      <LightSectionHeader eyebrow="Pre-Auction" title="Player Segregation" />
+      <LightSeamDivider />
 
-      <Card className="p-4 my-5">
-        <div className="text-xs font-bold uppercase tracking-wide mb-3 text-muted">Auto Grouping (Approved Players)</div>
+      <LightCard className="p-4 my-5">
+        <div className="text-xs font-bold uppercase tracking-wide mb-3 text-slateText">Auto Grouping (Approved Players)</div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
           {Object.entries(byRole).map(([k, v]) => (
-            <div key={k} className="p-3 rounded-lg text-center bg-bgPanel border border-line">
-              <div className="text-xl font-bold text-gold font-display">{(v as any[]).length}</div>
-              <div className="text-[10px] uppercase mt-1 text-mutedDim">{k}</div>
+            <div key={k} className="p-3 rounded-lg text-center bg-[#F5F7FA] border border-black/5">
+              <div className="text-xl font-bold text-orange font-display">{(v as any[]).length}</div>
+              <div className="text-[10px] uppercase mt-1 text-slateText">{k}</div>
             </div>
           ))}
         </div>
-      </Card>
+      </LightCard>
 
       {canManage && (
-        <Card className="p-4 mb-5">
+        <LightCard className="p-4 mb-5">
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-            <div className="text-xs font-bold uppercase tracking-wide text-muted">Auction Categories (Configurable)</div>
+            <div className="text-xs font-bold uppercase tracking-wide text-slateText">Auction Categories (Configurable)</div>
             <div className="flex gap-2">
               <input value={newCat} onChange={(e) => setNewCat(e.target.value)} placeholder="New category e.g. A+" style={{ width: 160 }} />
-              <Button variant="orange" size="sm" onClick={handleAddCategory}>Add</Button>
+              <LightButton variant="orange" size="sm" onClick={handleAddCategory}>Add</LightButton>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
             {categories.map((c: string) => (
-              <span key={c} className="px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2 bg-bgPanel border border-lineBright text-goldBright">
-                {c} <button onClick={() => handleRemoveCategory(c)} className="text-mutedDim">×</button>
+              <span key={c} className="px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2" style={{ background: "#FBF1D6", color: "#8A6A0A" }}>
+                {c} <button onClick={() => handleRemoveCategory(c)} className="text-slateText">×</button>
               </span>
             ))}
           </div>
-        </Card>
+        </LightCard>
       )}
 
       {players.length === 0 ? (
-        <Card className="p-8 text-center text-sm text-mutedDim">No players approved for auction yet. Approve players from Player Management.</Card>
+        <LightCard className="p-8 text-center text-sm text-slateText">No players approved for auction yet. Approve players from Player Management.</LightCard>
       ) : (
         <div className="space-y-4">
           {Object.entries(byCategory).map(([cat, list]) => (
-            <Card key={cat} className="p-4">
-              <div className="text-sm font-bold mb-3 flex items-center justify-between font-display">
-                <span>{cat}</span><Badge tone="gold">{(list as any[]).length} players</Badge>
+            <LightCard key={cat} className="p-4">
+              <div className="text-sm font-bold mb-3 flex items-center justify-between font-display text-navyText">
+                <span>{cat}</span><LightBadge tone="gold">{(list as any[]).length} players</LightBadge>
               </div>
-              {(list as any[]).length === 0 && <div className="text-xs text-mutedDim">No players in this category.</div>}
+              {(list as any[]).length === 0 && <div className="text-xs text-slateText">No players in this category.</div>}
               <div className="space-y-2">
                 {(list as any[]).map((p) => (
-                  <div key={p.id} className="flex items-center justify-between py-2 border-b last:border-0 flex-wrap gap-2 border-line">
+                  <div key={p.id} className="flex items-center justify-between py-2 border-b last:border-0 flex-wrap gap-2 border-black/5">
                     <div>
-                      <span className="text-sm font-semibold">{p.full_name}</span>
-                      <span className="text-[11px] ml-2 text-mutedDim">{p.playing_role} · {p.district || p.category}</span>
+                      <span className="text-sm font-semibold text-navyText">{p.full_name}</span>
+                      <span className="text-[11px] ml-2 text-slateText">{p.playing_role} · {p.district || p.category}</span>
                     </div>
                     <select value={p.auction_category || ""} onChange={(e) => movePlayer(p.id, e.target.value)} style={{ width: 160 }}>
                       <option value="">Unassigned</option>
@@ -123,7 +123,7 @@ export default function SegregationClient({ initialPlayers, initialCategories, c
                   </div>
                 ))}
               </div>
-            </Card>
+            </LightCard>
           ))}
         </div>
       )}
