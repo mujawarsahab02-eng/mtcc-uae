@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Badge, Button, Card, Field, SectionHeader, SeamDivider } from "@/components/ui";
+import { LightBadge, LightButton, LightCard, LightField, LightSectionHeader, LightSeamDivider } from "@/components/ui/light";
 import { addSponsor, updateSponsor, deleteSponsor } from "./actions";
 
 export default function SponsorsClient({ initialSponsors, canManage }: { initialSponsors: any[]; canManage: boolean }) {
@@ -96,76 +96,76 @@ export default function SponsorsClient({ initialSponsors, canManage }: { initial
   function SponsorGrid({ list }: { list: any[] }) {
     return (
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {list.length === 0 && <Card className="p-6 text-center text-sm text-mutedDim col-span-full">None added yet.</Card>}
+        {list.length === 0 && <LightCard className="p-6 text-center text-sm text-slateText col-span-full">None added yet.</LightCard>}
         {list.map((s) => (
-          <Card key={s.id} className="p-4">
+          <LightCard key={s.id} className="p-4">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0 bg-bgCardHover overflow-hidden border border-line">
-                {s.logo_path ? <img src={logoUrl(s.logo_path)!} alt={s.name} className="w-full h-full object-contain p-1" /> : <span className="text-mutedDim text-xs">No logo</span>}
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0 bg-[#F5F7FA] overflow-hidden border border-black/5">
+                {s.logo_path ? <img src={logoUrl(s.logo_path)!} alt={s.name} className="w-full h-full object-contain p-1" /> : <span className="text-slateText text-xs">No logo</span>}
               </div>
               <div className="min-w-0">
-                <div className="text-sm font-bold truncate">{s.name}</div>
+                <div className="text-sm font-bold truncate text-navyText">{s.name}</div>
                 {s.website_url && <a href={s.website_url} target="_blank" rel="noreferrer" className="text-[11px] text-blue underline truncate block">{s.website_url}</a>}
               </div>
             </div>
             {canManage && (
               <div className="flex gap-2">
-                <Button variant="subtle" size="sm" onClick={() => startEdit(s)}>Edit</Button>
-                <Button variant="danger" size="sm" onClick={() => handleDelete(s.id)} disabled={busy}>Remove</Button>
+                <LightButton variant="subtle" size="sm" onClick={() => startEdit(s)}>Edit</LightButton>
+                <LightButton variant="danger" size="sm" onClick={() => handleDelete(s.id)} disabled={busy}>Remove</LightButton>
               </div>
             )}
-          </Card>
+          </LightCard>
         ))}
       </div>
     );
   }
 
   return (
-    <div>
-      <SectionHeader
+    <div className="-mx-4 sm:-mx-6 -mt-20 md:-mt-8 -mb-16 px-4 sm:px-6 pt-20 md:pt-8 pb-16 bg-adminBg light-form" style={{ minHeight: "100vh" }}>
+      <LightSectionHeader
         eyebrow="Admin"
         title="Sponsors & Powered By"
-        action={canManage && !adding && !editing && <Button variant="primary" onClick={() => { resetForm(); setAdding(true); }}>Add Entry</Button>}
+        action={canManage && !adding && !editing && <LightButton variant="primary" onClick={() => { resetForm(); setAdding(true); }}>Add Entry</LightButton>}
       />
-      <SeamDivider />
+      <LightSeamDivider />
 
       {!canManage && (
-        <Card className="p-3 mb-5 text-xs text-orange" style={{ borderColor: "rgba(255,122,61,0.3)" }}>
+        <LightCard className="p-3 mb-5 text-xs text-orange" style={{ borderColor: "rgba(255,122,61,0.3)" }}>
           Read-only for your role. Only Super Admin and Tournament Admin can manage sponsors.
-        </Card>
+        </LightCard>
       )}
 
       {(adding || editing) && (
-        <Card className="p-5 mb-6">
-          <div className="text-xs font-bold uppercase tracking-wide mb-4 text-muted">{editing ? "Edit Entry" : "New Entry"}</div>
-          <Field label="Name" required><input value={name} onChange={(e) => setName(e.target.value)} /></Field>
-          <Field label="Website URL (optional)"><input value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} placeholder="https://..." /></Field>
-          <Field label="Logo" hint={logoFile?.name || (editing?.logo_path ? "Leave blank to keep current logo" : undefined)}>
+        <LightCard className="p-5 mb-6">
+          <div className="text-xs font-bold uppercase tracking-wide mb-4 text-slateText">{editing ? "Edit Entry" : "New Entry"}</div>
+          <LightField label="Name" required><input value={name} onChange={(e) => setName(e.target.value)} /></LightField>
+          <LightField label="Website URL (optional)"><input value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} placeholder="https://..." /></LightField>
+          <LightField label="Logo" hint={logoFile?.name || (editing?.logo_path ? "Leave blank to keep current logo" : undefined)}>
             <input type="file" accept="image/*" className="text-xs !p-0" onChange={(e) => setLogoFile(e.target.files?.[0] || null)} />
-          </Field>
-          <label className="flex items-center gap-2 text-sm mb-4 text-muted">
+          </LightField>
+          <label className="flex items-center gap-2 text-sm mb-4 text-slateText">
             <input type="checkbox" className="!w-auto" checked={isPoweredBy} onChange={(e) => setIsPoweredBy(e.target.checked)} />
             Show in the &quot;Powered By&quot; spot (top corner) instead of the main sponsors row
           </label>
           {err && <div className="text-xs mb-3 text-red">{err}</div>}
           <div className="flex gap-2">
-            <Button variant="primary" onClick={() => (editing ? handleUpdate(editing) : handleAdd())} disabled={busy || !name.trim()}>
+            <LightButton variant="primary" onClick={() => (editing ? handleUpdate(editing) : handleAdd())} disabled={busy || !name.trim()}>
               {busy ? "Saving…" : editing ? "Save Changes" : "Add Entry"}
-            </Button>
-            <Button variant="ghost" onClick={resetForm} disabled={busy}>Cancel</Button>
+            </LightButton>
+            <LightButton variant="ghost" onClick={resetForm} disabled={busy}>Cancel</LightButton>
           </div>
-        </Card>
+        </LightCard>
       )}
 
       <div className="mb-3 flex items-center gap-2">
-        <div className="text-xs font-bold uppercase tracking-wide text-muted">Powered By</div>
-        <Badge tone="gold">{poweredByList.length}</Badge>
+        <div className="text-xs font-bold uppercase tracking-wide text-slateText">Powered By</div>
+        <LightBadge tone="gold">{poweredByList.length}</LightBadge>
       </div>
       <div className="mb-8"><SponsorGrid list={poweredByList} /></div>
 
       <div className="mb-3 flex items-center gap-2">
-        <div className="text-xs font-bold uppercase tracking-wide text-muted">Sponsors</div>
-        <Badge tone="gold">{regularList.length}</Badge>
+        <div className="text-xs font-bold uppercase tracking-wide text-slateText">Sponsors</div>
+        <LightBadge tone="gold">{regularList.length}</LightBadge>
       </div>
       <SponsorGrid list={regularList} />
     </div>
