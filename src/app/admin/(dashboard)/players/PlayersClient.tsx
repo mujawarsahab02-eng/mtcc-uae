@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Button, Card, SectionHeader, SeamDivider, StatCard, StatusBadge, Badge } from "@/components/ui";
+import { LightButton, LightCard, LightSectionHeader, LightSeamDivider, LightStatCard, LightStatusBadge } from "@/components/ui/light";
 import { PLAYING_ROLES, APPLICATION_STATUSES, PAYMENT_STATUSES, PLAYER_CATEGORIES } from "@/lib/constants";
 import PlayerDetail from "./PlayerDetail";
 
@@ -69,25 +69,25 @@ export default function PlayersClient({ initialPlayers, settings, categories, cu
   }
 
   return (
-    <div>
-      <SectionHeader eyebrow="Admin" title="Player Management" action={<Button variant="ghost" onClick={exportCSV}>Export CSV</Button>} />
-      <SeamDivider />
+    <div className="-mx-4 sm:-mx-6 -mt-20 md:-mt-8 -mb-16 px-4 sm:px-6 pt-20 md:pt-8 pb-16 bg-adminBg light-form" style={{ minHeight: "100vh" }}>
+      <LightSectionHeader eyebrow="Admin" title="Player Management" action={<LightButton variant="ghost" onClick={exportCSV}>Export CSV</LightButton>} />
+      <LightSeamDivider />
 
       <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 my-5">
-        <StatCard label="Total" value={stats.total} tone="gold" />
-        <StatCard label="Fees Collected" value={`${settings?.currency ?? "AED"} ${stats.fees}`} tone="gold" />
-        <StatCard label="Payment Pending" value={stats.pending} tone="red" />
-        <StatCard label="Approved" value={stats.approved} tone="green" />
-        <StatCard label="Sold" value={stats.sold} tone="green" />
-        <StatCard label="Unsold" value={stats.unsold} tone="default" />
-        <StatCard label="Batsmen" value={stats.batsmen} tone="blue" />
-        <StatCard label="Bowlers" value={stats.bowlers} tone="blue" />
-        <StatCard label="All-Rounders" value={stats.allrounders} tone="blue" />
-        <StatCard label="Wicketkeepers" value={stats.keepers} tone="blue" />
-        <StatCard label="Guest Players" value={stats.guests} tone="orange" />
+        <LightStatCard label="Total" value={stats.total} tone="gold" />
+        <LightStatCard label="Fees Collected" value={`${settings?.currency ?? "AED"} ${stats.fees}`} tone="gold" />
+        <LightStatCard label="Payment Pending" value={stats.pending} tone="red" />
+        <LightStatCard label="Approved" value={stats.approved} tone="green" />
+        <LightStatCard label="Sold" value={stats.sold} tone="green" />
+        <LightStatCard label="Unsold" value={stats.unsold} tone="default" />
+        <LightStatCard label="Batsmen" value={stats.batsmen} tone="blue" />
+        <LightStatCard label="Bowlers" value={stats.bowlers} tone="blue" />
+        <LightStatCard label="All-Rounders" value={stats.allrounders} tone="blue" />
+        <LightStatCard label="Wicketkeepers" value={stats.keepers} tone="blue" />
+        <LightStatCard label="Guest Players" value={stats.guests} tone="orange" />
       </div>
 
-      <Card className="p-3 mb-4">
+      <LightCard className="p-3 mb-4">
         <div className="flex flex-wrap gap-2">
           <input placeholder="Search name, ID, district…" value={q} onChange={(e) => setQ(e.target.value)} className="flex-1 min-w-[160px]" style={{ maxWidth: 260 }} />
           <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} style={{ maxWidth: 170 }}>
@@ -103,31 +103,31 @@ export default function PlayersClient({ initialPlayers, settings, categories, cu
             <option value="">All Categories</option>{PLAYER_CATEGORIES.map((r) => <option key={r}>{r}</option>)}
           </select>
         </div>
-      </Card>
+      </LightCard>
 
       <div className="space-y-2">
-        {filtered.length === 0 && <Card className="p-8 text-center text-sm text-mutedDim">No players match these filters.</Card>}
+        {filtered.length === 0 && <LightCard className="p-8 text-center text-sm text-slateText">No players match these filters.</LightCard>}
         {filtered.map((p: any) => (
-          <Card key={p.id} className="p-4 cursor-pointer" onClick={() => setSelected(p)}>
+          <LightCard key={p.id} className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelected(p)}>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 bg-bgCardHover text-gold">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0" style={{ background: "#FBF1D6", color: "#8A6A0A" }}>
                   {(p.full_name || "?").slice(0, 1).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold truncate">{p.full_name || "Unnamed"}</div>
-                  <div className="text-[11px] flex gap-2 flex-wrap text-mutedDim font-mono">
+                  <div className="text-sm font-semibold text-navyText truncate">{p.full_name || "Unnamed"}</div>
+                  <div className="text-[11px] flex gap-2 flex-wrap text-slateText font-mono">
                     <span>{p.player_code}</span><span>·</span><span>{p.playing_role}</span>
                     {p.district && <><span>·</span><span>{p.district}</span></>}
                   </div>
                 </div>
               </div>
               <div className="flex gap-2 flex-wrap">
-                <StatusBadge status={p.payment_status} />
-                <StatusBadge status={p.application_status} />
+                <LightStatusBadge status={p.payment_status} />
+                <LightStatusBadge status={p.application_status} />
               </div>
             </div>
-          </Card>
+          </LightCard>
         ))}
       </div>
 
