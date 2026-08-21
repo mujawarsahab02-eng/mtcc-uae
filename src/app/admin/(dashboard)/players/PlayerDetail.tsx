@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, Button, Field, FormSection, StatusBadge } from "@/components/ui";
+import { LightBadge, LightButton, LightField, LightFormSection, LightStatusBadge } from "@/components/ui/light";
 import { APPLICATION_STATUSES, PAYMENT_STATUSES, PLAYER_CATEGORIES, DOCUMENT_ACCESS_ROLES, PLAYER_DECISION_ROLES, computeAge } from "@/lib/constants";
 import { updatePlayer, deletePlayer } from "./actions";
 import { createClient } from "@/lib/supabase/client";
@@ -67,19 +67,19 @@ export default function PlayerDetail({ player, settings, categories, currentRole
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl border border-lineBright bg-bgPanel" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 flex items-center justify-between px-5 py-4 border-b border-line bg-bgPanel z-10">
-          <h3 className="text-lg font-bold font-display">{player.full_name}</h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center bg-bgCard text-muted">×</button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl border border-black/10 bg-white light-form" onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 flex items-center justify-between px-5 py-4 border-b border-black/10 bg-white z-10">
+          <h3 className="text-lg font-bold font-display text-navyText">{player.full_name}</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center bg-[#F1F2F4] text-slateText">×</button>
         </div>
         <div className="p-5">
           <div className="flex gap-2 flex-wrap mb-4">
-            <StatusBadge status={player.application_status} />
-            <StatusBadge status={player.payment_status} />
-            <Badge tone="default">{player.category}</Badge>
-            {player.auction_category && <Badge tone="orange">{player.auction_category}</Badge>}
-            {player.player_type && <Badge tone="blue">{player.player_type}</Badge>}
+            <LightStatusBadge status={player.application_status} />
+            <LightStatusBadge status={player.payment_status} />
+            <LightBadge tone="default">{player.category}</LightBadge>
+            {player.auction_category && <LightBadge tone="orange">{player.auction_category}</LightBadge>}
+            {player.player_type && <LightBadge tone="blue">{player.player_type}</LightBadge>}
           </div>
 
           {photoUrl && <img src={photoUrl} alt="" className="w-20 h-20 rounded-full object-cover mb-4 border-2 border-gold" />}
@@ -104,22 +104,22 @@ export default function PlayerDetail({ player, settings, categories, currentRole
             </a>
           )}
 
-          <FormSection title="CricHeroes Stats">
-            <p className="text-[11px] text-mutedDim mb-3">Read these off the player&apos;s CricHeroes profile yourself — never taken from what the player types in.</p>
+          <LightFormSection title="CricHeroes Stats">
+            <p className="text-[11px] text-slateText mb-3">Read these off the player&apos;s CricHeroes profile yourself — never taken from what the player types in.</p>
             <div className="grid grid-cols-3 gap-3">
-              <Field label="Matches">
+              <LightField label="Matches">
                 <input type="number" defaultValue={player.cricheroes_matches ?? ""} onBlur={(e) => save({ cricheroes_matches: e.target.value ? Number(e.target.value) : null })} />
-              </Field>
-              <Field label="Runs">
+              </LightField>
+              <LightField label="Runs">
                 <input type="number" defaultValue={player.cricheroes_runs ?? ""} onBlur={(e) => save({ cricheroes_runs: e.target.value ? Number(e.target.value) : null })} />
-              </Field>
-              <Field label="Wickets">
+              </LightField>
+              <LightField label="Wickets">
                 <input type="number" defaultValue={player.cricheroes_wickets ?? ""} onBlur={(e) => save({ cricheroes_wickets: e.target.value ? Number(e.target.value) : null })} />
-              </Field>
+              </LightField>
             </div>
-          </FormSection>
+          </LightFormSection>
 
-          <div className="p-3 mb-4 rounded-xl border" style={{ background: "rgba(78,155,255,0.06)", borderColor: "rgba(78,155,255,0.25)" }}>
+          <div className="p-3 mb-4 rounded-xl border" style={{ background: "rgba(78,155,255,0.06)", borderColor: "rgba(78,155,255,0.2)" }}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold uppercase text-blue">Restricted: Emirates ID</span>
               {canViewDocs ? (
@@ -133,11 +133,11 @@ export default function PlayerDetail({ player, settings, categories, currentRole
                   {showId ? "Hide" : "Show (Authorised Only)"}
                 </button>
               ) : (
-                <span className="text-[11px] text-mutedDim">Not visible to {currentRole}</span>
+                <span className="text-[11px] text-slateText">Not visible to {currentRole}</span>
               )}
             </div>
             {showId && canViewDocs && (
-              <div className="text-xs space-y-1 text-muted">
+              <div className="text-xs space-y-1 text-slateText">
                 <div>Number: {player.emirates_id || "—"}</div>
                 <div>Expiry: {player.emirates_id_expiry || "—"}</div>
                 <div>
@@ -150,7 +150,7 @@ export default function PlayerDetail({ player, settings, categories, currentRole
 
           {canViewDocs ? (
             player.payment_receipt_path && (
-              <div className="text-xs mb-4 text-muted">
+              <div className="text-xs mb-4 text-slateText">
                 Payment receipt on file:{" "}
                 <button onClick={() => fetchSignedUrl("payment-receipts", player.payment_receipt_path, setReceiptUrl)} className="underline font-semibold text-blue">
                   {receiptUrl ? "" : "Generate link"}
@@ -160,17 +160,17 @@ export default function PlayerDetail({ player, settings, categories, currentRole
               </div>
             )
           ) : (
-            <div className="text-xs mb-4 text-mutedDim">Payment documents are only visible to Super Admin, Tournament Admin and Finance Admin.</div>
+            <div className="text-xs mb-4 text-slateText">Payment documents are only visible to Super Admin, Tournament Admin and Finance Admin.</div>
           )}
 
           <div className="grid sm:grid-cols-2 gap-3 mb-4">
-            <Field label="Application Status">
+            <LightField label="Application Status">
               <select value={player.application_status} disabled={!canDecide || busy}
                 onChange={(e) => save({ application_status: e.target.value }, "Application Status Changed")}>
                 {APPLICATION_STATUSES.map((s) => <option key={s}>{s}</option>)}
               </select>
-            </Field>
-            <Field label="Payment Status">
+            </LightField>
+            <LightField label="Payment Status">
               <select value={player.payment_status} disabled={!canEditFinance || busy}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -180,60 +180,60 @@ export default function PlayerDetail({ player, settings, categories, currentRole
                 }}>
                 {PAYMENT_STATUSES.map((s) => <option key={s}>{s}</option>)}
               </select>
-            </Field>
-            <Field label="Player Category">
+            </LightField>
+            <LightField label="Player Category">
               <select value={player.category} disabled={!canDecide || busy} onChange={(e) => save({ category: e.target.value }, "Player Category Changed")}>
                 {visibleCategories.map((s) => <option key={s}>{s}</option>)}
               </select>
-            </Field>
-            <Field label="Auction Category">
+            </LightField>
+            <LightField label="Auction Category">
               <select value={player.auction_category || ""} disabled={!canDecide || busy} onChange={(e) => save({ auction_category: e.target.value || null }, "Auction Category Changed")}>
                 <option value="">Unassigned</option>
                 {categories.map((c: string) => <option key={c}>{c}</option>)}
               </select>
-            </Field>
+            </LightField>
           </div>
 
           {canEditFinance && (
-            <FormSection title="Financial Record">
+            <LightFormSection title="Financial Record">
               <div className="grid sm:grid-cols-2 gap-3">
-                <Field label={`Registration Fee (${settings?.currency ?? "AED"})`}>
+                <LightField label={`Registration Fee (${settings?.currency ?? "AED"})`}>
                   <input type="number" defaultValue={player.registration_fee_amount ?? settings?.player_reg_fee} onBlur={(e) => save({ registration_fee_amount: Number(e.target.value) })} />
-                </Field>
-                <Field label={`Amount Paid (${settings?.currency ?? "AED"})`}>
+                </LightField>
+                <LightField label={`Amount Paid (${settings?.currency ?? "AED"})`}>
                   <input type="number" defaultValue={player.amount_paid ?? 0} onBlur={(e) => save({ amount_paid: Number(e.target.value) })} />
-                </Field>
-                <Field label="Payment Reference">
+                </LightField>
+                <LightField label="Payment Reference">
                   <input defaultValue={player.payment_reference || ""} onBlur={(e) => save({ payment_reference: e.target.value })} />
-                </Field>
-                <Field label="Payment Date">
+                </LightField>
+                <LightField label="Payment Date">
                   <input type="date" defaultValue={player.payment_date || ""} onBlur={(e) => save({ payment_date: e.target.value })} />
-                </Field>
+                </LightField>
               </div>
-            </FormSection>
+            </LightFormSection>
           )}
 
-          <Field label="Internal Notes">
+          <LightField label="Internal Notes">
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => save({ internal_notes: notes })} rows={3} />
-          </Field>
+          </LightField>
 
           {err && <div className="text-xs mb-3 text-red">{err}</div>}
 
           {canDecide && (
             <div className="flex gap-2 mt-4">
-              <Button variant="primary" size="sm" onClick={() => save({ application_status: "Approved for Auction" }, "Player Approved")} disabled={busy}>Approve</Button>
-              <Button variant="danger" size="sm" onClick={() => save({ application_status: "Rejected" }, "Player Rejected")} disabled={busy}>Reject</Button>
+              <LightButton variant="primary" size="sm" onClick={() => save({ application_status: "Approved for Auction" }, "Player Approved")} disabled={busy}>Approve</LightButton>
+              <LightButton variant="danger" size="sm" onClick={() => save({ application_status: "Rejected" }, "Player Rejected")} disabled={busy}>Reject</LightButton>
             </div>
           )}
-          {!canDecide && <div className="text-xs mt-2 text-mutedDim">Your role ({currentRole}) cannot approve or reject players.</div>}
+          {!canDecide && <div className="text-xs mt-2 text-slateText">Your role ({currentRole}) cannot approve or reject players.</div>}
 
           {canDelete && (
-            <div className="mt-6 pt-4 border-t border-line">
+            <div className="mt-6 pt-4 border-t border-black/10">
               <div className="text-[11px] font-bold uppercase tracking-wide mb-2 text-red">Danger Zone</div>
-              <Button variant="danger" size="sm" onClick={handleDelete} disabled={deleting || busy}>
+              <LightButton variant="danger" size="sm" onClick={handleDelete} disabled={deleting || busy}>
                 {deleting ? "Deleting…" : "Delete Player Registration"}
-              </Button>
-              <p className="text-[11px] mt-1.5 text-mutedDim">Permanently removes this player. Blocked if they've already been sold to a team.</p>
+              </LightButton>
+              <p className="text-[11px] mt-1.5 text-slateText">Permanently removes this player. Blocked if they've already been sold to a team.</p>
             </div>
           )}
         </div>
@@ -244,9 +244,9 @@ export default function PlayerDetail({ player, settings, categories, currentRole
 
 function Row({ label, value, mono }: { label: string; value?: string; mono?: boolean }) {
   return (
-    <div className="flex justify-between py-1.5 border-b border-line">
-      <span className="text-mutedDim">{label}</span>
-      <span className={mono ? "font-mono text-xs" : ""}>{value || "—"}</span>
+    <div className="flex justify-between py-1.5 border-b border-black/5">
+      <span className="text-slateText">{label}</span>
+      <span className={`text-navyText ${mono ? "font-mono text-xs" : ""}`}>{value || "—"}</span>
     </div>
   );
 }
