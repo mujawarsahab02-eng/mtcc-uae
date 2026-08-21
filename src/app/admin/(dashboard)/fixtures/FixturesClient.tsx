@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Badge, Button, Card, Field, SectionHeader, SeamDivider, StatusBadge } from "@/components/ui";
+import { LightButton, LightCard, LightField, LightSectionHeader, LightSeamDivider, LightStatusBadge } from "@/components/ui/light";
 import { addMatch, updateMatch, deleteMatch } from "./actions";
 
 const STAGES = ["League", "Quarter-Final", "Semi-Final", "Final"];
@@ -87,116 +87,116 @@ export default function FixturesClient({ initialMatches, teams, canManage }: { i
   }
 
   return (
-    <div>
-      <SectionHeader
+    <div className="-mx-4 sm:-mx-6 -mt-20 md:-mt-8 -mb-16 px-4 sm:px-6 pt-20 md:pt-8 pb-16 bg-adminBg light-form" style={{ minHeight: "100vh" }}>
+      <LightSectionHeader
         eyebrow="Admin"
         title="Fixtures & Results"
-        action={canManage && !adding && !editing && <Button variant="primary" onClick={() => { resetForm(); setAdding(true); }}>Add Match</Button>}
+        action={canManage && !adding && !editing && <LightButton variant="primary" onClick={() => { resetForm(); setAdding(true); }}>Add Match</LightButton>}
       />
-      <SeamDivider />
+      <LightSeamDivider />
 
       {!canManage && (
-        <Card className="p-3 mb-5 text-xs text-orange" style={{ borderColor: "rgba(255,122,61,0.3)" }}>
+        <LightCard className="p-3 mb-5 text-xs text-orange" style={{ borderColor: "rgba(255,122,61,0.3)" }}>
           Read-only for your role. Super Admin, Tournament Admin or Scorer can manage fixtures.
-        </Card>
+        </LightCard>
       )}
 
       {(adding || editing) && (
-        <Card className="p-5 mb-6">
-          <div className="text-xs font-bold uppercase tracking-wide mb-4 text-muted">{editing ? "Edit Match" : "New Match"}</div>
+        <LightCard className="p-5 mb-6">
+          <div className="text-xs font-bold uppercase tracking-wide mb-4 text-slateText">{editing ? "Edit Match" : "New Match"}</div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Match Number"><input type="number" value={form.match_number} onChange={set("match_number")} /></Field>
-            <Field label="Stage">
+            <LightField label="Match Number"><input type="number" value={form.match_number} onChange={set("match_number")} /></LightField>
+            <LightField label="Stage">
               <select value={form.stage} onChange={set("stage")}>{STAGES.map((s) => <option key={s}>{s}</option>)}</select>
-            </Field>
+            </LightField>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Team A">
+            <LightField label="Team A">
               <select value={form.team_a_id} onChange={set("team_a_id")}><option value="">Select</option>{teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
-            </Field>
-            <Field label="Team B">
+            </LightField>
+            <LightField label="Team B">
               <select value={form.team_b_id} onChange={set("team_b_id")}><option value="">Select</option>{teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
-            </Field>
+            </LightField>
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <Field label="Date"><input type="date" value={form.match_date} onChange={set("match_date")} /></Field>
-            <Field label="Time"><input type="time" value={form.match_time} onChange={set("match_time")} /></Field>
-            <Field label="Group"><input value={form.group_name} onChange={set("group_name")} placeholder="e.g. Group A" /></Field>
+            <LightField label="Date"><input type="date" value={form.match_date} onChange={set("match_date")} /></LightField>
+            <LightField label="Time"><input type="time" value={form.match_time} onChange={set("match_time")} /></LightField>
+            <LightField label="Group"><input value={form.group_name} onChange={set("group_name")} placeholder="e.g. Group A" /></LightField>
           </div>
-          <Field label="Ground"><input value={form.ground} onChange={set("ground")} /></Field>
-          <Field label="Status">
+          <LightField label="Ground"><input value={form.ground} onChange={set("ground")} /></LightField>
+          <LightField label="Status">
             <select value={form.status} onChange={set("status")}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select>
-          </Field>
+          </LightField>
 
           {(form.status === "Completed" || form.status === "Live") && (
             <>
-              <div className="w-full h-px my-4" style={{ background: "rgba(212,175,55,0.2)" }} />
-              <div className="text-[11px] font-bold uppercase tracking-wide mb-3 text-goldBright">Result Details</div>
+              <div className="w-full h-px my-4 bg-black/10" />
+              <div className="text-[11px] font-bold uppercase tracking-wide mb-3 text-orange">Result Details</div>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Toss Winner">
+                <LightField label="Toss Winner">
                   <select value={form.toss_winner_id} onChange={set("toss_winner_id")}><option value="">—</option>{teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
-                </Field>
-                <Field label="Batting First">
+                </LightField>
+                <LightField label="Batting First">
                   <select value={form.batting_first_id} onChange={set("batting_first_id")}><option value="">—</option>{teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
-                </Field>
+                </LightField>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Team A Score"><input value={form.team_a_score} onChange={set("team_a_score")} placeholder="e.g. 145/6" /></Field>
-                <Field label="Team A Overs"><input type="number" step="0.1" value={form.team_a_overs} onChange={set("team_a_overs")} /></Field>
+                <LightField label="Team A Score"><input value={form.team_a_score} onChange={set("team_a_score")} placeholder="e.g. 145/6" /></LightField>
+                <LightField label="Team A Overs"><input type="number" step="0.1" value={form.team_a_overs} onChange={set("team_a_overs")} /></LightField>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Team B Score"><input value={form.team_b_score} onChange={set("team_b_score")} placeholder="e.g. 140/8" /></Field>
-                <Field label="Team B Overs"><input type="number" step="0.1" value={form.team_b_overs} onChange={set("team_b_overs")} /></Field>
+                <LightField label="Team B Score"><input value={form.team_b_score} onChange={set("team_b_score")} placeholder="e.g. 140/8" /></LightField>
+                <LightField label="Team B Overs"><input type="number" step="0.1" value={form.team_b_overs} onChange={set("team_b_overs")} /></LightField>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Winner">
+                <LightField label="Winner">
                   <select value={form.winner_id} onChange={set("winner_id")}><option value="">—</option>{teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
-                </Field>
-                <Field label="Margin"><input value={form.margin} onChange={set("margin")} placeholder="e.g. 5 runs / 3 wickets" /></Field>
+                </LightField>
+                <LightField label="Margin"><input value={form.margin} onChange={set("margin")} placeholder="e.g. 5 runs / 3 wickets" /></LightField>
               </div>
-              <label className="flex items-center gap-2 text-sm mb-4 text-muted">
+              <label className="flex items-center gap-2 text-sm mb-4 text-slateText">
                 <input type="checkbox" className="!w-auto" checked={form.is_tie} onChange={set("is_tie")} /> Match Tied / No Result
               </label>
-              <Field label="Man of the Match"><input value={form.man_of_match} onChange={set("man_of_match")} /></Field>
-              <Field label="Notes"><textarea value={form.notes} onChange={set("notes")} rows={2} /></Field>
+              <LightField label="Man of the Match"><input value={form.man_of_match} onChange={set("man_of_match")} /></LightField>
+              <LightField label="Notes"><textarea value={form.notes} onChange={set("notes")} rows={2} /></LightField>
             </>
           )}
 
           {err && <div className="text-xs mb-3 text-red">{err}</div>}
           <div className="flex gap-2">
-            <Button variant="primary" onClick={editing ? handleUpdate : handleAdd} disabled={busy}>{busy ? "Saving…" : editing ? "Save Changes" : "Add Match"}</Button>
-            <Button variant="ghost" onClick={resetForm} disabled={busy}>Cancel</Button>
+            <LightButton variant="primary" onClick={editing ? handleUpdate : handleAdd} disabled={busy}>{busy ? "Saving…" : editing ? "Save Changes" : "Add Match"}</LightButton>
+            <LightButton variant="ghost" onClick={resetForm} disabled={busy}>Cancel</LightButton>
           </div>
-        </Card>
+        </LightCard>
       )}
 
       <div className="space-y-2">
-        {matches.length === 0 && <Card className="p-8 text-center text-sm text-mutedDim">No matches scheduled yet.</Card>}
+        {matches.length === 0 && <LightCard className="p-8 text-center text-sm text-slateText">No matches scheduled yet.</LightCard>}
         {matches.map((m) => (
-          <Card key={m.id} className="p-4 cursor-pointer" onClick={() => canManage && startEdit(m)}>
+          <LightCard key={m.id} className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => canManage && startEdit(m)}>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
-                <div className="text-xs text-mutedDim mb-1">{m.stage} {m.match_number ? `· Match ${m.match_number}` : ""}</div>
-                <div className="text-sm font-semibold">{teamName(m.team_a_id)} <span className="text-mutedDim">vs</span> {teamName(m.team_b_id)}</div>
-                <div className="text-[11px] text-mutedDim mt-1">{m.match_date || "Date TBA"} {m.match_time || ""} {m.ground ? `· ${m.ground}` : ""}</div>
+                <div className="text-xs text-slateText mb-1">{m.stage} {m.match_number ? `· Match ${m.match_number}` : ""}</div>
+                <div className="text-sm font-semibold text-navyText">{teamName(m.team_a_id)} <span className="text-slateText">vs</span> {teamName(m.team_b_id)}</div>
+                <div className="text-[11px] text-slateText mt-1">{m.match_date || "Date TBA"} {m.match_time || ""} {m.ground ? `· ${m.ground}` : ""}</div>
                 {m.status === "Completed" && (m.winner_id || m.is_tie) && (
-                  <div className="text-xs text-goldBright mt-1">{m.is_tie ? "Match Tied" : `${teamName(m.winner_id)} won${m.margin ? " by " + m.margin : ""}`}</div>
+                  <div className="text-xs text-orange mt-1">{m.is_tie ? "Match Tied" : `${teamName(m.winner_id)} won${m.margin ? " by " + m.margin : ""}`}</div>
                 )}
               </div>
               <div className="flex flex-col items-end gap-2">
-                <StatusBadge status={m.status} />
+                <LightStatusBadge status={m.status} />
                 {canManage && m.status !== "Completed" && (
                   <Link href={`/admin/scoring/${m.id}`} onClick={(e) => e.stopPropagation()}>
-                    <Button variant="orange" size="sm">⚡ Score</Button>
+                    <LightButton variant="orange" size="sm">⚡ Score</LightButton>
                   </Link>
                 )}
                 {m.status === "Completed" && (
                   <Link href={`/matches/${m.id}`} onClick={(e) => e.stopPropagation()} className="text-[11px] text-blue underline">Scorecard</Link>
                 )}
-                {canManage && <Button variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}>Remove</Button>}
+                {canManage && <LightButton variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}>Remove</LightButton>}
               </div>
             </div>
-          </Card>
+          </LightCard>
         ))}
       </div>
     </div>
