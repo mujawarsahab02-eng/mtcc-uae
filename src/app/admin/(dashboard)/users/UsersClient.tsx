@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, Button, Card, Field, SectionHeader, SeamDivider } from "@/components/ui";
+import { LightBadge, LightButton, LightCard, LightField, LightSectionHeader, LightSeamDivider } from "@/components/ui/light";
 import { USER_ROLES, type UserRole } from "@/lib/constants";
 import { assignRole, inviteUser } from "./actions";
 
@@ -31,50 +31,50 @@ export default function UsersClient({ initialUsers, teams }: any) {
   }
 
   return (
-    <div>
-      <SectionHeader eyebrow="Admin · Super Admin Only" title="Users & Roles" />
-      <SeamDivider />
+    <div className="-mx-4 sm:-mx-6 -mt-20 md:-mt-8 -mb-16 px-4 sm:px-6 pt-20 md:pt-8 pb-16 bg-adminBg light-form" style={{ minHeight: "100vh" }}>
+      <LightSectionHeader eyebrow="Admin · Super Admin Only" title="Users & Roles" />
+      <LightSeamDivider />
 
-      <Card className="p-3 mb-5 text-xs text-blue" style={{ borderColor: "rgba(78,155,255,0.25)", background: "rgba(78,155,255,0.06)" }}>
+      <LightCard className="p-3 mb-5 text-xs text-blue" style={{ borderColor: "rgba(78,155,255,0.2)", background: "rgba(78,155,255,0.05)" }}>
         Roles are assigned here by Super Admin only — nobody selects their own role at sign-in. Inviting a user sends
         a Supabase Auth invite email; they set their own password from that link, then sign in at /admin/login.
-      </Card>
+      </LightCard>
 
-      <Card className="p-4 mb-6">
-        <div className="text-xs font-bold uppercase tracking-wide mb-3 text-muted">Invite a New User</div>
+      <LightCard className="p-4 mb-6">
+        <div className="text-xs font-bold uppercase tracking-wide mb-3 text-slateText">Invite a New User</div>
         <div className="flex flex-wrap gap-2 items-end">
-          <div style={{ minWidth: 220 }}><Field label="Email"><input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} /></Field></div>
+          <div style={{ minWidth: 220 }}><LightField label="Email"><input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} /></LightField></div>
           <div style={{ minWidth: 180 }}>
-            <Field label="Role">
+            <LightField label="Role">
               <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as UserRole)}>
                 {USER_ROLES.map((r) => <option key={r}>{r}</option>)}
               </select>
-            </Field>
+            </LightField>
           </div>
           {inviteRole === "Team Owner" && (
             <div style={{ minWidth: 180 }}>
-              <Field label="Team">
+              <LightField label="Team">
                 <select value={inviteTeam} onChange={(e) => setInviteTeam(e.target.value)}>
                   <option value="">Select team</option>
                   {teams.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
-              </Field>
+              </LightField>
             </div>
           )}
-          <Button variant="primary" onClick={handleInvite} disabled={busy || !inviteEmail}>{busy ? "Sending…" : "Send Invite"}</Button>
+          <LightButton variant="primary" onClick={handleInvite} disabled={busy || !inviteEmail}>{busy ? "Sending…" : "Send Invite"}</LightButton>
         </div>
         {msg && <div className="text-xs mt-2 text-red">{msg}</div>}
-      </Card>
+      </LightCard>
 
       <div className="space-y-2">
         {users.map((u: any) => (
-          <Card key={u.id} className="p-4 flex items-center justify-between gap-3 flex-wrap">
+          <LightCard key={u.id} className="p-4 flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <div className="text-sm font-semibold">{u.fullName || u.email}</div>
-              <div className="text-[11px] text-mutedDim">{u.email}</div>
+              <div className="text-sm font-semibold text-navyText">{u.fullName || u.email}</div>
+              <div className="text-[11px] text-slateText">{u.email}</div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              {u.teamName && <Badge tone="blue">{u.teamName}</Badge>}
+              {u.teamName && <LightBadge tone="blue">{u.teamName}</LightBadge>}
               <select
                 value={u.role}
                 onChange={(e) => {
@@ -96,7 +96,7 @@ export default function UsersClient({ initialUsers, teams }: any) {
                 </select>
               )}
             </div>
-          </Card>
+          </LightCard>
         ))}
       </div>
     </div>
