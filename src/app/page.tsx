@@ -115,21 +115,50 @@ export default async function LandingPage() {
             </a>
           </div>
 
-          {/* Live registration indicator with progress bar, per spec */}
-          <div className="fade-up w-full max-w-sm rounded-2xl p-5" style={{ animationDelay: "0.46s", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}>
-            {regClosed ? (
-              <div className="text-center text-orange font-bold text-sm uppercase tracking-wide">Registration Closed</div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] uppercase tracking-widest text-white/60 font-semibold">Player Registration Open</span>
-                  <span className="text-sm font-bold text-goldBright">{currentReg} / {maxReg}</span>
-                </div>
-                <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.12)" }}>
-                  <div className="h-full rounded-full" style={{ width: `${regPct}%`, background: "linear-gradient(90deg, #D4AF37, #F37032)" }} />
-                </div>
-              </>
-            )}
+          {/* Live registration indicator — HUD/futuristic styling */}
+          <div className="fade-up relative w-full max-w-sm rounded-2xl overflow-hidden" style={{ animationDelay: "0.46s", padding: 1 }}>
+            <div className="hud-spin-layer absolute inset-[-100%]" style={{ background: "conic-gradient(from 0deg, transparent 0deg, #D4AF37 16deg, transparent 55deg, transparent 180deg, #FF7A3D 200deg, transparent 240deg, transparent 360deg)" }} />
+            <div className="relative rounded-2xl p-5" style={{ background: "#0A0E1A" }}>
+              <span className="absolute top-1.5 left-1.5 w-3 h-3 border-t-2 border-l-2 rounded-tl" style={{ borderColor: "#D4AF37" }} />
+              <span className="absolute top-1.5 right-1.5 w-3 h-3 border-t-2 border-r-2 rounded-tr" style={{ borderColor: "#D4AF37" }} />
+              <span className="absolute bottom-1.5 left-1.5 w-3 h-3 border-b-2 border-l-2 rounded-bl" style={{ borderColor: "#D4AF37" }} />
+              <span className="absolute bottom-1.5 right-1.5 w-3 h-3 border-b-2 border-r-2 rounded-br" style={{ borderColor: "#D4AF37" }} />
+
+              {regClosed ? (
+                <div className="text-center text-orange font-bold text-sm uppercase tracking-wide font-mono">Registration Closed</div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="radar-ping absolute inline-flex h-full w-full rounded-full" style={{ background: "#3DDC97" }} />
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5" style={{ background: "#3DDC97", boxShadow: "0 0 8px #3DDC97" }} />
+                    </span>
+                    <span className="text-[11px] uppercase tracking-[0.2em] text-white/60 font-semibold font-mono">Player Registration Open</span>
+                  </div>
+                  <div className="flex items-end justify-between mb-3">
+                    <span className="digit-glow text-3xl font-black font-mono text-goldBright tracking-wider">
+                      {String(currentReg).padStart(3, "0")}<span className="text-white/30 text-xl mx-1">/</span>{maxReg}
+                    </span>
+                    <span className="text-[10px] font-mono text-white/40 mb-1">{regPct}%</span>
+                  </div>
+                  <div className="flex gap-[3px]">
+                    {Array.from({ length: 28 }).map((_, i) => {
+                      const isLit = regPct >= ((i + 1) / 28) * 100;
+                      return (
+                        <div
+                          key={i}
+                          className="flex-1 h-3 rounded-sm"
+                          style={{
+                            background: isLit ? "linear-gradient(180deg, #F0C94A, #D4AF37)" : "rgba(255,255,255,0.08)",
+                            boxShadow: isLit ? "0 0 6px rgba(212,175,55,0.6)" : "none",
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           <div className="fade-up mt-6 text-xs" style={{ animationDelay: "0.5s" }}>
