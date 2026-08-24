@@ -122,3 +122,19 @@ textarea:disabled {
   opacity: 1;
   color: #6B7280;
 }
+
+/* ---------- futuristic HUD-style registration counter ---------- */
+@keyframes hudSpin {
+  to { transform: rotate(360deg); }
+}
+@keyframes radarPing {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  70%, 100% { transform: scale(2.2); opacity: 0; }
+}
+@keyframes digitGlow {
+  0%, 100% { text-shadow: 0 0 8px rgba(240,201,74,0.6), 0 0 16px rgba(240,201,74,0.3); }
+  50% { text-shadow: 0 0 14px rgba(240,201,74,0.9), 0 0 26px rgba(240,201,74,0.5); }
+}
+.hud-spin-layer { animation: hudSpin 4s linear infinite; }
+.radar-ping { animation: radarPing 1.8s cubic-bezier(0,0,0.2,1) infinite; }
+.digit-glow { animation: digitGlow 2.4s ease-in-out infinite; }
