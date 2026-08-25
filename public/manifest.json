@@ -1,0 +1,16 @@
+{
+  "name": "Maharashtra Tennis Cricket Championship UAE",
+  "short_name": "MTCC UAE",
+  "description": "Official Maharashtra Tennis Cricket Championship U.A.E. app — player registration, auction, teams, standings and more.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#05070d",
+  "theme_color": "#0A0F1C",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
