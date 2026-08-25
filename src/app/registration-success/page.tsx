@@ -40,7 +40,7 @@ export default async function RegistrationSuccessPage({ searchParams }: { search
 
         {settings?.whatsapp_group_link && (
           <div className="mb-5 relative z-10">
-            
+            <Link
               href={settings.whatsapp_group_link}
               target="_blank"
               rel="noreferrer"
@@ -48,7 +48,7 @@ export default async function RegistrationSuccessPage({ searchParams }: { search
               style={{ background: "#25D366", boxShadow: "0 6px 20px rgba(37,211,102,0.3)" }}
             >
               Join our WhatsApp Group
-            </a>
+            </Link>
           </div>
         )}
 
