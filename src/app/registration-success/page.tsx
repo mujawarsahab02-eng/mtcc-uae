@@ -39,15 +39,17 @@ export default async function RegistrationSuccessPage({ searchParams }: { search
         )}
 
         {settings?.whatsapp_group_link && (
-          
-            href={settings.whatsapp_group_link}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center justify-center gap-2 mb-5 px-5 py-3.5 rounded-xl text-sm font-bold text-white relative z-10 hover:-translate-y-0.5 transition-transform"
-            style={{ background: "#25D366", boxShadow: "0 6px 20px rgba(37,211,102,0.3)" }}
-          >
-            Join our WhatsApp Group
-          </a>
+          <div className="mb-5 relative z-10">
+            
+              href={settings.whatsapp_group_link}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-sm font-bold text-white hover:-translate-y-0.5 transition-transform"
+              style={{ background: "#25D366", boxShadow: "0 6px 20px rgba(37,211,102,0.3)" }}
+            >
+              Join our WhatsApp Group
+            </a>
+          </div>
         )}
 
         <div className="flex items-center justify-center gap-2 mb-6 flex-wrap text-[11px] font-semibold relative z-10">
