@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://mtcc-uae.vercel.app";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://mtccuae.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -10,13 +10,11 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Maharashtra Tennis Cricket Championship U.A.E. | MTCC UAE",
     description: "Official Maharashtra Tennis Cricket Championship U.A.E. website — player registration, auction, teams, standings, tournament rules and championship updates.",
-    images: ["/logo.png"],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Maharashtra Tennis Cricket Championship U.A.E. | MTCC UAE",
     description: "Official Maharashtra Tennis Cricket Championship U.A.E. website — player registration, auction, teams, standings and rules.",
-    images: ["/logo.png"],
   },
   icons: { icon: "/logo.png" },
 };
