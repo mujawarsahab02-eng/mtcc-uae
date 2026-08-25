@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "@/components/Logo";
+import InstallAppButton from "@/components/InstallAppButton";
 
 const LINKS = [
   { href: "/", label: "Home" },
@@ -44,6 +45,7 @@ export default function PublicNav() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <InstallAppButton className="hidden sm:inline-flex items-center px-4 py-2.5 rounded-full text-sm font-semibold border border-black/10 text-navyText transition-colors hover:bg-black/5" />
           <Link
             href="/register"
             className="hidden sm:inline-flex items-center px-5 py-2.5 rounded-full text-sm font-bold text-white transition-transform hover:-translate-y-0.5"
@@ -74,6 +76,7 @@ export default function PublicNav() {
               {l.label}
             </Link>
           ))}
+          <InstallAppButton className="block w-full text-center mt-3 px-5 py-3 rounded-full text-sm font-semibold border border-black/10 text-navyText" />
           <Link
             href="/register"
             onClick={() => setOpen(false)}
