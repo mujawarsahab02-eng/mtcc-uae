@@ -49,7 +49,11 @@ export default async function Footer() {
           </div>
         )}
 
-        <div className="text-white/40 text-xs border-t border-white/10 pt-6">© MTCC U.A.E. — All Rights Reserved.</div>
+        <div className="text-white/40 text-xs border-t border-white/10 pt-6">
+          <Link href="/privacy" className="hover:text-white/70 transition-colors underline">Privacy Policy</Link>
+          <span className="mx-2">·</span>
+          © MTCC U.A.E. — All Rights Reserved.
+        </div>
       </div>
     </footer>
   );
