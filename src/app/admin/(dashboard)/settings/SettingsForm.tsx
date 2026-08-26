@@ -237,7 +237,10 @@ export default function SettingsForm({ settings, canEdit, canToggleOverseas, cur
           <LightField label="Substitution Rules"><textarea value={draft.substitution_rules || ""} onChange={set("substitution_rules")} rows={3} /></LightField>
           <LightField label="Super Over Rules"><textarea value={draft.super_over_rules || ""} onChange={set("super_over_rules")} rows={3} /></LightField>
         </LightFormSection>
-
+        <LightFormSection title="Privacy Policy">
+          <p className="text-[11px] text-slateText mb-3">Shown on the public /privacy page.</p>
+          <textarea value={draft.privacy_policy || ""} onChange={set("privacy_policy")} rows={8} />
+        </LightFormSection>
         <LightFormSection title="Terms & Conditions">
           <textarea value={draft.terms_and_conditions || ""} onChange={set("terms_and_conditions")} rows={5} />
         </LightFormSection>
