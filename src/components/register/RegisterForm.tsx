@@ -43,6 +43,7 @@ function emptyForm() {
     battingPosition: "", currentTeam: "", notes: "",
     paymentMethod: "", paymentRef: "",
     declarationAccepted: false,
+    website: "",
   };
 }
 
@@ -254,6 +255,15 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
     e.preventDefault();
     setFormErr("");
 
+    // Honeypot: a real visitor never sees or fills this field, since it is
+    // visually hidden and skipped by keyboard tabbing. Bots that blindly
+    // fill every input on the page will fill it, so if it has anything in
+    // it, quietly stop here rather than submitting — no error shown, so a
+    // bot has no signal to learn from and adjust around.
+    if (form.website) {
+      return;
+    }
+
     if (!form.fullName || !form.mobile || !form.emiratesId || (settings?.cricheroes_required && !form.cricheroes)) {
       setFormErr("Please complete all required fields.");
       return;
@@ -364,6 +374,21 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
         </div>
 
         <form onSubmit={handleSubmit}>
+          {/* Honeypot field — invisible to real users (off-screen, unreachable
+              by Tab, hidden from screen readers), but a bot's naive
+              fill-every-field script will populate it. Never given a
+              human-facing label so nothing here suggests it should be filled. */}
+          <input
+            type="text"
+            name="website"
+            value={form.website}
+            onChange={set("website")}
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden="true"
+            style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+          />
+
           <Section n="1" title="Personal Details" sectionRef={personalRef}>
             <Field label="Full Name (as per Emirates ID)" required>
               <input value={form.fullName} onChange={set("fullName")} required />
