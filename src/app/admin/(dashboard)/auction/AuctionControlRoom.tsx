@@ -14,13 +14,18 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
   const [players, setPlayers] = useState(initialPlayers);
   const [teams, setTeams] = useState(initialTeams);
   const [selectedTeamId, setSelectedTeamId] = useState(initialTeams[0]?.id || "");
-  const [customBid, setCustomBid] = useState("");
   const [override, setOverride] = useState(false);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const [flash, setFlash] = useState<"sold" | "unsold" | null>(null);
 
   const canRun = AUCTION_ROLES.includes(currentRole);
   const canOverride = OVERRIDE_ROLES.includes(currentRole);
+  const startingBid = settings?.auction_starting_bid ?? 1000;
+  const bidIncrement = settings?.auction_bid_increment ?? 500;
+  const maxBid = settings?.auction_max_bid ?? 25000;
+  const nextBidAmount = (auction?.current_bid || 0) === 0 ? startingBid : (auction.current_bid + bidIncrement);
+  const bidMaxReached = nextBidAmount > maxBid;
 
   // Realtime: any Auction Admin action anywhere updates every open Control
   // Room, Team Owner dashboard and the public Display instantly — this is
@@ -77,6 +82,12 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
     run(() => placeBid(selectedTeamId, amount, override));
   }
 
+  function flashResult(kind: "sold" | "unsold", fn: () => Promise<any>) {
+    setFlash(kind);
+    setTimeout(() => setFlash(null), 900);
+    run(fn);
+  }
+
   if (!canRun) {
     return (
       <div>
@@ -91,7 +102,10 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
   }
 
   return (
-    <div>
+    <div
+      className="-mx-4 sm:-mx-6 -mt-20 md:-mt-8 -mb-16 px-4 sm:px-6 pt-20 md:pt-8 pb-16"
+      style={{ background: "radial-gradient(ellipse 900px 500px at 50% 0%, #16213D 0%, #0A0F1C 55%, #05070d 100%)", minHeight: "100vh" }}
+    >
       <SectionHeader
         eyebrow="Live"
         title="Player Auction — Control Room"
@@ -137,19 +151,37 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
         </Card>
       ) : (
         <>
-          <Card className="p-5 mb-5">
+          {flash && (
+            <div
+              className="rounded-2xl p-4 mb-5 text-center font-black text-2xl font-display tracking-wide"
+              style={{
+                background: flash === "sold" ? "rgba(61,220,151,0.15)" : "rgba(255,93,108,0.15)",
+                border: `2px solid ${flash === "sold" ? "#3DDC97" : "#FF5D6C"}`,
+                color: flash === "sold" ? "#3DDC97" : "#FF5D6C",
+              }}
+            >
+              {flash === "sold" ? "SOLD! 🎉" : "UNSOLD"}
+            </div>
+          )}
+
+          <div className="relative rounded-2xl p-5 mb-5 overflow-hidden" style={{ background: "#131D33", border: "1px solid #22304F" }}>
+            <span className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 rounded-tl" style={{ borderColor: "#D4AF37" }} />
+            <span className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 rounded-tr" style={{ borderColor: "#D4AF37" }} />
+            <span className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 rounded-bl" style={{ borderColor: "#D4AF37" }} />
+            <span className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 rounded-br" style={{ borderColor: "#D4AF37" }} />
+
             <div className="flex justify-between items-start mb-3 flex-wrap gap-2">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-gold bg-bgCardHover flex items-center justify-center shrink-0">
+                <div className="w-20 h-20 rounded-full overflow-hidden border-2 flex items-center justify-center shrink-0" style={{ borderColor: "#D4AF37", boxShadow: "0 0 20px rgba(212,175,55,0.35)" }}>
                   {currentPlayer.photo_path ? (
                     <img src={supabase.storage.from("player-photos").getPublicUrl(currentPlayer.photo_path).data.publicUrl} alt={currentPlayer.full_name} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-xl font-bold text-gold">{(currentPlayer.full_name || "?").slice(0, 1).toUpperCase()}</span>
+                    <span className="text-2xl font-bold text-gold">{(currentPlayer.full_name || "?").slice(0, 1).toUpperCase()}</span>
                   )}
                 </div>
                 <div>
                   <Badge tone="gold">{currentPlayer.auction_category || "Unassigned"}</Badge>
-                  <h2 className="text-2xl font-bold mt-2 font-display">{currentPlayer.full_name}</h2>
+                  <h2 className="text-3xl font-bold mt-2 font-display">{currentPlayer.full_name}</h2>
                   <div className="text-xs font-mono mt-0.5 text-mutedDim">
                     {currentPlayer.player_code}{computeAge(currentPlayer.dob) != null ? ` · ${computeAge(currentPlayer.dob)} yrs` : ""}
                   </div>
@@ -171,14 +203,16 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
               </div>
             )}
             {currentPlayer.cricheroes_url && <a href={currentPlayer.cricheroes_url} target="_blank" rel="noreferrer" className="text-xs font-semibold underline text-blue">CricHeroes Profile ↗</a>}
-          </Card>
+          </div>
 
           <div className="grid sm:grid-cols-2 gap-4 mb-5">
-            <Card className="p-5 text-center">
-              <div className="text-[11px] uppercase tracking-wide font-semibold text-mutedDim">Current Bid</div>
-              <div className="text-4xl font-bold my-1 font-display text-goldBright">{auction.current_bid || 0} <span className="text-base text-mutedDim">pts</span></div>
-              <div className="text-sm font-semibold">{leadingTeam ? leadingTeam.name : "No bids yet"}</div>
-            </Card>
+            <div className="rounded-2xl p-6 text-center" style={{ background: "#131D33", border: "1px solid #22304F" }}>
+              <div className="text-[11px] uppercase tracking-[0.2em] font-semibold text-mutedDim mb-1">Current Bid</div>
+              <div className="digit-glow text-6xl font-black my-1 font-display text-goldBright">
+                {auction.current_bid || 0} <span className="text-lg text-mutedDim font-normal">pts</span>
+              </div>
+              <div className="text-base font-bold mt-2">{leadingTeam ? leadingTeam.name : "No bids yet"}</div>
+            </div>
             <Card className="p-5">
               <div className="text-[11px] uppercase tracking-wide font-semibold mb-2 text-mutedDim">Bid History</div>
               <div className="max-h-24 overflow-y-auto space-y-1">
@@ -195,13 +229,16 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
             <select value={selectedTeamId} onChange={(e) => { setSelectedTeamId(e.target.value); setMsg(""); }} className="mb-3">
               {teamsWithStats.map((t: any) => <option key={t.id} value={t.id}>{t.name} — {t.remaining} pts left, {t.squadCount}/{settings.max_squad_size} squad</option>)}
             </select>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {[5, 10, 25, 50].map((amt) => (
-                <Button key={amt} variant="subtle" size="sm" onClick={() => tryPlaceBid((auction.current_bid || 0) + amt)} disabled={busy}>+{amt}</Button>
-              ))}
-              <input type="number" placeholder="Custom bid" value={customBid} onChange={(e) => setCustomBid(e.target.value)} style={{ width: 120 }} />
-              <Button variant="subtle" size="sm" onClick={() => { const v = Number(customBid); if (v > (auction.current_bid || 0)) tryPlaceBid(v); setCustomBid(""); }} disabled={busy}>Set Custom Bid</Button>
-            </div>
+            <Button
+              variant="primary"
+              size="lg"
+              className="w-full mb-2"
+              onClick={() => tryPlaceBid(nextBidAmount)}
+              disabled={busy || bidMaxReached}
+            >
+              {bidMaxReached ? `Maximum Bid Reached (${maxBid} pts)` : `Place Bid — ${nextBidAmount} pts`}
+            </Button>
+            <div className="text-[11px] text-mutedDim mb-2">Starts at {startingBid} pts, +{bidIncrement} pts per bid, capped at {maxBid} pts.</div>
             {msg && <div className="text-xs font-semibold mb-2 text-red">⚠ {msg}</div>}
             {canOverride ? (
               <label className="flex items-center gap-2 text-xs mb-3 text-mutedDim">
@@ -211,8 +248,8 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
               <div className="text-[11px] mb-3 text-mutedDim">Only Super Admin can override squad, guest quota or purse limits.</div>
             )}
             <div className="grid grid-cols-2 gap-2">
-              <Button variant="primary" onClick={() => run(() => markSold(override))} disabled={!auction.current_team_id || busy}>SOLD</Button>
-              <Button variant="danger" onClick={() => run(markUnsold)} disabled={busy}>UNSOLD</Button>
+              <Button variant="primary" onClick={() => flashResult("sold", () => markSold(override))} disabled={!auction.current_team_id || busy}>SOLD</Button>
+              <Button variant="danger" onClick={() => flashResult("unsold", markUnsold)} disabled={busy}>UNSOLD</Button>
               <Button variant="ghost" size="sm" className="col-span-2" onClick={() => run(deferPlayer)} disabled={busy}>DEFER PLAYER</Button>
               <Button variant="subtle" size="sm" className="col-span-2" onClick={() => run(undoLastPlayerResult)} disabled={busy || !(auction.action_log?.length)}>UNDO LAST PLAYER RESULT</Button>
             </div>
