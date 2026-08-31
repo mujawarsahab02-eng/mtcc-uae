@@ -17,6 +17,7 @@ export default function AuctionDisplayPage() {
   const [team, setTeam] = useState<any>(null);
   const [settings, setSettings] = useState<any>(null);
   const [remainingPts, setRemainingPts] = useState<number | null>(null);
+  const [allTeams, setAllTeams] = useState<any[]>([]);
 
   async function refresh(a?: any) {
     const state = a ?? (await supabase.from("auction_state").select("*").eq("id", 1).single()).data;
@@ -41,6 +42,25 @@ export default function AuctionDisplayPage() {
       setTeam(null);
       setRemainingPts(null);
     }
+
+    await refreshAllTeams();
+  }
+
+  // Every team's remaining purse and squad count so far — refreshed after
+  // every auction_state change (i.e. every bid, sale, and undo), so this
+  // stays live the moment a player is marked SOLD, not just for whichever
+  // team happens to be currently bidding.
+  async function refreshAllTeams() {
+    const [{ data: teams }, { data: soldPlayers }] = await Promise.all([
+      supabase.from("team_public").select("*"),
+      supabase.from("player_public").select("team_id, sold_points").eq("application_status", "Sold / Selected"),
+    ]);
+    const withStats = (teams ?? []).map((t: any) => {
+      const squad = (soldPlayers ?? []).filter((p: any) => p.team_id === t.id);
+      const spent = squad.reduce((s: number, p: any) => s + Number(p.sold_points || 0), 0);
+      return { ...t, remaining: Number(t.auction_points || 0) - spent, squadCount: squad.length };
+    });
+    setAllTeams(withStats);
   }
 
   useEffect(() => {
@@ -144,9 +164,24 @@ export default function AuctionDisplayPage() {
         </div>
       )}
 
-      <div className="mt-8 text-[11px] text-mutedDim">
+      <div className="mt-8 text-[11px] text-mutedDim mb-3">
         {auction?.pool_order?.length ? `Player ${auction.pool_index + 1} of ${auction.pool_order.length}` : ""}
       </div>
+
+      {allTeams.length > 0 && (
+        <div className="w-full max-w-4xl mt-2">
+          <div className="text-center text-[10px] uppercase tracking-[0.3em] text-mutedDim mb-3">Team Purses</div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+            {allTeams.map((t) => (
+              <div key={t.id} className="rounded-xl border border-line bg-bgCard p-3 text-center">
+                <div className="text-sm font-bold truncate">{t.name}</div>
+                <div className={`text-lg font-black font-display ${t.remaining < 0 ? "text-red" : "text-goldBright"}`}>{t.remaining} pts</div>
+                <div className="text-[10px] text-mutedDim">{t.squadCount} sold</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
