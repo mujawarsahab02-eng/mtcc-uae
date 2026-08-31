@@ -205,19 +205,43 @@ export default function SettingsForm({ settings, canEdit, canToggleOverseas, cur
               {purseMsg && <div className="text-xs mt-1 text-orange">{purseMsg}</div>}
             </div>
           )}
-          <div className="w-full h-px my-4 bg-black/10" />
-          <p className="text-[11px] text-slateText mb-3">Bidding in the Live Auction Control Room uses a single fixed step — no more custom bid amounts.</p>
-          <div className="grid grid-cols-3 gap-3">
+                   <div className="w-full h-px my-4 bg-black/10" />
+          <p className="text-[11px] text-slateText mb-3">Bidding in the Live Auction Control Room uses a tiered step — the increment gets bigger as the bid climbs.</p>
+          <div className="grid grid-cols-2 gap-3">
             <LightField label="Starting Bid" hint="First bid on any player">
-              <input type="number" value={draft.auction_starting_bid ?? 1000} onChange={setNum("auction_starting_bid")} />
+              <input type="number" value={draft.auction_starting_bid ?? 2000} onChange={setNum("auction_starting_bid")} />
             </LightField>
-            <LightField label="Bid Increment" hint="Added each time a team bids">
-              <input type="number" value={draft.auction_bid_increment ?? 500} onChange={setNum("auction_bid_increment")} />
-            </LightField>
-            <LightField label="Maximum Bid" hint="Bidding stops here">
-              <input type="number" value={draft.auction_max_bid ?? 25000} onChange={setNum("auction_max_bid")} />
+            <LightField label="Tier 1 Increment" hint="Used below the Tier 2 threshold">
+              <input type="number" value={draft.auction_bid_increment ?? 1000} onChange={setNum("auction_bid_increment")} />
             </LightField>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <LightField label="Tier 2 Threshold" hint="Bids at or above this use Tier 2 increment">
+              <input type="number" value={draft.auction_tier2_threshold ?? 10000} onChange={setNum("auction_tier2_threshold")} />
+            </LightField>
+            <LightField label="Tier 2 Increment">
+              <input type="number" value={draft.auction_tier2_increment ?? 2000} onChange={setNum("auction_tier2_increment")} />
+            </LightField>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <LightField label="Tier 3 Threshold">
+              <input type="number" value={draft.auction_tier3_threshold ?? 15000} onChange={setNum("auction_tier3_threshold")} />
+            </LightField>
+            <LightField label="Tier 3 Increment">
+              <input type="number" value={draft.auction_tier3_increment ?? 3000} onChange={setNum("auction_tier3_increment")} />
+            </LightField>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <LightField label="Tier 4 Threshold">
+              <input type="number" value={draft.auction_tier4_threshold ?? 20000} onChange={setNum("auction_tier4_threshold")} />
+            </LightField>
+            <LightField label="Tier 4 Increment" hint="Used for any bid at or above the Tier 4 threshold">
+              <input type="number" value={draft.auction_tier4_increment ?? 5000} onChange={setNum("auction_tier4_increment")} />
+            </LightField>
+          </div>
+          <LightField label="Maximum Bid" hint="Safety cap — bidding stops here">
+            <input type="number" value={draft.auction_max_bid ?? 100000} onChange={setNum("auction_max_bid")} />
+          </LightField>
         </LightFormSection>
 
         <LightFormSection title="About & Mission">
