@@ -8,6 +8,27 @@ import { AUCTION_ROLES, OVERRIDE_ROLES, computeAge } from "@/lib/constants";
 import { computeRemainingPoints, computeSquad, computeGuestCount, validateSale } from "@/lib/auction";
 import { startAuction, pauseAuction, placeBid, markSold, markUnsold, deferPlayer, undoLastPlayerResult } from "./actions";
 
+// Tiered bid step: the increment gets bigger as the bid climbs, per the
+// organiser's planned structure. Falls back to sensible defaults if a
+// tier field is ever missing from settings.
+function computeNextBid(currentBid: number, s: any) {
+  const startingBid = s?.auction_starting_bid ?? 2000;
+  const tier1Increment = s?.auction_bid_increment ?? 1000;
+  const tier2Threshold = s?.auction_tier2_threshold ?? 10000;
+  const tier2Increment = s?.auction_tier2_increment ?? 2000;
+  const tier3Threshold = s?.auction_tier3_threshold ?? 15000;
+  const tier3Increment = s?.auction_tier3_increment ?? 3000;
+  const tier4Threshold = s?.auction_tier4_threshold ?? 20000;
+  const tier4Increment = s?.auction_tier4_increment ?? 5000;
+
+  if (currentBid === 0) return startingBid;
+  let increment = tier1Increment;
+  if (currentBid >= tier4Threshold) increment = tier4Increment;
+  else if (currentBid >= tier3Threshold) increment = tier3Increment;
+  else if (currentBid >= tier2Threshold) increment = tier2Increment;
+  return currentBid + increment;
+}
+
 export default function AuctionControlRoom({ initialAuction, initialPlayers, initialTeams, settings, currentRole }: any) {
   const supabase = createClient();
   const [auction, setAuction] = useState(initialAuction);
@@ -21,10 +42,8 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
 
   const canRun = AUCTION_ROLES.includes(currentRole);
   const canOverride = OVERRIDE_ROLES.includes(currentRole);
-  const startingBid = settings?.auction_starting_bid ?? 1000;
-  const bidIncrement = settings?.auction_bid_increment ?? 500;
-  const maxBid = settings?.auction_max_bid ?? 25000;
-  const nextBidAmount = (auction?.current_bid || 0) === 0 ? startingBid : (auction.current_bid + bidIncrement);
+  const maxBid = settings?.auction_max_bid ?? 100000;
+  const nextBidAmount = computeNextBid(auction?.current_bid || 0, settings);
   const bidMaxReached = nextBidAmount > maxBid;
 
   // Realtime: any Auction Admin action anywhere updates every open Control
@@ -238,7 +257,9 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
             >
               {bidMaxReached ? `Maximum Bid Reached (${maxBid} pts)` : `Place Bid — ${nextBidAmount} pts`}
             </Button>
-            <div className="text-[11px] text-mutedDim mb-2">Starts at {startingBid} pts, +{bidIncrement} pts per bid, capped at {maxBid} pts.</div>
+            <div className="text-[11px] text-mutedDim mb-2">
+              Starts at {settings?.auction_starting_bid ?? 2000} pts · +{settings?.auction_bid_increment ?? 1000} up to {settings?.auction_tier2_threshold ?? 10000} · +{settings?.auction_tier2_increment ?? 2000} up to {settings?.auction_tier3_threshold ?? 15000} · +{settings?.auction_tier3_increment ?? 3000} up to {settings?.auction_tier4_threshold ?? 20000} · +{settings?.auction_tier4_increment ?? 5000} above
+            </div>
             {msg && <div className="text-xs font-semibold mb-2 text-red">⚠ {msg}</div>}
             {canOverride ? (
               <label className="flex items-center gap-2 text-xs mb-3 text-mutedDim">
