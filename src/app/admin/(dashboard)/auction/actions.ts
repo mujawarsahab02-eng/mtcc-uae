@@ -218,3 +218,32 @@ export async function undoLastPlayerResult(): Promise<any> {
   revalidateAuctionPaths();
   return { ok: true };
 }
+
+// Full reset back to idle — clears the live bidding state (pool order,
+// current player, bid history, action log) entirely, exactly like starting
+// fresh. Does NOT touch any player already marked Sold/Unsold — those
+// results stay exactly as they are; a fresh Start Auction afterward only
+// pulls players still "Approved for Auction" into the new pool. Restricted
+// to Super Admin since this is destructive to any in-progress bidding.
+export async function resetAuction(): Promise<any> {
+  const profile = await getCurrentProfile();
+  if (!profile || !OVERRIDE_ROLES.includes(profile.role)) {
+    return { error: "Only Super Admin can reset the auction." };
+  }
+  const supabase = createClient();
+  await supabase.from("auction_state").update({
+    status: "idle",
+    pool_order: [],
+    pool_index: 0,
+    current_player_id: null,
+    current_bid: 0,
+    current_team_id: null,
+    bid_history: [],
+    action_log: [],
+    last_action: null,
+    updated_at: new Date().toISOString(),
+  }).eq("id", 1);
+  await logAudit({ action: "Auction Reset", entity: "Auction", entityId: "auction" });
+  revalidateAuctionPaths();
+  return { ok: true };
+}
