@@ -31,7 +31,18 @@ const STEPS = [
   { key: "identification", label: "Identification", icon: IconShieldCheck },
   { key: "cricket", label: "Cricket", icon: IconCricketBall },
   { key: "payment", label: "Payment", icon: IconWallet },
+  { key: "tshirt", label: "T-Shirt", icon: IconClipboardCheck },
   { key: "declaration", label: "Submit", icon: IconClipboardCheck },
+];
+
+const TSHIRT_CHART = [
+  { size: "36 (S)", chest: 19, length: 26 },
+  { size: "38 (M)", chest: 20, length: 27 },
+  { size: "40 (L)", chest: 21, length: 28 },
+  { size: "42 (XL)", chest: 22, length: 29 },
+  { size: "44 (XXL)", chest: 23, length: 30 },
+  { size: "46 (XXXL)", chest: 24, length: 31 },
+  { size: "48 (4XL)", chest: 25, length: 32 },
 ];
 
 function emptyForm() {
@@ -42,6 +53,7 @@ function emptyForm() {
     cricheroes: "", role: PLAYING_ROLES[0] as string, battingStyle: BATTING_STYLES[0] as string, bowlingStyle: "",
     battingPosition: "", currentTeam: "", notes: "",
     paymentMethod: "", paymentRef: "",
+    tshirtSize: "", tshirtName: "", tshirtNumber: "",
     declarationAccepted: false,
     website: "",
   };
@@ -207,8 +219,9 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
   const idRef = useRef<HTMLDivElement>(null);
   const cricketRef = useRef<HTMLDivElement>(null);
   const paymentSectionRef = useRef<HTMLDivElement>(null);
+  const tshirtRef = useRef<HTMLDivElement>(null);
   const declarationRef = useRef<HTMLDivElement>(null);
-  const sectionRefs = [personalRef, idRef, cricketRef, paymentSectionRef, declarationRef];
+  const sectionRefs = [personalRef, idRef, cricketRef, paymentSectionRef, tshirtRef, declarationRef];
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -276,16 +289,20 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
       setFormErr("Please enter your State in India.");
       return;
     }
-    if (!form.declarationAccepted) {
-      setFormErr("You must accept the registration declaration to submit.");
-      return;
-    }
     if (!form.paymentMethod) {
       setFormErr("Please select a payment method.");
       return;
     }
     if (!files.receipt) {
       setFormErr("Please upload a screenshot of your payment before submitting.");
+      return;
+    }
+    if (!form.tshirtSize) {
+      setFormErr("Please select your T-shirt size.");
+      return;
+    }
+    if (!form.declarationAccepted) {
+      setFormErr("You must accept the registration declaration to submit.");
       return;
     }
 
@@ -313,6 +330,22 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
       });
 
       if (error) throw error;
+
+      // Best-effort: the core registration above already succeeded and
+      // created the player record, so a failure here should never block
+      // the person from reaching their confirmation page. If it does fail,
+      // admin can still fill in shirt details manually from Player Detail.
+      try {
+        await supabase.rpc("set_player_shirt_details", {
+          p_player_id: newId,
+          p_size: form.tshirtSize,
+          p_name: form.tshirtName || null,
+          p_number: form.tshirtNumber || null,
+        });
+      } catch {
+        // intentionally swallowed — see comment above
+      }
+
       router.push(`/registration-success?id=${newId}`);
     } catch (err: any) {
       setFormErr(err.message || "Something went wrong submitting your registration.");
@@ -368,7 +401,7 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
           <SummaryPoint>Registration does not guarantee auction selection.</SummaryPoint>
           <SummaryPoint>The fee is non-refundable.</SummaryPoint>
           <SummaryPoint>No auction salary/payment is paid to players.</SummaryPoint>
-          <SummaryPoint>{shirtNote}</SummaryPoint>
+          <SummaryPoint>{shirtNote} You&apos;ll choose your size and personalisation later in this form.</SummaryPoint>
           {settings?.emirates_id_required && <SummaryPoint>Emirates ID is mandatory.</SummaryPoint>}
           {settings?.cricheroes_required && <SummaryPoint>CricHeroes profile is mandatory.</SummaryPoint>}
         </div>
@@ -519,6 +552,46 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
             <Field label="Upload Payment Screenshot" required hint={fileErr.receipt || files.receipt?.name || "Required — upload proof of your bank transfer or Ziina payment"}>
               <input type="file" accept="image/*,.pdf" onChange={handleFile("receipt")} className="text-xs !p-2" required />
             </Field>
+          </Section>
+
+          <Section n="5" title="T-Shirt Details" sectionRef={tshirtRef}>
+            <div className="rounded-xl p-4 mb-5 border" style={{ background: "rgba(212,175,55,0.05)", borderColor: "rgba(212,175,55,0.25)" }}>
+              <div className="text-[11px] font-bold uppercase tracking-wider mb-3 text-orange">Measurement Chart</div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-[11px] uppercase text-slateText">
+                    <th className="text-left pb-1">Size</th>
+                    <th className="text-left pb-1">Chest</th>
+                    <th className="text-left pb-1">Length</th>
+                  </tr>
+                </thead>
+                <tbody className="text-navyText">
+                  {TSHIRT_CHART.map((row) => (
+                    <tr key={row.size} className="border-t border-black/5">
+                      <td className="py-1.5 font-semibold">{row.size}</td>
+                      <td className="py-1.5">{row.chest}</td>
+                      <td className="py-1.5">{row.length}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="text-[11px] text-slateText italic mt-2">* All units are in inches</p>
+            </div>
+
+            <Field label="T-Shirt Size" required>
+              <select value={form.tshirtSize} onChange={set("tshirtSize")} required>
+                <option value="">Select</option>
+                {TSHIRT_CHART.map((row) => <option key={row.size} value={row.size}>{row.size}</option>)}
+              </select>
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Name on T-Shirt" hint="Optional — leave blank for no personalisation">
+                <input value={form.tshirtName} onChange={set("tshirtName")} maxLength={20} />
+              </Field>
+              <Field label="Number on T-Shirt" hint="Optional">
+                <input value={form.tshirtNumber} onChange={set("tshirtNumber")} maxLength={3} inputMode="numeric" />
+              </Field>
+            </div>
           </Section>
 
           <div ref={declarationRef} className="scroll-mt-32">
