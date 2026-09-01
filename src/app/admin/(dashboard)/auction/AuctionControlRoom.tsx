@@ -6,8 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Badge, Button, Card, SectionHeader, SeamDivider, StatCard } from "@/components/ui";
 import { AUCTION_ROLES, OVERRIDE_ROLES, computeAge } from "@/lib/constants";
 import { computeRemainingPoints, computeSquad, computeGuestCount, validateSale } from "@/lib/auction";
-import { startAuction, pauseAuction, placeBid, markSold, markUnsold, deferPlayer, undoLastPlayerResult } from "./actions";
-
+import { startAuction, pauseAuction, placeBid, markSold, markUnsold, deferPlayer, undoLastPlayerResult, resetAuction } from "./actions";
 // Tiered bid step: the increment gets bigger as the bid climbs, per the
 // organiser's planned structure. Falls back to sensible defaults if a
 // tier field is ever missing from settings.
@@ -128,7 +127,7 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
       <SectionHeader
         eyebrow="Live"
         title="Player Auction — Control Room"
-        action={
+                action={
           <div className="flex gap-2 flex-wrap">
             <Link href="/auction/display" target="_blank"><Button variant="ghost" size="sm">Open Display Mode ↗</Button></Link>
             {auction?.status !== "live" && auction?.status !== "completed" ? (
@@ -136,6 +135,20 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
             ) : auction?.status === "live" ? (
               <Button variant="subtle" size="sm" onClick={() => run(pauseAuction)} disabled={busy}>Pause Auction</Button>
             ) : null}
+            {canOverride && (
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => {
+                  if (window.confirm("Reset the auction back to idle? This clears the current bidding state and pool order, but does NOT undo any players already marked Sold or Unsold — those results stay as they are.")) {
+                    run(resetAuction);
+                  }
+                }}
+                disabled={busy}
+              >
+                Reset Auction
+              </Button>
+            )}
           </div>
         }
       />
