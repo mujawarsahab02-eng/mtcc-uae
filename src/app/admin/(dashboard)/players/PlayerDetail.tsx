@@ -118,7 +118,19 @@ export default function PlayerDetail({ player, settings, categories, currentRole
               </LightField>
             </div>
           </LightFormSection>
-
+          <LightFormSection title="T-Shirt Details">
+            <div className="grid grid-cols-3 gap-3">
+              <LightField label="Size">
+                <input defaultValue={player.tshirt_size ?? ""} onBlur={(e) => save({ tshirt_size: e.target.value || null })} />
+              </LightField>
+              <LightField label="Name on Shirt">
+                <input defaultValue={player.tshirt_name ?? ""} onBlur={(e) => save({ tshirt_name: e.target.value || null })} />
+              </LightField>
+              <LightField label="Number on Shirt">
+                <input defaultValue={player.tshirt_number ?? ""} onBlur={(e) => save({ tshirt_number: e.target.value || null })} />
+              </LightField>
+            </div>
+          </LightFormSection>
           <div className="p-3 mb-4 rounded-xl border" style={{ background: "rgba(78,155,255,0.06)", borderColor: "rgba(78,155,255,0.2)" }}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold uppercase text-blue">Restricted: Emirates ID</span>
