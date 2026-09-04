@@ -22,6 +22,7 @@ type Settings = {
   powered_by_name?: string;
   powered_by_logo_path?: string;
   ziina_qr_path?: string;
+  eligibility_mode?: string;
 } | null;
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
@@ -44,6 +45,21 @@ const TSHIRT_CHART = [
   { size: "46 (XXXL)", chest: 24, length: 31 },
   { size: "48 (4XL)", chest: 25, length: 32 },
 ];
+
+// Current official district list — Ahmednagar/Aurangabad/Osmanabad are
+// shown with their newer official names (Ahilyanagar / Chhatrapati
+// Sambhajinagar / Dharashiv) alongside the familiar old name, since many
+// people still search for the old name.
+const MAHARASHTRA_DISTRICTS = [
+  "Ahilyanagar (Ahmednagar)", "Akola", "Amravati", "Beed", "Bhandara", "Buldhana",
+  "Chandrapur", "Chhatrapati Sambhajinagar (Aurangabad)", "Dharashiv (Osmanabad)", "Dhule",
+  "Gadchiroli", "Gondia", "Hingoli", "Jalgaon", "Jalna", "Kolhapur", "Latur",
+  "Mumbai City", "Mumbai Suburban", "Nagpur", "Nanded", "Nandurbar", "Nashik",
+  "Palghar", "Parbhani", "Pune", "Raigad", "Ratnagiri", "Sangli", "Satara",
+  "Sindhudurg", "Solapur", "Thane", "Wardha", "Washim", "Yavatmal",
+];
+
+const GUEST_OPTION_VALUE = "__guest__";
 
 function emptyForm() {
   return {
@@ -207,6 +223,7 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
   const currency = settings?.currency ?? "AED";
   const fee = settings?.player_reg_fee ?? 25;
   const shirtNote = settings?.shirt_note || "A team T-shirt will be provided to every registered player.";
+  const guestsAllowed = settings?.eligibility_mode !== "maharashtra_only";
 
   const [form, setForm] = useState(emptyForm());
   const [files, setFiles] = useState<{ photo?: File; receipt?: File }>({});
@@ -242,6 +259,15 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  function handleOriginChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const val = e.target.value;
+    if (val === GUEST_OPTION_VALUE) {
+      setForm((f) => ({ ...f, playerType: "Guest Indian Player", district: "" }));
+    } else {
+      setForm((f) => ({ ...f, playerType: "Maharashtra Player", district: val, state: "" }));
+    }
+  }
 
   function handleFile(key: "photo" | "receipt") {
     return (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -282,7 +308,7 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
       return;
     }
     if (form.playerType === "Maharashtra Player" && !form.district) {
-      setFormErr("Please enter your Maharashtra District / Home Town.");
+      setFormErr("Please select which district you're from.");
       return;
     }
     if (form.playerType === "Guest Indian Player" && !form.state) {
@@ -457,16 +483,18 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
               </Field>
             </div>
 
-            <Field label="Player Type" required>
-              <select value={form.playerType} onChange={set("playerType")}>
-                {PLAYER_TYPES.map((t) => <option key={t}>{t}</option>)}
+            <Field label="Where Are You From?" required>
+              <select
+                value={form.playerType === "Guest Indian Player" ? GUEST_OPTION_VALUE : form.district}
+                onChange={handleOriginChange}
+                required
+              >
+                <option value="">Select your district</option>
+                {MAHARASHTRA_DISTRICTS.map((d) => <option key={d} value={d}>{d}</option>)}
+                {guestsAllowed && <option value={GUEST_OPTION_VALUE}>Outside Maharashtra (Guest Player)</option>}
               </select>
             </Field>
-            {form.playerType === "Maharashtra Player" ? (
-              <Field label="Maharashtra District / Home Town" required>
-                <input value={form.district} onChange={set("district")} required />
-              </Field>
-            ) : (
+            {form.playerType === "Guest Indian Player" && (
               <Field label="State in India" required>
                 <input value={form.state} onChange={set("state")} required />
               </Field>
