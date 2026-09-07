@@ -43,7 +43,7 @@ export async function startAuction(): Promise<any> {
   if (!auction) return { error: "Auction state not initialised." };
 
   if (auction.status === "idle" || (auction.pool_order?.length ?? 0) === 0) {
-    const eligible = players.filter((p: any) => p.application_status === "Approved for Auction");
+        const eligible = players.filter((p: any) => p.application_status === "Approved for Auction" && (p.team_role ?? "Auction Player") === "Auction Player");
     const catOrder = categories.length ? categories : ["Unassigned"];
     const sorted = [...eligible].sort((a: any, b: any) => {
       const ia = catOrder.indexOf(a.auction_category) === -1 ? 999 : catOrder.indexOf(a.auction_category);
