@@ -247,3 +247,26 @@ export async function resetAuction(): Promise<any> {
   revalidateAuctionPaths();
   return { ok: true };
 }
+
+// Pulls every "Unsold / Not Selected" player back into a fresh pool for a
+// second round, restoring their status to "Approved for Auction" first so
+// they're eligible again. Does not touch already-Sold players or team
+// purses — this is purely about giving unsold players another chance.
+export async function startUnsoldRound(): Promise<any> {
+  const guard = await requireAuctionRole();
+  if ("error" in guard) return guard;
+  const supabase = createClient();
+  const { data: unsoldPlayers } = await supabase.from("players").select("id").eq("application_status", "Unsold / Not Selected");
+  if (!unsoldPlayers?.length) return { error: "No unsold players to re-auction." };
+
+  const ids = unsoldPlayers.map((p: any) => p.id);
+  await supabase.from("players").update({ application_status: "Approved for Auction" }).in("id", ids);
+  await supabase.from("auction_state").update({
+    status: "live", pool_order: ids, pool_index: 0, current_player_id: ids[0],
+    current_bid: 0, current_team_id: null, bid_history: [], action_log: [], last_action: null,
+    updated_at: new Date().toISOString(),
+  }).eq("id", 1);
+  await logAudit({ action: "Unsold Round Started", entity: "Auction", entityId: "auction" });
+  revalidateAuctionPaths();
+  return { ok: true };
+}
