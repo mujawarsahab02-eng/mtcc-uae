@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LightBadge, LightButton, LightField, LightFormSection, LightStatusBadge } from "@/components/ui/light";
-import { APPLICATION_STATUSES, PAYMENT_STATUSES, PLAYER_CATEGORIES, DOCUMENT_ACCESS_ROLES, PLAYER_DECISION_ROLES, computeAge } from "@/lib/constants";
-import { updatePlayer, deletePlayer } from "./actions";
+import {
+  APPLICATION_STATUSES, PAYMENT_STATUSES, PLAYER_CATEGORIES, DOCUMENT_ACCESS_ROLES, PLAYER_DECISION_ROLES, computeAge,
+  PLAYING_ROLES, BATTING_STYLES, PLAYER_TYPES, EMIRATES,
+} from "@/lib/constants";
+import { updatePlayer, deletePlayer, assignSpecialRole } from "./actions";
 import { createClient } from "@/lib/supabase/client";
 
 export default function PlayerDetail({ player, settings, categories, currentRole, onClose }: any) {
@@ -18,11 +21,17 @@ export default function PlayerDetail({ player, settings, categories, currentRole
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [err, setErr] = useState("");
+  const [teams, setTeams] = useState<any[]>([]);
+  const [assignRole, setAssignRole] = useState(player.team_role || "Auction Player");
+  const [assignTeamId, setAssignTeamId] = useState(player.team_id || "");
+  const [assigning, setAssigning] = useState(false);
+  const [assignMsg, setAssignMsg] = useState("");
 
   const canViewDocs = DOCUMENT_ACCESS_ROLES.includes(currentRole);
   const canDecide = PLAYER_DECISION_ROLES.includes(currentRole) || currentRole === "Auction Admin";
   const canDelete = PLAYER_DECISION_ROLES.includes(currentRole);
   const canEditFinance = DOCUMENT_ACCESS_ROLES.includes(currentRole);
+  const canAssignRole = PLAYER_DECISION_ROLES.includes(currentRole);
   const visibleCategories = PLAYER_CATEGORIES.filter(
     (c) => c !== "Overseas / Special Category" || (settings?.allow_overseas_category && currentRole === "Super Admin") || player.category === c
   );
@@ -34,6 +43,13 @@ export default function PlayerDetail({ player, settings, categories, currentRole
     }
   });
 
+  useEffect(() => {
+    supabase.from("teams").select("id, name").order("name").then(({ data }) => setTeams(data || []));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const currentTeamName = teams.find((t) => t.id === player.team_id)?.name;
+
   async function save(patch: Record<string, any>, action?: string) {
     setBusy(true);
     setErr("");
@@ -43,6 +59,20 @@ export default function PlayerDetail({ player, settings, categories, currentRole
     else {
       Object.assign(player, patch);
       router.refresh();
+    }
+  }
+
+  async function handleAssign() {
+    setAssigning(true);
+    setAssignMsg("");
+    const res: any = await assignSpecialRole(player.id, assignRole, assignRole === "Auction Player" ? null : assignTeamId || null);
+    setAssigning(false);
+    if (res.error) setAssignMsg(res.error);
+    else {
+      Object.assign(player, { team_role: assignRole, team_id: assignRole === "Auction Player" ? null : assignTeamId });
+      setAssignMsg("Updated ✓");
+      router.refresh();
+      setTimeout(() => setAssignMsg(""), 2500);
     }
   }
 
@@ -80,29 +110,87 @@ export default function PlayerDetail({ player, settings, categories, currentRole
             <LightBadge tone="default">{player.category}</LightBadge>
             {player.auction_category && <LightBadge tone="orange">{player.auction_category}</LightBadge>}
             {player.player_type && <LightBadge tone="blue">{player.player_type}</LightBadge>}
+            {player.team_role && player.team_role !== "Auction Player" && <LightBadge tone="gold">{player.team_role}</LightBadge>}
           </div>
 
           {photoUrl && <img src={photoUrl} alt="" className="w-20 h-20 rounded-full object-cover mb-4 border-2 border-gold" />}
 
-          <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-sm mb-5">
-            <Row label="Player ID" value={player.player_code} mono />
-            <Row label="Age" value={computeAge(player.dob) != null ? `${computeAge(player.dob)}` : undefined} />
-            <Row label="Role" value={player.playing_role} />
-            <Row label="Batting Style" value={player.batting_style} />
-            <Row label="Bowling Style" value={player.bowling_style} />
-            <Row label="District" value={player.district} />
-            <Row label="State" value={player.state} />
-            <Row label="Emirate" value={player.emirate} />
-            <Row label="Mobile" value={player.mobile} />
-            <Row label="WhatsApp" value={player.whatsapp} />
-            <Row label="Email" value={player.email} />
-          </div>
+          <Row label="Player ID" value={player.player_code} mono />
 
-          {player.cricheroes_url && (
-            <a href={player.cricheroes_url} target="_blank" rel="noreferrer" className="text-xs font-semibold underline block mb-4 text-blue">
-              Open CricHeroes Profile ↗
-            </a>
-          )}
+          <LightFormSection title="Player Details">
+            <LightField label="Full Name">
+              <input defaultValue={player.full_name || ""} onBlur={(e) => save({ full_name: e.target.value })} />
+            </LightField>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <LightField label="Date of Birth">
+                <input type="date" defaultValue={player.dob || ""} onBlur={(e) => save({ dob: e.target.value || null })} />
+              </LightField>
+              <LightField label="Player Type">
+                <select defaultValue={player.player_type || ""} onBlur={(e) => save({ player_type: e.target.value })}>
+                  {PLAYER_TYPES.map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </LightField>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <LightField label="Mobile Number">
+                <input defaultValue={player.mobile || ""} onBlur={(e) => save({ mobile: e.target.value })} />
+              </LightField>
+              <LightField label="WhatsApp Number">
+                <input defaultValue={player.whatsapp || ""} onBlur={(e) => save({ whatsapp: e.target.value })} />
+              </LightField>
+            </div>
+            <LightField label="Email Address">
+              <input defaultValue={player.email || ""} onBlur={(e) => save({ email: e.target.value })} />
+            </LightField>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <LightField label="Emirate">
+                <select defaultValue={player.emirate || ""} onBlur={(e) => save({ emirate: e.target.value })}>
+                  <option value="">Select</option>
+                  {EMIRATES.map((e) => <option key={e}>{e}</option>)}
+                </select>
+              </LightField>
+              <LightField label="UAE Location">
+                <input defaultValue={player.uae_location || ""} onBlur={(e) => save({ uae_location: e.target.value })} />
+              </LightField>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <LightField label="District">
+                <input defaultValue={player.district || ""} onBlur={(e) => save({ district: e.target.value || null })} />
+              </LightField>
+              <LightField label="State">
+                <input defaultValue={player.state || ""} onBlur={(e) => save({ state: e.target.value || null })} />
+              </LightField>
+            </div>
+          </LightFormSection>
+
+          <LightFormSection title="Cricket Details">
+            <LightField label="CricHeroes Profile Link">
+              <input defaultValue={player.cricheroes_url || ""} onBlur={(e) => save({ cricheroes_url: e.target.value })} />
+            </LightField>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <LightField label="Playing Role">
+                <select defaultValue={player.playing_role || ""} onBlur={(e) => save({ playing_role: e.target.value })}>
+                  {PLAYING_ROLES.map((r) => <option key={r}>{r}</option>)}
+                </select>
+              </LightField>
+              <LightField label="Batting Style">
+                <select defaultValue={player.batting_style || ""} onBlur={(e) => save({ batting_style: e.target.value })}>
+                  {BATTING_STYLES.map((r) => <option key={r}>{r}</option>)}
+                </select>
+              </LightField>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <LightField label="Bowling Style">
+                <input defaultValue={player.bowling_style || ""} onBlur={(e) => save({ bowling_style: e.target.value })} />
+              </LightField>
+              <LightField label="Preferred Batting Position">
+                <input defaultValue={player.batting_position || ""} onBlur={(e) => save({ batting_position: e.target.value })} />
+              </LightField>
+            </div>
+            <LightField label="Current Team (as entered at registration)">
+              <input defaultValue={player.current_team || ""} onBlur={(e) => save({ current_team: e.target.value })} />
+            </LightField>
+          </LightFormSection>
 
           <LightFormSection title="CricHeroes Stats">
             <p className="text-[11px] text-slateText mb-3">Read these off the player&apos;s CricHeroes profile yourself — never taken from what the player types in.</p>
@@ -118,6 +206,7 @@ export default function PlayerDetail({ player, settings, categories, currentRole
               </LightField>
             </div>
           </LightFormSection>
+
           <LightFormSection title="T-Shirt Details">
             <div className="grid grid-cols-3 gap-3">
               <LightField label="Size">
@@ -131,6 +220,7 @@ export default function PlayerDetail({ player, settings, categories, currentRole
               </LightField>
             </div>
           </LightFormSection>
+
           <div className="p-3 mb-4 rounded-xl border" style={{ background: "rgba(78,155,255,0.06)", borderColor: "rgba(78,155,255,0.2)" }}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold uppercase text-blue">Restricted: Emirates ID</span>
@@ -149,10 +239,14 @@ export default function PlayerDetail({ player, settings, categories, currentRole
               )}
             </div>
             {showId && canViewDocs && (
-              <div className="text-xs space-y-1 text-slateText">
-                <div>Number: {player.emirates_id || "—"}</div>
-                <div>Expiry: {player.emirates_id_expiry || "—"}</div>
-                <div>
+              <div className="space-y-2">
+                <LightField label="Emirates ID Number">
+                  <input defaultValue={player.emirates_id || ""} onBlur={(e) => save({ emirates_id: e.target.value })} />
+                </LightField>
+                <LightField label="Emirates ID Expiry">
+                  <input type="date" defaultValue={player.emirates_id_expiry || ""} onBlur={(e) => save({ emirates_id_expiry: e.target.value || null })} />
+                </LightField>
+                <div className="text-xs text-slateText">
                   Copy on file:{" "}
                   {idUrl ? <a href={idUrl} target="_blank" rel="noreferrer" className="underline font-semibold text-blue">View (link expires in 2 min)</a> : "Not uploaded"}
                 </div>
@@ -206,6 +300,37 @@ export default function PlayerDetail({ player, settings, categories, currentRole
             </LightField>
           </div>
 
+          {canAssignRole && (
+            <LightFormSection title="Team Role & Assignment (Bypass Auction)">
+              <p className="text-[11px] text-slateText mb-3">
+                Assign this player directly to a team as Owner (fixed {settings?.owner_fixed_points ?? 5000} pts, deducted from that team&apos;s purse) or Captain/Icon (free) —
+                they will never appear in the live auction pool. Both still count toward the squad size.
+                {currentTeamName && <span className="block mt-1 font-semibold text-navyText">Currently on: {currentTeamName} ({player.team_role})</span>}
+              </p>
+              <div className="grid sm:grid-cols-2 gap-3 mb-3">
+                <LightField label="Role">
+                  <select value={assignRole} onChange={(e) => setAssignRole(e.target.value)}>
+                    <option value="Auction Player">Auction Player (normal)</option>
+                    <option value="Owner">Owner</option>
+                    <option value="Captain/Icon">Captain/Icon</option>
+                  </select>
+                </LightField>
+                {assignRole !== "Auction Player" && (
+                  <LightField label="Team">
+                    <select value={assignTeamId} onChange={(e) => setAssignTeamId(e.target.value)}>
+                      <option value="">Select team</option>
+                      {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </LightField>
+                )}
+              </div>
+              {assignMsg && <div className="text-xs mb-2 text-green">{assignMsg}</div>}
+              <LightButton variant="primary" size="sm" onClick={handleAssign} disabled={assigning}>
+                {assigning ? "Saving…" : "Apply"}
+              </LightButton>
+            </LightFormSection>
+          )}
+
           {canEditFinance && (
             <LightFormSection title="Financial Record">
               <div className="grid sm:grid-cols-2 gap-3">
@@ -256,7 +381,7 @@ export default function PlayerDetail({ player, settings, categories, currentRole
 
 function Row({ label, value, mono }: { label: string; value?: string; mono?: boolean }) {
   return (
-    <div className="flex justify-between py-1.5 border-b border-black/5">
+    <div className="flex justify-between py-1.5 border-b border-black/5 text-sm mb-2">
       <span className="text-slateText">{label}</span>
       <span className={`text-navyText ${mono ? "font-mono text-xs" : ""}`}>{value || "—"}</span>
     </div>
