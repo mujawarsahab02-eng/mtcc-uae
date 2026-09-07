@@ -66,3 +66,45 @@ export async function deletePlayer(id: string): Promise<any> {
   revalidatePath("/admin/segregation");
   return { ok: true };
 }
+
+// Assigns a player directly to a team as Owner or Captain/Icon, bypassing
+// the auction entirely. Owner costs a fixed amount (from Settings,
+// deducted from the team's purse via the same sold_points field the
+// auction uses); Captain/Icon is free. Passing "Auction Player" reverts
+// them back to the normal auction pool.
+export async function assignSpecialRole(playerId: string, teamRole: "Owner" | "Captain/Icon" | "Auction Player", teamId: string | null): Promise<any> {
+  const profile = await getCurrentProfile();
+  if (!profile || !PLAYER_DECISION_ROLES.includes(profile.role)) {
+    return { error: "Only Super Admin or Tournament Admin can assign Owner/Captain-Icon roles." };
+  }
+
+  const supabase = createClient();
+
+  if (teamRole === "Auction Player") {
+    const { error } = await supabase.from("players").update({
+      team_role: "Auction Player", team_id: null, sold_points: null, application_status: "Approved for Auction",
+    }).eq("id", playerId);
+    if (error) return { error: error.message };
+    await logAudit({ action: "Team Role Reset to Auction Player", entity: "Player", entityId: playerId });
+    revalidatePath("/admin/players");
+    revalidatePath("/admin/teams");
+    revalidatePath("/admin/squads");
+    return { ok: true };
+  }
+
+  if (!teamId) return { error: "Please select a team." };
+
+  const { data: settings } = await supabase.from("tournament_settings").select("owner_fixed_points").eq("id", 1).single();
+  const points = teamRole === "Owner" ? (settings?.owner_fixed_points ?? 5000) : 0;
+
+  const { error } = await supabase.from("players").update({
+    team_role: teamRole, team_id: teamId, sold_points: points, application_status: "Sold / Selected",
+  }).eq("id", playerId);
+  if (error) return { error: error.message };
+
+  await logAudit({ action: `Assigned as ${teamRole}`, entity: "Player", entityId: playerId, field: "team_id", previousValue: "—", newValue: teamId });
+  revalidatePath("/admin/players");
+  revalidatePath("/admin/teams");
+  revalidatePath("/admin/squads");
+  return { ok: true };
+}
