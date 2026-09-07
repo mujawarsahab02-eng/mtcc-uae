@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Badge, Button, Card, SectionHeader, SeamDivider, StatCard } from "@/components/ui";
 import { AUCTION_ROLES, OVERRIDE_ROLES, computeAge } from "@/lib/constants";
 import { computeRemainingPoints, computeSquad, computeGuestCount, validateSale } from "@/lib/auction";
-import { startAuction, pauseAuction, placeBid, markSold, markUnsold, deferPlayer, undoLastPlayerResult, resetAuction } from "./actions";
+import { startAuction, pauseAuction, placeBid, markSold, markUnsold, deferPlayer, undoLastPlayerResult, resetAuction, startUnsoldRound } from "./actions";
+
 // Tiered bid step: the increment gets bigger as the bid climbs, per the
 // organiser's planned structure. Falls back to sensible defaults if a
 // tier field is ever missing from settings.
@@ -33,7 +34,6 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
   const [auction, setAuction] = useState(initialAuction);
   const [players, setPlayers] = useState(initialPlayers);
   const [teams, setTeams] = useState(initialTeams);
-  const [selectedTeamId, setSelectedTeamId] = useState(initialTeams[0]?.id || "");
   const [override, setOverride] = useState(false);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -77,6 +77,8 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
     guestCount: computeGuestCount(t, players),
   }));
 
+  const unsoldPlayers = useMemo(() => players.filter((p: any) => p.application_status === "Unsold / Not Selected"), [players]);
+
   const summary = useMemo(() => {
     if (!auction?.pool_order) return { total: 0, sold: 0, unsold: 0, totalSpent: 0 };
     const processed = auction.pool_order.map((id: string) => players.find((p: any) => p.id === id)).filter(Boolean);
@@ -92,12 +94,12 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
     if (res?.error) setMsg(res.error);
   }
 
-  function tryPlaceBid(amount: number) {
-    const team = teams.find((t: any) => t.id === selectedTeamId);
+  function tryPlaceBid(amount: number, teamId: string) {
+    const team = teams.find((t: any) => t.id === teamId);
     if (!team || !currentPlayer) return;
     const warnings = validateSale(team, currentPlayer, amount, players, settings);
     if (warnings.length && !(override && canOverride)) { setMsg(warnings.join(" ")); return; }
-    run(() => placeBid(selectedTeamId, amount, override));
+    run(() => placeBid(teamId, amount, override));
   }
 
   function flashResult(kind: "sold" | "unsold", fn: () => Promise<any>) {
@@ -127,7 +129,7 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
       <SectionHeader
         eyebrow="Live"
         title="Player Auction — Control Room"
-                action={
+        action={
           <div className="flex gap-2 flex-wrap">
             <Link href="/auction/display" target="_blank"><Button variant="ghost" size="sm">Open Display Mode ↗</Button></Link>
             {auction?.status !== "live" && auction?.status !== "completed" ? (
@@ -166,7 +168,7 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
             <StatCard label="Total Points Spent" value={summary.totalSpent} tone="blue" />
           </div>
           <div className="text-xs font-bold uppercase tracking-wide mb-2 text-muted">Team Squad Completion & Guest Distribution</div>
-          <div className="space-y-2">
+          <div className="space-y-2 mb-5">
             {teamsWithStats.map((t: any) => (
               <div key={t.id} className="flex items-center justify-between text-sm py-1.5 border-b last:border-0 border-line">
                 <span>{t.name}</span>
@@ -174,6 +176,33 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
               </div>
             ))}
           </div>
+
+          {unsoldPlayers.length > 0 && (
+            <div className="pt-4 border-t border-line">
+              <div className="text-[11px] font-bold uppercase tracking-wide mb-3 text-orange">Unsold Players ({unsoldPlayers.length}) — Available for a Second Round</div>
+              <div className="max-h-40 overflow-y-auto space-y-1 mb-4">
+                {unsoldPlayers.map((p: any) => (
+                  <div key={p.id} className="flex justify-between text-xs py-1 border-b last:border-0 border-line">
+                    <span>{p.full_name}</span>
+                    <span className="text-mutedDim">{p.playing_role} · {p.auction_category || "Unassigned"}</span>
+                  </div>
+                ))}
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                className="w-full"
+                onClick={() => {
+                  if (window.confirm(`Start a second round for all ${unsoldPlayers.length} unsold players? They'll be moved back into an active pool for bidding.`)) {
+                    run(startUnsoldRound);
+                  }
+                }}
+                disabled={busy}
+              >
+                Start Unsold Players Round
+              </Button>
+            </div>
+          )}
         </Card>
       )}
 
@@ -257,21 +286,36 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
           </div>
 
           <Card className="p-4 mb-5">
-            <div className="text-[11px] uppercase tracking-wide font-semibold mb-2 text-mutedDim">Bidding Team</div>
-            <select value={selectedTeamId} onChange={(e) => { setSelectedTeamId(e.target.value); setMsg(""); }} className="mb-3">
-              {teamsWithStats.map((t: any) => <option key={t.id} value={t.id}>{t.name} — {t.remaining} pts left, {t.squadCount}/{settings.max_squad_size} squad</option>)}
-            </select>
-            <Button
-              variant="primary"
-              size="lg"
-              className="w-full mb-2"
-              onClick={() => tryPlaceBid(nextBidAmount)}
-              disabled={busy || bidMaxReached}
-            >
-              {bidMaxReached ? `Maximum Bid Reached (${maxBid} pts)` : `Place Bid — ${nextBidAmount} pts`}
-            </Button>
-            <div className="text-[11px] text-mutedDim mb-2">
-              Starts at {settings?.auction_starting_bid ?? 2000} pts · +{settings?.auction_bid_increment ?? 1000} up to {settings?.auction_tier2_threshold ?? 10000} · +{settings?.auction_tier2_increment ?? 2000} up to {settings?.auction_tier3_threshold ?? 15000} · +{settings?.auction_tier3_increment ?? 3000} up to {settings?.auction_tier4_threshold ?? 20000} · +{settings?.auction_tier4_increment ?? 5000} above
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <div className="text-[11px] uppercase tracking-wide font-semibold text-mutedDim">Tap a Team to Bid</div>
+              <div className="text-sm font-bold text-goldBright">
+                {bidMaxReached ? `Maximum Bid Reached (${maxBid} pts)` : `Next Bid — ${nextBidAmount} pts`}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+              {teamsWithStats.map((t: any) => {
+                const logo = t.logo_path ? supabase.storage.from("team-logos").getPublicUrl(t.logo_path).data.publicUrl : null;
+                const isLeading = auction.current_team_id === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => tryPlaceBid(nextBidAmount, t.id)}
+                    disabled={busy || bidMaxReached}
+                    className="rounded-xl p-3 text-center transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{
+                      background: isLeading ? "rgba(61,220,151,0.12)" : "#131D33",
+                      border: isLeading ? "2px solid #3DDC97" : "1px solid #22304F",
+                    }}
+                  >
+                    <div className="w-12 h-12 rounded-lg mx-auto mb-1.5 overflow-hidden bg-bgCardHover flex items-center justify-center">
+                      {logo ? <img src={logo} alt={t.name} className="w-full h-full object-contain p-1" /> : <span className="text-sm font-bold text-gold">{t.name.slice(0, 2).toUpperCase()}</span>}
+                    </div>
+                    <div className="text-xs font-bold truncate">{t.name}</div>
+                    <div className="text-[10px] text-mutedDim">{t.remaining} pts left</div>
+                    <div className="text-[10px] text-mutedDim">{t.squadCount}/{settings.max_squad_size} squad</div>
+                  </button>
+                );
+              })}
             </div>
             {msg && <div className="text-xs font-semibold mb-2 text-red">⚠ {msg}</div>}
             {canOverride ? (
