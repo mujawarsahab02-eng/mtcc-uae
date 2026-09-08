@@ -259,7 +259,7 @@ export async function startUnsoldRound(): Promise<any> {
   const { data: unsoldPlayers } = await supabase.from("players").select("id").eq("application_status", "Unsold / Not Selected");
   if (!unsoldPlayers?.length) return { error: "No unsold players to re-auction." };
 
-  const ids = unsoldPlayers.map((p: any) => p.id);
+  const ids = shuffle(unsoldPlayers.map((p: any) => p.id));
   await supabase.from("players").update({ application_status: "Approved for Auction" }).in("id", ids);
   await supabase.from("auction_state").update({
     status: "live", pool_order: ids, pool_index: 0, current_player_id: ids[0],
