@@ -6,7 +6,14 @@ import { AUCTION_ROLES, OVERRIDE_ROLES } from "@/lib/constants";
 import { validateSale, type PlayerRow, type TeamRow } from "@/lib/auction";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
-
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 async function requireAuctionRole(): Promise<any> {
   const profile = await getCurrentProfile();
   if (!profile || !AUCTION_ROLES.includes(profile.role)) {
