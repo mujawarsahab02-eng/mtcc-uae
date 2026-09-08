@@ -50,15 +50,8 @@ export async function startAuction(): Promise<any> {
   if (!auction) return { error: "Auction state not initialised." };
 
   if (auction.status === "idle" || (auction.pool_order?.length ?? 0) === 0) {
-        const eligible = players.filter((p: any) => p.application_status === "Approved for Auction" && (p.team_role ?? "Auction Player") === "Auction Player");
-    const catOrder = categories.length ? categories : ["Unassigned"];
-    const sorted = [...eligible].sort((a: any, b: any) => {
-      const ia = catOrder.indexOf(a.auction_category) === -1 ? 999 : catOrder.indexOf(a.auction_category);
-      const ib = catOrder.indexOf(b.auction_category) === -1 ? 999 : catOrder.indexOf(b.auction_category);
-      if (ia !== ib) return ia - ib;
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    });
-    const order = sorted.map((p: any) => p.id);
+           const eligible = players.filter((p: any) => p.application_status === "Approved for Auction" && (p.team_role ?? "Auction Player") === "Auction Player");
+    const order = shuffle(eligible).map((p: any) => p.id);
 
     if (order.length) {
       await supabase.from("players").update({ application_status: "Auction Pool" }).in("id", order);
