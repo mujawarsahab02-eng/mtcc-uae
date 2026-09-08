@@ -136,7 +136,7 @@ export default function ResetPasswordForm({ code }: { code: string | null }) {
               </label>
               <label className="block mb-4">
                 <span className="block text-xs font-bold uppercase tracking-wide mb-2 text-mutedDim">6-Digit Code</span>
-                <input value={otp} onChange={(e) => setOtp(e.target.value)} required inputMode="numeric" maxLength={6} placeholder="123456" />
+                                <input value={otp} onChange={(e) => setOtp(e.target.value)} required inputMode="numeric" maxLength={12} placeholder="Enter your code" />
               </label>
               {verifyErr && <div className="text-xs mb-3 text-red">{verifyErr}</div>}
               <Button type="submit" variant="primary" size="lg" className="w-full" disabled={verifying}>
