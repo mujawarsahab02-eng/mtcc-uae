@@ -9,8 +9,15 @@ import { Button } from "@/components/ui";
 export default function ResetPasswordForm({ code }: { code: string | null }) {
   const router = useRouter();
   const supabase = createClient();
+  const [checking, setChecking] = useState(!!code);
   const [ready, setReady] = useState(false);
   const [checkErr, setCheckErr] = useState("");
+
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [verifyErr, setVerifyErr] = useState("");
+
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [err, setErr] = useState("");
@@ -20,26 +27,22 @@ export default function ResetPasswordForm({ code }: { code: string | null }) {
   useEffect(() => {
     let cancelled = false;
 
-    async function establishSession() {
-      // Modern Supabase links use the PKCE flow — a "code" in the URL that
-      // must be explicitly exchanged for a session here, rather than the
-      // older hash-fragment tokens the client SDK could pick up on its own.
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (cancelled) return;
-        if (error) {
-          setCheckErr(error.message);
-          return;
-        }
-        setReady(true);
+    async function tryLinkExchange() {
+      if (!code) {
+        setChecking(false);
         return;
       }
-      // Fallback: an older-style link, or a session already established.
-      const { data } = await supabase.auth.getSession();
-      if (!cancelled && data.session) setReady(true);
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (cancelled) return;
+      if (error) {
+        setCheckErr(error.message);
+      } else {
+        setReady(true);
+      }
+      setChecking(false);
     }
 
-    establishSession();
+    tryLinkExchange();
 
     const { data: listener } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") setReady(true);
@@ -51,6 +54,19 @@ export default function ResetPasswordForm({ code }: { code: string | null }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function handleVerifyCode(e: React.FormEvent) {
+    e.preventDefault();
+    setVerifyErr("");
+    setVerifying(true);
+    const { error } = await supabase.auth.verifyOtp({ email, token: otp.trim(), type: "recovery" });
+    setVerifying(false);
+    if (error) {
+      setVerifyErr(error.message);
+    } else {
+      setReady(true);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -87,16 +103,9 @@ export default function ResetPasswordForm({ code }: { code: string | null }) {
         <div className="rounded-2xl border border-line bg-bgCard p-6">
           {done ? (
             <div className="text-center text-sm text-green">Password set! Redirecting you to sign in…</div>
-          ) : checkErr ? (
-            <div className="text-center text-sm text-red">
-              This link has expired or already been used. Ask a Super Admin to send you a fresh one.
-              <div className="text-xs text-mutedDim mt-2">({checkErr})</div>
-            </div>
-          ) : !ready ? (
-            <div className="text-center text-sm text-mutedDim">
-              Checking your link…
-            </div>
-          ) : (
+          ) : checking ? (
+            <div className="text-center text-sm text-mutedDim">Checking your link…</div>
+          ) : ready ? (
             <form onSubmit={handleSubmit}>
               <label className="block mb-4">
                 <span className="block text-xs font-bold uppercase tracking-wide mb-2 text-mutedDim">New Password</span>
@@ -109,6 +118,29 @@ export default function ResetPasswordForm({ code }: { code: string | null }) {
               {err && <div className="text-xs mb-3 text-red">{err}</div>}
               <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>
                 {busy ? "Saving…" : "Set Password"}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyCode}>
+              {checkErr && (
+                <div className="text-xs mb-3 p-2 rounded-lg text-orange" style={{ background: "rgba(255,122,61,0.1)" }}>
+                  Your link has expired or was already used (this can happen if your email provider automatically scans links before you click them). Enter the 6-digit code from that same email instead.
+                </div>
+              )}
+              <p className="text-xs text-mutedDim mb-4">
+                Ask a Super Admin to click &quot;Send password recovery&quot; for your account, then check your email for a 6-digit code and enter it below.
+              </p>
+              <label className="block mb-4">
+                <span className="block text-xs font-bold uppercase tracking-wide mb-2 text-mutedDim">Your Email</span>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              </label>
+              <label className="block mb-4">
+                <span className="block text-xs font-bold uppercase tracking-wide mb-2 text-mutedDim">6-Digit Code</span>
+                <input value={otp} onChange={(e) => setOtp(e.target.value)} required inputMode="numeric" maxLength={6} placeholder="123456" />
+              </label>
+              {verifyErr && <div className="text-xs mb-3 text-red">{verifyErr}</div>}
+              <Button type="submit" variant="primary" size="lg" className="w-full" disabled={verifying}>
+                {verifying ? "Verifying…" : "Verify Code"}
               </Button>
             </form>
           )}
