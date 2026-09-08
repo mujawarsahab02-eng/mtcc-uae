@@ -29,7 +29,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isAdminRoute = path.startsWith("/admin") && path !== "/admin/login";
+  const isAdminRoute = path.startsWith("/admin") && path !== "/admin/login" && path !== "/admin/reset-password";
   const isTeamRoute = path.startsWith("/team");
 
   if ((isAdminRoute || isTeamRoute) && !user) {
