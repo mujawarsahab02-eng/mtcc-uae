@@ -124,18 +124,18 @@ export default function ResetPasswordForm({ code }: { code: string | null }) {
             <form onSubmit={handleVerifyCode}>
               {checkErr && (
                 <div className="text-xs mb-3 p-2 rounded-lg text-orange" style={{ background: "rgba(255,122,61,0.1)" }}>
-                  Your link has expired or was already used (this can happen if your email provider automatically scans links before you click them). Enter the 6-digit code from that same email instead.
+                  Your link has expired or was already used (this can happen if your email provider automatically scans links before you click them). Enter the code from that same email instead.
                 </div>
               )}
               <p className="text-xs text-mutedDim mb-4">
-                Ask a Super Admin to click &quot;Send password recovery&quot; for your account, then check your email for a 6-digit code and enter it below.
+                Ask a Super Admin to click &quot;Send password recovery&quot; for your account, then check your email for a code and enter it below.
               </p>
               <label className="block mb-4">
                 <span className="block text-xs font-bold uppercase tracking-wide mb-2 text-mutedDim">Your Email</span>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </label>
               <label className="block mb-4">
-                <span className="block text-xs font-bold uppercase tracking-wide mb-2 text-mutedDim">6-Digit Code</span>
+               <span className="block text-xs font-bold uppercase tracking-wide mb-2 text-mutedDim">Code</span>
                                 <input value={otp} onChange={(e) => setOtp(e.target.value)} required inputMode="numeric" maxLength={12} placeholder="Enter your code" />
               </label>
               {verifyErr && <div className="text-xs mb-3 text-red">{verifyErr}</div>}
