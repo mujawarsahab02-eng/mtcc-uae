@@ -1,0 +1,119 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import Logo from "@/components/Logo";
+import { Button } from "@/components/ui";
+
+export default function ResetPasswordForm({ code }: { code: string | null }) {
+  const router = useRouter();
+  const supabase = createClient();
+  const [ready, setReady] = useState(false);
+  const [checkErr, setCheckErr] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function establishSession() {
+      // Modern Supabase links use the PKCE flow — a "code" in the URL that
+      // must be explicitly exchanged for a session here, rather than the
+      // older hash-fragment tokens the client SDK could pick up on its own.
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (cancelled) return;
+        if (error) {
+          setCheckErr(error.message);
+          return;
+        }
+        setReady(true);
+        return;
+      }
+      // Fallback: an older-style link, or a session already established.
+      const { data } = await supabase.auth.getSession();
+      if (!cancelled && data.session) setReady(true);
+    }
+
+    establishSession();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") setReady(true);
+    });
+
+    return () => {
+      cancelled = true;
+      listener.subscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr("");
+    if (password.length < 8) {
+      setErr("Password must be at least 8 characters.");
+      return;
+    }
+    if (password !== confirm) {
+      setErr("Passwords do not match.");
+      return;
+    }
+    setBusy(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    setBusy(false);
+    if (error) {
+      setErr(error.message);
+    } else {
+      setDone(true);
+      setTimeout(() => router.push("/admin/login"), 2000);
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: "#0A0F1C" }}>
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <div className="w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden border-2 border-gold">
+            <Logo className="w-full h-full" />
+          </div>
+          <h1 className="text-xl font-bold font-display text-white">Set Your Password</h1>
+        </div>
+
+        <div className="rounded-2xl border border-line bg-bgCard p-6">
+          {done ? (
+            <div className="text-center text-sm text-green">Password set! Redirecting you to sign in…</div>
+          ) : checkErr ? (
+            <div className="text-center text-sm text-red">
+              This link has expired or already been used. Ask a Super Admin to send you a fresh one.
+              <div className="text-xs text-mutedDim mt-2">({checkErr})</div>
+            </div>
+          ) : !ready ? (
+            <div className="text-center text-sm text-mutedDim">
+              Checking your link…
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit}>
+              <label className="block mb-4">
+                <span className="block text-xs font-bold uppercase tracking-wide mb-2 text-mutedDim">New Password</span>
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+              </label>
+              <label className="block mb-4">
+                <span className="block text-xs font-bold uppercase tracking-wide mb-2 text-mutedDim">Confirm Password</span>
+                <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required minLength={8} />
+              </label>
+              {err && <div className="text-xs mb-3 text-red">{err}</div>}
+              <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>
+                {busy ? "Saving…" : "Set Password"}
+              </Button>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
