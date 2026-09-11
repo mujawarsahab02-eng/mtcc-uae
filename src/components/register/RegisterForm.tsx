@@ -7,7 +7,7 @@ import { Button } from "@/components/ui";
 import Logo from "@/components/Logo";
 import { IconShieldCheck, IconClipboardCheck, IconCricketBall, IconWallet } from "@/components/Icons";
 import { PLAYING_ROLES, BATTING_STYLES, PLAYER_TYPES, EMIRATES } from "@/lib/constants";
-
+import { notifyAdminOfRegistration } from "@/app/register/actions";
 type Settings = {
   currency: string;
   player_reg_fee: number;
@@ -370,6 +370,12 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
         });
       } catch {
         // intentionally swallowed — see comment above
+      }
+
+      try {
+        await notifyAdminOfRegistration(form.fullName, form.mobile, form.playerType);
+      } catch {
+        // best-effort — never block the player's confirmation on this
       }
 
       router.push(`/registration-success?id=${newId}`);
