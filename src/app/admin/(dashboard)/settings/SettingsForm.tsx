@@ -137,7 +137,12 @@ export default function SettingsForm({ settings, canEdit, canToggleOverseas, cur
             <input value={draft.whatsapp_group_link || ""} onChange={set("whatsapp_group_link")} placeholder="https://chat.whatsapp.com/..." />
           </LightField>
         </LightFormSection>
-
+        <LightFormSection title="Admin Notifications">
+          <p className="text-[11px] text-slateText mb-3">When someone registers, a notification email is sent here. Leave blank to disable this.</p>
+          <LightField label="Admin Notification Email">
+            <input value={draft.admin_notification_email || ""} onChange={set("admin_notification_email")} placeholder="you@example.com" />
+          </LightField>
+        </LightFormSection>
         <LightFormSection title="Bank Transfer Details">
           <p className="text-[11px] text-slateText mb-3">Shown to players on the registration page when they select &quot;Bank Transfer&quot; as their payment method.</p>
           <div className="grid grid-cols-2 gap-3">
