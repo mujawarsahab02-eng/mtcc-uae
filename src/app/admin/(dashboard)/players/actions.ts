@@ -94,8 +94,9 @@ export async function assignSpecialRole(playerId: string, teamRole: "Owner" | "C
 
   if (!teamId) return { error: "Please select a team." };
 
-  const { data: settings } = await supabase.from("tournament_settings").select("owner_fixed_points").eq("id", 1).single();
-  const points = teamRole === "Owner" ? (settings?.owner_fixed_points ?? 5000) : 0;
+  // Owner is now always non-playing and free — he sits outside the 14-player
+  // squad and costs nothing from the purse.
+  const points = 0;
 
   const { error } = await supabase.from("players").update({
     team_role: teamRole, team_id: teamId, sold_points: points, application_status: "Sold / Selected",
