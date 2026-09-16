@@ -121,8 +121,10 @@ export async function createOwnerPlayer(fullName: string, teamId: string): Promi
   if (!fullName.trim() || !teamId) return { error: "Please enter a name and select a team." };
 
   const supabase = createClient();
-  const { data: settings } = await supabase.from("tournament_settings").select("owner_fixed_points").eq("id", 1).single();
-  const points = settings?.owner_fixed_points ?? 5000;
+  // Owner is now always non-playing and free — he sits outside the 14-player
+  // squad and costs nothing from the purse. Anyone who wants to actually
+  // play (even the team owner) goes through the auction as a normal player.
+  const points = 0;
 
   const { data, error } = await supabase.from("players").insert({
     full_name: fullName.trim(),
