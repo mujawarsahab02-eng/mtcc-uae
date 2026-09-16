@@ -108,3 +108,40 @@ export async function assignSpecialRole(playerId: string, teamRole: "Owner" | "C
   revalidatePath("/admin/squads");
   return { ok: true };
 }
+
+// Creates a brand-new player record directly for someone who never went
+// through public registration (typically a Team Owner), immediately
+// assigning them to a team with the fixed Owner cost. Minimal required
+// fields only — admin can fill in the rest later from Player Detail.
+export async function createOwnerPlayer(fullName: string, teamId: string): Promise<any> {
+  const profile = await getCurrentProfile();
+  if (!profile || !PLAYER_DECISION_ROLES.includes(profile.role)) {
+    return { error: "Only Super Admin or Tournament Admin can add an Owner directly." };
+  }
+  if (!fullName.trim() || !teamId) return { error: "Please enter a name and select a team." };
+
+  const supabase = createClient();
+  const { data: settings } = await supabase.from("tournament_settings").select("owner_fixed_points").eq("id", 1).single();
+  const points = settings?.owner_fixed_points ?? 5000;
+
+  const { data, error } = await supabase.from("players").insert({
+    full_name: fullName.trim(),
+    nationality: "Indian",
+    playing_role: "Batsman",
+    category: "Maharashtra Player",
+    player_type: "Maharashtra Player",
+    application_status: "Sold / Selected",
+    payment_status: "Verified",
+    team_role: "Owner",
+    team_id: teamId,
+    sold_points: points,
+  }).select("id").single();
+
+  if (error) return { error: error.message };
+
+  await logAudit({ action: "Owner Added Directly", entity: "Player", entityId: data.id, field: "full_name", previousValue: "—", newValue: fullName });
+  revalidatePath("/admin/players");
+  revalidatePath("/admin/teams");
+  revalidatePath("/admin/squads");
+  return { ok: true };
+}
