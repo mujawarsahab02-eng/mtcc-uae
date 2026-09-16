@@ -126,6 +126,7 @@ export async function createOwnerPlayer(fullName: string, teamId: string): Promi
 
   const { data, error } = await supabase.from("players").insert({
     full_name: fullName.trim(),
+    mobile: "N/A",
     nationality: "Indian",
     playing_role: "Batsman",
     category: "Maharashtra Player",
