@@ -112,7 +112,7 @@ export default function PlayerDetail({ player, settings, categories, currentRole
             {player.player_type && <LightBadge tone="blue">{player.player_type}</LightBadge>}
             {player.team_role && player.team_role !== "Auction Player" && <LightBadge tone="gold">{player.team_role}</LightBadge>}
           </div>
-
+            {player.is_team_owner_label && <LightBadge tone="orange">Also: Team Owner</LightBadge>}
           {photoUrl && <img src={photoUrl} alt="" className="w-20 h-20 rounded-full object-cover mb-4 border-2 border-gold" />}
 
           <Row label="Player ID" value={player.player_code} mono />
@@ -328,8 +328,18 @@ export default function PlayerDetail({ player, settings, categories, currentRole
               <LightButton variant="primary" size="sm" onClick={handleAssign} disabled={assigning}>
                 {assigning ? "Saving…" : "Apply"}
               </LightButton>
+
+              <div className="w-full h-px my-4 bg-black/10" />
+              <label className="flex items-center gap-2 text-sm text-slateText">
+                <input
+                  type="checkbox"
+                  className="!w-auto"
+                  checked={!!player.is_team_owner_label}
+                  onChange={(e) => save({ is_team_owner_label: e.target.checked })}
+                />
+                Also the Team Owner (display label only — has no effect on auction, squad count, or purse)
+              </label>
             </LightFormSection>
-          )}
 
           {canEditFinance && (
             <LightFormSection title="Financial Record">
