@@ -1,23 +1,38 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { LightButton, LightCard, LightSectionHeader, LightSeamDivider, LightStatCard, LightStatusBadge } from "@/components/ui/light";
-import { PLAYING_ROLES, APPLICATION_STATUSES, PAYMENT_STATUSES, PLAYER_CATEGORIES } from "@/lib/constants";
+import { LightButton, LightCard, LightField, LightSectionHeader, LightSeamDivider, LightStatCard, LightStatusBadge } from "@/components/ui/light";
+import { PLAYING_ROLES, APPLICATION_STATUSES, PAYMENT_STATUSES, PLAYER_CATEGORIES, EMIRATES, PLAYER_TYPES } from "@/lib/constants";
+import { createOwnerPlayer } from "./actions";
 import PlayerDetail from "./PlayerDetail";
 
+const TEAM_ROLES = ["Auction Player", "Owner", "Captain/Icon"];
+
 export default function PlayersClient({ initialPlayers, settings, categories, currentRole }: any) {
+  const router = useRouter();
   const supabase = createClient();
   const [players, setPlayers] = useState(initialPlayers);
+  const [teams, setTeams] = useState<any[]>([]);
   const [q, setQ] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [payFilter, setPayFilter] = useState("");
   const [catFilter, setCatFilter] = useState("");
+  const [emirateFilter, setEmirateFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [teamRoleFilter, setTeamRoleFilter] = useState("");
   const [selected, setSelected] = useState<any>(null);
 
-  // Live updates: if Auction/Finance/another admin changes a player elsewhere,
-  // this list reflects it immediately (item: central database requirement).
+  const [showAddOwner, setShowAddOwner] = useState(false);
+  const [ownerName, setOwnerName] = useState("");
+  const [ownerTeamId, setOwnerTeamId] = useState("");
+  const [addingOwner, setAddingOwner] = useState(false);
+  const [ownerMsg, setOwnerMsg] = useState("");
+
+  const canAddOwner = ["Super Admin", "Tournament Admin"].includes(currentRole);
+
   useEffect(() => {
     const channel = supabase
       .channel("players-list")
@@ -33,6 +48,11 @@ export default function PlayersClient({ initialPlayers, settings, categories, cu
     return () => { supabase.removeChannel(channel); };
   }, [supabase]);
 
+  useEffect(() => {
+    supabase.from("teams").select("id, name").order("name").then(({ data }) => setTeams(data || []));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const filtered = useMemo(() => {
     return players.filter((p: any) => {
       if (q && !`${p.full_name} ${p.player_code} ${p.district}`.toLowerCase().includes(q.toLowerCase())) return false;
@@ -40,9 +60,12 @@ export default function PlayersClient({ initialPlayers, settings, categories, cu
       if (statusFilter && p.application_status !== statusFilter) return false;
       if (payFilter && p.payment_status !== payFilter) return false;
       if (catFilter && p.category !== catFilter) return false;
+      if (emirateFilter && p.emirate !== emirateFilter) return false;
+      if (typeFilter && p.player_type !== typeFilter) return false;
+      if (teamRoleFilter && (p.team_role || "Auction Player") !== teamRoleFilter) return false;
       return true;
     });
-  }, [players, q, roleFilter, statusFilter, payFilter, catFilter]);
+  }, [players, q, roleFilter, statusFilter, payFilter, catFilter, emirateFilter, typeFilter, teamRoleFilter]);
 
   const stats = useMemo(() => ({
     total: players.length,
@@ -68,10 +91,60 @@ export default function PlayersClient({ initialPlayers, settings, categories, cu
     URL.revokeObjectURL(url);
   }
 
+  async function handleAddOwner() {
+    setAddingOwner(true);
+    setOwnerMsg("");
+    const res: any = await createOwnerPlayer(ownerName, ownerTeamId);
+    setAddingOwner(false);
+    if (res.error) setOwnerMsg(res.error);
+    else {
+      setOwnerMsg("Owner added ✓");
+      setOwnerName("");
+      setOwnerTeamId("");
+      router.refresh();
+      setTimeout(() => { setOwnerMsg(""); setShowAddOwner(false); }, 1500);
+    }
+  }
+
   return (
     <div className="-mx-4 sm:-mx-6 -mt-20 md:-mt-8 -mb-16 px-4 sm:px-6 pt-20 md:pt-8 pb-16 bg-adminBg light-form" style={{ minHeight: "100vh" }}>
-      <LightSectionHeader eyebrow="Admin" title="Player Management" action={<LightButton variant="ghost" onClick={exportCSV}>Export CSV</LightButton>} />
+      <LightSectionHeader
+        eyebrow="Admin"
+        title="Player Management"
+        action={
+          <div className="flex gap-2 flex-wrap">
+            {canAddOwner && <LightButton variant="primary" onClick={() => setShowAddOwner((s) => !s)}>+ Add Owner</LightButton>}
+            <LightButton variant="ghost" onClick={exportCSV}>Export CSV</LightButton>
+          </div>
+        }
+      />
       <LightSeamDivider />
+
+      {showAddOwner && (
+        <LightCard className="p-4 mb-4">
+          <div className="text-xs font-bold uppercase tracking-wide mb-3 text-slateText">Add Owner as Player</div>
+          <p className="text-[11px] text-slateText mb-3">
+            Use this for a Team Owner who never went through public registration. Creates a minimal player record, assigns them directly to a team as Owner (fixed {settings?.owner_fixed_points ?? 5000} pts deducted from that team&apos;s purse), and counts toward the squad of 14. You can fill in the rest of their details afterward from Player Detail.
+          </p>
+          <div className="flex flex-wrap gap-2 items-end">
+            <div style={{ minWidth: 220 }}>
+              <LightField label="Full Name"><input value={ownerName} onChange={(e) => setOwnerName(e.target.value)} /></LightField>
+            </div>
+            <div style={{ minWidth: 180 }}>
+              <LightField label="Team">
+                <select value={ownerTeamId} onChange={(e) => setOwnerTeamId(e.target.value)}>
+                  <option value="">Select team</option>
+                  {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </LightField>
+            </div>
+            <LightButton variant="primary" onClick={handleAddOwner} disabled={addingOwner || !ownerName.trim() || !ownerTeamId}>
+              {addingOwner ? "Adding…" : "Add Owner"}
+            </LightButton>
+          </div>
+          {ownerMsg && <div className="text-xs mt-2 text-green">{ownerMsg}</div>}
+        </LightCard>
+      )}
 
       <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 my-5">
         <LightStatCard label="Total" value={stats.total} tone="gold" />
@@ -102,6 +175,15 @@ export default function PlayersClient({ initialPlayers, settings, categories, cu
           <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} style={{ maxWidth: 190 }}>
             <option value="">All Categories</option>{PLAYER_CATEGORIES.map((r) => <option key={r}>{r}</option>)}
           </select>
+          <select value={emirateFilter} onChange={(e) => setEmirateFilter(e.target.value)} style={{ maxWidth: 170 }}>
+            <option value="">All Emirates</option>{EMIRATES.map((r) => <option key={r}>{r}</option>)}
+          </select>
+          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={{ maxWidth: 200 }}>
+            <option value="">All Player Types</option>{PLAYER_TYPES.map((r) => <option key={r}>{r}</option>)}
+          </select>
+          <select value={teamRoleFilter} onChange={(e) => setTeamRoleFilter(e.target.value)} style={{ maxWidth: 170 }}>
+            <option value="">All Team Roles</option>{TEAM_ROLES.map((r) => <option key={r}>{r}</option>)}
+          </select>
         </div>
       </LightCard>
 
@@ -123,6 +205,7 @@ export default function PlayersClient({ initialPlayers, settings, categories, cu
                 </div>
               </div>
               <div className="flex gap-2 flex-wrap">
+                {p.team_role && p.team_role !== "Auction Player" && <LightStatusBadge status={p.team_role} />}
                 <LightStatusBadge status={p.payment_status} />
                 <LightStatusBadge status={p.application_status} />
               </div>
