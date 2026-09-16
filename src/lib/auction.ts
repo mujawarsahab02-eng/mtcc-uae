@@ -10,6 +10,7 @@ export type PlayerRow = {
   team_id: string | null;
   application_status: string;
   sold_points: number | null;
+  team_role?: string | null;
 };
 
 export type TeamRow = {
@@ -18,8 +19,12 @@ export type TeamRow = {
   auction_points: number;
 };
 
+// A non-playing Owner (team_role === "Owner") sits outside the 14-player
+// squad entirely — the team still fills a full 13 players + 1 Captain/Icon.
+// Only Owner is excluded here; Captain/Icon and normal Auction Players all
+// count toward the squad as usual.
 export function computeSquad(team: TeamRow, players: PlayerRow[]) {
-  return players.filter((p) => p.team_id === team.id && p.application_status === "Sold / Selected");
+  return players.filter((p) => p.team_id === team.id && p.application_status === "Sold / Selected" && (p.team_role ?? "Auction Player") !== "Owner");
 }
 
 export function computeRemainingPoints(team: TeamRow, players: PlayerRow[]) {
