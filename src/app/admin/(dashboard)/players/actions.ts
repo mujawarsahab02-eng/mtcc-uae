@@ -28,11 +28,31 @@ export async function updatePlayer(id: string, patch: Record<string, any>, actio
   const { error } = await supabase.from("players").update(patch).eq("id", id);
   if (error) return { error: error.message };
 
-  if (before) {
+    if (before) {
     for (const field of Object.keys(patch)) {
       if (before[field] !== patch[field]) {
         await logAudit({ action: action || "Player Updated", entity: "Player", entityId: id, field, previousValue: before[field], newValue: patch[field] });
       }
+    }
+  }
+
+  // Auto-create an income entry in the Finance Tracker the first time this
+  // player's payment is verified — guarded so toggling the status back and
+  // forth never creates a duplicate entry.
+  if (before && patch.payment_status === "Verified" && before.payment_status !== "Verified") {
+    const { data: existingTxn } = await supabase.from("transactions").select("id").eq("source", "player_registration").eq("source_id", id).maybeSingle();
+    if (!existingTxn) {
+      await supabase.from("transactions").insert({
+        type: "Income",
+        category: "Player Registration Fees",
+        description: `Registration fee — ${before.full_name || "Player"}`,
+        amount: patch.amount_paid ?? before.amount_paid ?? before.registration_fee_amount ?? 0,
+        txn_date: new Date().toISOString().slice(0, 10),
+        payment_method: "Bank Transfer",
+        recorded_by: profile.role,
+        source: "player_registration",
+        source_id: id,
+      });
     }
   }
 
