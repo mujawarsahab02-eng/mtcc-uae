@@ -89,3 +89,18 @@ export async function markTeamEntryFeePaid(teamId: string, amount: number): Prom
   revalidatePath("/admin/teams");
   return { ok: true };
 }
+
+export async function addCategory(type: string, name: string): Promise<any> {
+  const profile = await getCurrentProfile();
+  const guard = requireSuperAdmin(profile);
+  if (guard) return guard;
+
+  if (!name.trim()) return { error: "Please enter a category name." };
+
+  const supabase = createClient();
+  const { error } = await supabase.from("transaction_categories").insert({ type, name: name.trim() });
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/finance");
+  return { ok: true };
+}
