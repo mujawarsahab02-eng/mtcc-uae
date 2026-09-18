@@ -34,6 +34,27 @@ export async function updateTeam(id: string, patch: Record<string, any>): Promis
     }
   }
 
+    // Auto-record the team entry fee in the Finance Tracker the first time
+  // this team's payment status becomes Paid/Verified. The unique index on
+  // transactions (source, source_id) guarantees it is never counted twice.
+  const isPaidStatus = (s: any) => s === "Paid" || s === "Verified";
+  if (before && "payment_status" in patch && isPaidStatus(patch.payment_status) && !isPaidStatus(before.payment_status)) {
+    const paidDate = patch.payment_date || before.payment_date || new Date().toISOString().slice(0, 10);
+    await supabase.from("transactions").insert({
+      type: "Income",
+      category: "Team Entry Fees",
+      description: `Team entry fee — ${before.name || "Team"}`,
+      amount: Number(patch.amount_paid) || Number(before.amount_paid) || Number(patch.entry_fee_amount ?? before.entry_fee_amount) || 1500,
+      txn_date: paidDate,
+      payment_method: "Bank Transfer",
+      recorded_by: profile.role,
+      source: "team_entry_fee",
+      source_id: id,
+    });
+    await supabase.from("teams").update({ entry_fee_status: "Paid", entry_fee_paid_date: paidDate }).eq("id", id);
+    revalidatePath("/admin/finance");
+  }
+
   revalidatePath("/admin/teams");
   revalidatePath("/admin");
   revalidatePath("/admin/auction");
