@@ -68,7 +68,8 @@ export async function markTeamEntryFeePaid(teamId: string, amount: number): Prom
 
   const { data: team } = await supabase.from("teams").select("name").eq("id", teamId).single();
 
-  const { error: updateError } = await supabase.from("teams").update({ entry_fee_status: "Paid", entry_fee_paid_date: new Date().toISOString().slice(0, 10) }).eq("id", teamId);
+    const today = new Date().toISOString().slice(0, 10);
+  const { error: updateError } = await supabase.from("teams").update({ entry_fee_status: "Paid", entry_fee_paid_date: today, payment_status: "Paid", amount_paid: amount, payment_date: today }).eq("id", teamId);
   if (updateError) return { error: updateError.message };
 
   const { error: insertError } = await supabase.from("transactions").insert({
