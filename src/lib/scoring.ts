@@ -202,3 +202,73 @@ export function runRate(runs: number, legalBalls: number): string {
   if (legalBalls === 0) return "0.00";
   return ((runs / legalBalls) * 6).toFixed(2);
 }
+
+// ---------------------------------------------------------------------------
+// Shot directions for the wagon wheel. Coordinates are on a 0..1 field with
+// the batter at the centre (0.5, 0.5) and the bowler straight up (y = 0),
+// drawn for a RIGHT-handed batter (off side on the right). The public wagon
+// wheel mirrors them for left-handers.
+// ---------------------------------------------------------------------------
+export const SHOT_ZONES = [
+  { key: "third_man", label: "Third Man", x: 0.7, y: 0.846 },
+  { key: "point", label: "Point", x: 0.894, y: 0.569 },
+  { key: "cover", label: "Cover", x: 0.862, y: 0.331 },
+  { key: "long_off", label: "Long Off", x: 0.637, y: 0.124 },
+  { key: "long_on", label: "Long On", x: 0.363, y: 0.124 },
+  { key: "mid_wicket", label: "Mid Wicket", x: 0.154, y: 0.3 },
+  { key: "square_leg", label: "Square Leg", x: 0.106, y: 0.569 },
+  { key: "fine_leg", label: "Fine Leg", x: 0.3, y: 0.846 },
+] as const;
+
+function plural(n: number, word: string) {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
+// Cricbuzz-style one-line commentary, generated automatically for every ball.
+export function buildCommentary(p: {
+  bowler: string; batter: string; runsOffBat: number; extraType: ExtraType; extraRuns: number;
+  isWicket: boolean; wicketType: string | null; dismissed: string; fielder: string | null;
+  zone: string | null; isFreeHit: boolean;
+}): string {
+  let what: string;
+  if (p.extraType === "wide") {
+    what = p.extraRuns > 1 ? `wide, ${plural(p.extraRuns, "run")}` : "wide";
+  } else if (p.extraType === "no_ball") {
+    what = p.runsOffBat === 4 ? "no ball, FOUR" : p.runsOffBat === 6 ? "no ball, SIX" : p.runsOffBat > 0 ? `no ball, ${plural(p.runsOffBat, "run")}` : "no ball";
+  } else if (p.extraType === "bye") {
+    what = p.extraRuns > 0 ? plural(p.extraRuns, "bye") : "no run";
+  } else if (p.extraType === "leg_bye") {
+    what = p.extraRuns > 0 ? plural(p.extraRuns, "leg bye") : "no run";
+  } else if (p.runsOffBat === 4) {
+    what = "FOUR";
+  } else if (p.runsOffBat === 6) {
+    what = "SIX";
+  } else if (p.runsOffBat === 0) {
+    what = "no run";
+  } else {
+    what = plural(p.runsOffBat, "run");
+  }
+
+  let text = `${p.bowler} to ${p.batter}, ${what}`;
+  if (p.zone && p.runsOffBat > 0) text += `, towards ${p.zone.toLowerCase()}`;
+
+  if (p.isWicket && p.wicketType) {
+    if (p.wicketType === "Retired Hurt") {
+      text += `. ${p.dismissed} retires hurt`;
+    } else {
+      let how: string;
+      switch (p.wicketType) {
+        case "Bowled": how = `b ${p.bowler}`; break;
+        case "Caught": how = !p.fielder ? `caught b ${p.bowler}` : p.fielder === p.bowler ? `c & b ${p.bowler}` : `c ${p.fielder} b ${p.bowler}`; break;
+        case "LBW": how = `lbw b ${p.bowler}`; break;
+        case "Stumped": how = p.fielder ? `st ${p.fielder} b ${p.bowler}` : `st b ${p.bowler}`; break;
+        case "Run Out": how = p.fielder ? `run out (${p.fielder})` : "run out"; break;
+        case "Hit Wicket": how = `hit wicket b ${p.bowler}`; break;
+        default: how = p.wicketType.toLowerCase();
+      }
+      text += `. OUT! ${p.dismissed} ${how}`;
+    }
+  }
+
+  return p.isFreeHit ? `FREE HIT: ${text}` : text;
+}
