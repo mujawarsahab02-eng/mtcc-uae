@@ -340,7 +340,7 @@ export default function PlayerDetail({ player, settings, categories, currentRole
                 Also the Team Owner (display label only — has no effect on auction, squad count, or purse)
               </label>
             </LightFormSection>
-
+           )}
           {canEditFinance && (
             <LightFormSection title="Financial Record">
               <div className="grid sm:grid-cols-2 gap-3">
