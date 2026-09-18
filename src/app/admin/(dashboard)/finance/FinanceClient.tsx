@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LightButton, LightCard, LightField, LightSectionHeader, LightSeamDivider, LightStatCard } from "@/components/ui/light";
 import { addTransaction, deleteTransaction, markTeamEntryFeePaid, addCategory } from "./actions";
@@ -22,7 +22,8 @@ export default function FinanceClient({ initialTransactions, teams, initialCateg
   const [markingTeam, setMarkingTeam] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [addingCategory, setAddingCategory] = useState(false);
-
+  useEffect(() => { setTransactions(initialTransactions); }, [initialTransactions]);
+  useEffect(() => { setCategories(initialCategories); }, [initialCategories]);
   const canAccess = currentRole === "Super Admin";
 
   const summary = useMemo(() => {
