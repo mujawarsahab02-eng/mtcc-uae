@@ -39,7 +39,8 @@ export async function updatePlayer(id: string, patch: Record<string, any>, actio
   // Auto-create an income entry in the Finance Tracker the first time this
   // player's payment is verified — guarded so toggling the status back and
   // forth never creates a duplicate entry.
-  if (before && patch.payment_status === "Verified" && before.payment_status !== "Verified") {
+   const isPaidStatus = (s: any) => s === "Paid" || s === "Verified";
+  if (before && isPaidStatus(patch.payment_status) && !isPaidStatus(before.payment_status) && before.team_role !== "Owner") {
     const { data: existingTxn } = await supabase.from("transactions").select("id").eq("source", "player_registration").eq("source_id", id).maybeSingle();
     if (!existingTxn) {
       await supabase.from("transactions").insert({
