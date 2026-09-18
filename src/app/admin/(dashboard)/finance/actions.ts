@@ -30,7 +30,7 @@ export async function addTransaction(entry: {
   const supabase = createClient();
   const { error } = await supabase.from("transactions").insert({
     ...entry,
-    recorded_by: profile.role,
+    recorded_by: profile!.role,
     source: "manual",
   });
   if (error) return { error: error.message };
@@ -78,7 +78,7 @@ export async function markTeamEntryFeePaid(teamId: string, amount: number): Prom
     amount,
     txn_date: new Date().toISOString().slice(0, 10),
     payment_method: "Bank Transfer",
-    recorded_by: profile.role,
+    recorded_by: profile!.role,
     source: "team_entry_fee",
     source_id: teamId,
   });
