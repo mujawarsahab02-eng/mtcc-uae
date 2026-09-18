@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { LightButton, LightCard, LightField, LightSectionHeader, LightSeamDivider, LightStatusBadge } from "@/components/ui/light";
@@ -8,11 +8,12 @@ import { addMatch, updateMatch, deleteMatch } from "./actions";
 
 const STAGES = ["League", "Quarter-Final", "Semi-Final", "Final"];
 const STATUSES = ["Scheduled", "Live", "Completed", "Abandoned"];
+const CUSTOM = "__custom__";
 
 function emptyForm() {
   return {
-    match_number: "", team_a_id: "", team_b_id: "", match_date: "", match_time: "",
-    ground: "", group_name: "", stage: "League", status: "Scheduled",
+    match_number: "", team_a_id: "", team_b_id: "", team_a_label: "", team_b_label: "",
+    match_date: "", match_time: "", ground: "", group_name: "", stage: "League", stage_custom: "", status: "Scheduled",
     toss_winner_id: "", batting_first_id: "", team_a_score: "", team_a_overs: "",
     team_b_score: "", team_b_overs: "", winner_id: "", is_tie: false, margin: "", man_of_match: "", notes: "",
   };
@@ -27,7 +28,16 @@ export default function FixturesClient({ initialMatches, teams, canManage }: { i
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
+  // Keep the list in sync after router.refresh() brings new data from the server.
+  useEffect(() => { setMatches(initialMatches); }, [initialMatches]);
+
   const teamName = (id: string) => teams.find((t) => t.id === id)?.name || "—";
+  // A picked team's name, or the typed-in placeholder (e.g. "Winner of QF1").
+  const sideName = (m: any, side: "a" | "b") => {
+    const id = side === "a" ? m.team_a_id : m.team_b_id;
+    const label = side === "a" ? m.team_a_label : m.team_b_label;
+    return id ? teamName(id) : label || "TBA";
+  };
   const set = (k: string) => (e: any) => setForm((f: any) => ({ ...f, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value }));
 
   function resetForm() {
@@ -35,10 +45,15 @@ export default function FixturesClient({ initialMatches, teams, canManage }: { i
   }
   function startEdit(m: any) {
     setEditing(m);
+    const stageIsPreset = !m.stage || STAGES.includes(m.stage);
     setForm({
-      match_number: m.match_number ?? "", team_a_id: m.team_a_id || "", team_b_id: m.team_b_id || "",
+      match_number: m.match_number ?? "",
+      team_a_id: m.team_a_id || (m.team_a_label ? CUSTOM : ""), team_a_label: m.team_a_label || "",
+      team_b_id: m.team_b_id || (m.team_b_label ? CUSTOM : ""), team_b_label: m.team_b_label || "",
       match_date: m.match_date || "", match_time: m.match_time || "", ground: m.ground || "",
-      group_name: m.group_name || "", stage: m.stage || "League", status: m.status || "Scheduled",
+      group_name: m.group_name || "",
+      stage: stageIsPreset ? (m.stage || "League") : CUSTOM, stage_custom: stageIsPreset ? "" : m.stage,
+      status: m.status || "Scheduled",
       toss_winner_id: m.toss_winner_id || "", batting_first_id: m.batting_first_id || "",
       team_a_score: m.team_a_score || "", team_a_overs: m.team_a_overs ?? "", team_b_score: m.team_b_score || "",
       team_b_overs: m.team_b_overs ?? "", winner_id: m.winner_id || "", is_tie: !!m.is_tie,
@@ -47,13 +62,27 @@ export default function FixturesClient({ initialMatches, teams, canManage }: { i
     setAdding(false);
   }
 
+  function validate(): string | null {
+    if (form.stage === CUSTOM && !form.stage_custom.trim()) return "Type the stage name, or pick one from the list.";
+    if (form.team_a_id === CUSTOM && !form.team_a_label.trim()) return "Type a name for Team A, or pick a team from the list.";
+    if (form.team_b_id === CUSTOM && !form.team_b_label.trim()) return "Type a name for Team B, or pick a team from the list.";
+    if (form.team_a_id && form.team_a_id !== CUSTOM && form.team_a_id === form.team_b_id) return "Team A and Team B can't be the same team.";
+    return null;
+  }
+
   function buildPayload() {
+    const aCustom = form.team_a_id === CUSTOM;
+    const bCustom = form.team_b_id === CUSTOM;
     return {
       match_number: form.match_number ? Number(form.match_number) : null,
-      team_a_id: form.team_a_id || null, team_b_id: form.team_b_id || null,
+      team_a_id: aCustom ? null : form.team_a_id || null,
+      team_b_id: bCustom ? null : form.team_b_id || null,
+      team_a_label: aCustom ? form.team_a_label.trim() : null,
+      team_b_label: bCustom ? form.team_b_label.trim() : null,
       match_date: form.match_date || null, match_time: form.match_time || null,
       ground: form.ground || null, group_name: form.group_name || null,
-      stage: form.stage, status: form.status,
+      stage: form.stage === CUSTOM ? form.stage_custom.trim() : form.stage,
+      status: form.status,
       toss_winner_id: form.toss_winner_id || null, batting_first_id: form.batting_first_id || null,
       team_a_score: form.team_a_score || null, team_a_overs: form.team_a_overs ? Number(form.team_a_overs) : null,
       team_b_score: form.team_b_score || null, team_b_overs: form.team_b_overs ? Number(form.team_b_overs) : null,
@@ -63,6 +92,8 @@ export default function FixturesClient({ initialMatches, teams, canManage }: { i
   }
 
   async function handleAdd() {
+    const v = validate();
+    if (v) { setErr(v); return; }
     setBusy(true); setErr("");
     const res: any = await addMatch(buildPayload());
     setBusy(false);
@@ -70,6 +101,8 @@ export default function FixturesClient({ initialMatches, teams, canManage }: { i
     else { resetForm(); router.refresh(); }
   }
   async function handleUpdate() {
+    const v = validate();
+    if (v) { setErr(v); return; }
     setBusy(true); setErr("");
     const res: any = await updateMatch(editing.id, buildPayload());
     setBusy(false);
@@ -80,11 +113,29 @@ export default function FixturesClient({ initialMatches, teams, canManage }: { i
     }
   }
   async function handleDelete(id: string) {
+    if (!window.confirm("Remove this match? Any scoring recorded for it will be deleted too.")) return;
     setBusy(true);
     const res: any = await deleteMatch(id);
     setBusy(false);
     if (!res.error) { setMatches((prev) => prev.filter((m) => m.id !== id)); router.refresh(); }
   }
+
+  const teamSelect = (side: "a" | "b") => {
+    const idKey = side === "a" ? "team_a_id" : "team_b_id";
+    const labelKey = side === "a" ? "team_a_label" : "team_b_label";
+    return (
+      <LightField label={side === "a" ? "Team A" : "Team B"}>
+        <select value={form[idKey]} onChange={set(idKey)}>
+          <option value="">Select</option>
+          {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          <option value={CUSTOM}>Type a name…</option>
+        </select>
+        {form[idKey] === CUSTOM && (
+          <input className="mt-2" value={form[labelKey]} onChange={set(labelKey)} placeholder="e.g. Winner of QF1" />
+        )}
+      </LightField>
+    );
+  };
 
   return (
     <div className="-mx-4 sm:-mx-6 -mt-20 md:-mt-8 -mb-16 px-4 sm:px-6 pt-20 md:pt-8 pb-16 bg-adminBg light-form" style={{ minHeight: "100vh" }}>
@@ -107,16 +158,18 @@ export default function FixturesClient({ initialMatches, teams, canManage }: { i
           <div className="grid grid-cols-2 gap-3">
             <LightField label="Match Number"><input type="number" value={form.match_number} onChange={set("match_number")} /></LightField>
             <LightField label="Stage">
-              <select value={form.stage} onChange={set("stage")}>{STAGES.map((s) => <option key={s}>{s}</option>)}</select>
+              <select value={form.stage} onChange={set("stage")}>
+                {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
+                <option value={CUSTOM}>Custom…</option>
+              </select>
+              {form.stage === CUSTOM && (
+                <input className="mt-2" value={form.stage_custom} onChange={set("stage_custom")} placeholder="e.g. Eliminator" />
+              )}
             </LightField>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <LightField label="Team A">
-              <select value={form.team_a_id} onChange={set("team_a_id")}><option value="">Select</option>{teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
-            </LightField>
-            <LightField label="Team B">
-              <select value={form.team_b_id} onChange={set("team_b_id")}><option value="">Select</option>{teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
-            </LightField>
+            {teamSelect("a")}
+            {teamSelect("b")}
           </div>
           <div className="grid grid-cols-3 gap-3">
             <LightField label="Date"><input type="date" value={form.match_date} onChange={set("match_date")} /></LightField>
@@ -172,32 +225,41 @@ export default function FixturesClient({ initialMatches, teams, canManage }: { i
 
       <div className="space-y-2">
         {matches.length === 0 && <LightCard className="p-8 text-center text-sm text-slateText">No matches scheduled yet.</LightCard>}
-        {matches.map((m) => (
-          <LightCard key={m.id} className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => canManage && startEdit(m)}>
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div>
-                <div className="text-xs text-slateText mb-1">{m.stage} {m.match_number ? `· Match ${m.match_number}` : ""}</div>
-                <div className="text-sm font-semibold text-navyText">{teamName(m.team_a_id)} <span className="text-slateText">vs</span> {teamName(m.team_b_id)}</div>
-                <div className="text-[11px] text-slateText mt-1">{m.match_date || "Date TBA"} {m.match_time || ""} {m.ground ? `· ${m.ground}` : ""}</div>
-                {m.status === "Completed" && (m.winner_id || m.is_tie) && (
-                  <div className="text-xs text-orange mt-1">{m.is_tie ? "Match Tied" : `${teamName(m.winner_id)} won${m.margin ? " by " + m.margin : ""}`}</div>
-                )}
+        {matches.map((m) => {
+          const bothTeamsPicked = !!m.team_a_id && !!m.team_b_id;
+          return (
+            <LightCard key={m.id} className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => canManage && startEdit(m)}>
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="text-xs text-slateText mb-1">{m.stage} {m.match_number ? `· Match ${m.match_number}` : ""}</div>
+                  <div className="text-sm font-semibold text-navyText">{sideName(m, "a")} <span className="text-slateText">vs</span> {sideName(m, "b")}</div>
+                  <div className="text-[11px] text-slateText mt-1">{m.match_date || "Date TBA"} {m.match_time || ""} {m.ground ? `· ${m.ground}` : ""}</div>
+                  {m.status === "Completed" && (m.winner_id || m.is_tie) && (
+                    <div className="text-xs text-orange mt-1">{m.is_tie ? "Match Tied" : `${teamName(m.winner_id)} won${m.margin ? " by " + m.margin : ""}`}</div>
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <LightStatusBadge status={m.status} />
+                  {canManage && m.status !== "Completed" && (
+                    bothTeamsPicked ? (
+                      <Link href={`/admin/scoring/${m.id}`} onClick={(e: any) => e.stopPropagation()}>
+                        <LightButton variant="orange" size="sm">⚡ Score</LightButton>
+                      </Link>
+                    ) : (
+                      <span className="text-[11px] text-slateText">Pick both teams to score</span>
+                    )
+                  )}
+                  {(m.status === "Completed" || m.status === "Live") && (
+                    <Link href={`/matches/${m.id}`} onClick={(e: any) => e.stopPropagation()} className="text-[11px] text-blue underline">
+                      {m.status === "Live" ? "Match Centre" : "Scorecard"}
+                    </Link>
+                  )}
+                  {canManage && <LightButton variant="danger" size="sm" onClick={(e: any) => { e.stopPropagation(); handleDelete(m.id); }}>Remove</LightButton>}
+                </div>
               </div>
-              <div className="flex flex-col items-end gap-2">
-                <LightStatusBadge status={m.status} />
-                {canManage && m.status !== "Completed" && (
-                  <Link href={`/admin/scoring/${m.id}`} onClick={(e) => e.stopPropagation()}>
-                    <LightButton variant="orange" size="sm">⚡ Score</LightButton>
-                  </Link>
-                )}
-                {m.status === "Completed" && (
-                  <Link href={`/matches/${m.id}`} onClick={(e) => e.stopPropagation()} className="text-[11px] text-blue underline">Scorecard</Link>
-                )}
-                {canManage && <LightButton variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}>Remove</LightButton>}
-              </div>
-            </div>
-          </LightCard>
-        ))}
+            </LightCard>
+          );
+        })}
       </div>
     </div>
   );
