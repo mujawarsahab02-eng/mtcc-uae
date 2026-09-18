@@ -3,23 +3,25 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LightButton, LightCard, LightField, LightSectionHeader, LightSeamDivider, LightStatCard } from "@/components/ui/light";
-import { addTransaction, deleteTransaction, markTeamEntryFeePaid } from "./actions";
+import { addTransaction, deleteTransaction, markTeamEntryFeePaid, addCategory } from "./actions";
 
-const INCOME_CATEGORIES = ["Player Registration Fees", "Team Entry Fees", "Sponsorship", "Other Income"];
-const EXPENSE_CATEGORIES = ["Venue / Ground Booking", "Umpires & Match Officials", "Equipment", "Player T-Shirts / Jerseys", "Trophies & Awards", "Prize Money Payouts", "Marketing / Printing", "Refreshments / Catering", "Miscellaneous"];
 const PAYMENT_METHODS = ["Cash", "Bank Transfer", "Ziina", "Other"];
+const NEW_CATEGORY_VALUE = "__new__";
 
 function emptyEntry() {
   return { type: "Expense", category: "", description: "", amount: "", txn_date: new Date().toISOString().slice(0, 10), payment_method: "Cash", notes: "" };
 }
 
-export default function FinanceClient({ initialTransactions, teams, currentRole }: any) {
+export default function FinanceClient({ initialTransactions, teams, initialCategories, currentRole }: any) {
   const router = useRouter();
   const [transactions, setTransactions] = useState(initialTransactions);
+  const [categories, setCategories] = useState(initialCategories);
   const [entry, setEntry] = useState(emptyEntry());
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [markingTeam, setMarkingTeam] = useState<string | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [addingCategory, setAddingCategory] = useState(false);
 
   const canAccess = currentRole === "Super Admin";
 
@@ -34,7 +36,7 @@ export default function FinanceClient({ initialTransactions, teams, currentRole 
     return { income, expense, net: income - expense, byCategory };
   }, [transactions]);
 
-  const categories = entry.type === "Income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const categoryOptions = useMemo(() => categories.filter((c: any) => c.type === entry.type), [categories, entry.type]);
 
   async function handleAdd() {
     setSaving(true);
@@ -63,6 +65,30 @@ export default function FinanceClient({ initialTransactions, teams, currentRole 
     setMarkingTeam(null);
     if (res.error) setErr(res.error);
     else router.refresh();
+  }
+
+  function handleCategorySelect(value: string) {
+    if (value === NEW_CATEGORY_VALUE) {
+      setEntry((f) => ({ ...f, category: NEW_CATEGORY_VALUE }));
+    } else {
+      setEntry((f) => ({ ...f, category: value }));
+    }
+  }
+
+  async function handleAddCategory() {
+    if (!newCategoryName.trim()) return;
+    setAddingCategory(true);
+    setErr("");
+    const res: any = await addCategory(entry.type, newCategoryName);
+    setAddingCategory(false);
+    if (res.error) setErr(res.error);
+    else {
+      const added = { id: crypto.randomUUID(), type: entry.type, name: newCategoryName.trim() };
+      setCategories((prev: any[]) => [...prev, added]);
+      setEntry((f) => ({ ...f, category: added.name }));
+      setNewCategoryName("");
+      router.refresh();
+    }
   }
 
   if (!canAccess) {
@@ -134,12 +160,27 @@ export default function FinanceClient({ initialTransactions, teams, currentRole 
             </select>
           </LightField>
           <LightField label="Category">
-            <select value={entry.category} onChange={(e) => setEntry((f) => ({ ...f, category: e.target.value }))}>
+            <select value={entry.category} onChange={(e) => handleCategorySelect(e.target.value)}>
               <option value="">Select</option>
-              {categories.map((c) => <option key={c}>{c}</option>)}
+              {categoryOptions.map((c: any) => <option key={c.id} value={c.name}>{c.name}</option>)}
+              <option value={NEW_CATEGORY_VALUE}>+ Add New Category</option>
             </select>
           </LightField>
         </div>
+
+        {entry.category === NEW_CATEGORY_VALUE && (
+          <div className="flex gap-2 items-end mb-4 -mt-2">
+            <div style={{ flex: 1 }}>
+              <LightField label="New Category Name">
+                <input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder={`e.g. ${entry.type === "Income" ? "Sponsorship" : "Ground Booking"}`} />
+              </LightField>
+            </div>
+            <LightButton variant="primary" size="sm" onClick={handleAddCategory} disabled={addingCategory || !newCategoryName.trim()}>
+              {addingCategory ? "Adding…" : "Add"}
+            </LightButton>
+          </div>
+        )}
+
         <LightField label="Description">
           <input value={entry.description} onChange={(e) => setEntry((f) => ({ ...f, description: e.target.value }))} placeholder="e.g. Ground booking for auction day" />
         </LightField>
@@ -160,7 +201,7 @@ export default function FinanceClient({ initialTransactions, teams, currentRole 
           <textarea value={entry.notes} onChange={(e) => setEntry((f) => ({ ...f, notes: e.target.value }))} rows={2} />
         </LightField>
         {err && <div className="text-xs mb-3 text-red">{err}</div>}
-        <LightButton variant="primary" onClick={handleAdd} disabled={saving || !entry.category || !entry.amount}>
+        <LightButton variant="primary" onClick={handleAdd} disabled={saving || !entry.category || entry.category === NEW_CATEGORY_VALUE || !entry.amount}>
           {saving ? "Saving…" : "Add Entry"}
         </LightButton>
       </LightCard>
