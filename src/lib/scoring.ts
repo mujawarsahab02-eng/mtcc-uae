@@ -23,13 +23,14 @@ export const WICKET_TYPES = [
 
 // Per Law 34/35/38/etc: on an illegal delivery, only a subset of dismissals
 // are available to the fielding side. Used to restrict the UI's dropdown so
-// scorers can't record an impossible dismissal.
-export function allowedWicketTypes(extraType: ExtraType): string[] {
-  if (extraType === "no_ball") {
-    return ["Run Out", "Obstructing The Field", "Handled The Ball", "Hit The Ball Twice"];
+// scorers can't record an impossible dismissal. On a FREE HIT the batter can
+// only be out the same ways as off a no-ball (run out etc.).
+export function allowedWicketTypes(extraType: ExtraType, isFreeHit: boolean = false): string[] {
+  if (extraType === "no_ball" || isFreeHit) {
+    return ["Run Out", "Obstructing The Field", "Handled The Ball", "Hit The Ball Twice", "Retired Hurt", "Retired Out"];
   }
   if (extraType === "wide") {
-    return ["Run Out", "Stumped", "Obstructing The Field", "Handled The Ball", "Hit The Ball Twice"];
+    return ["Run Out", "Stumped", "Obstructing The Field", "Handled The Ball", "Hit The Ball Twice", "Retired Hurt", "Retired Out"];
   }
   return [...WICKET_TYPES];
 }
