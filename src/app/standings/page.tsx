@@ -17,23 +17,31 @@ function statusPill(status: string) {
 
 export default async function StandingsPage() {
   const supabase = createClient();
-  const [{ data: matches }, { data: teams }] = await Promise.all([
+  const [{ data: matches }, { data: teams }, { data: labels }] = await Promise.all([
     supabase.from("match_public").select("*").order("match_date", { ascending: true, nullsFirst: false }),
     supabase.from("team_public").select("*"),
+    supabase.from("match_labels_public").select("*"),
   ]);
 
-  const teamName = (id: string | null) => teams?.find((t) => t.id === id)?.name || "TBA";
+  const teamName = (id: string | null) => teams?.find((t: any) => t.id === id)?.name || "TBA";
+  // A picked team's name, or the typed-in placeholder (e.g. "Winner of QF1").
+  const sideName = (m: any, side: "a" | "b") => {
+    const id = side === "a" ? m.team_a_id : m.team_b_id;
+    if (id) return teamName(id);
+    const l = (labels ?? []).find((x: any) => x.id === m.id);
+    return (side === "a" ? l?.team_a_label : l?.team_b_label) || "TBA";
+  };
 
-  const standings = (teams ?? []).map((team) => {
-    const played = (matches ?? []).filter((m) => m.status === "Completed" && (m.team_a_id === team.id || m.team_b_id === team.id));
-    const won = played.filter((m) => !m.is_tie && m.winner_id === team.id).length;
-    const tied = played.filter((m) => m.is_tie).length;
-    const lost = played.filter((m) => !m.is_tie && m.winner_id && m.winner_id !== team.id).length;
+  const standings = (teams ?? []).map((team: any) => {
+    const played = (matches ?? []).filter((m: any) => m.status === "Completed" && (m.team_a_id === team.id || m.team_b_id === team.id));
+    const won = played.filter((m: any) => !m.is_tie && m.winner_id === team.id).length;
+    const tied = played.filter((m: any) => m.is_tie).length;
+    const lost = played.filter((m: any) => !m.is_tie && m.winner_id && m.winner_id !== team.id).length;
     const points = won * 2 + tied * 1;
     return { team, played: played.length, won, lost, tied, points };
-  }).sort((a, b) => b.points - a.points || b.won - a.won);
+  }).sort((a: any, b: any) => b.points - a.points || b.won - a.won);
 
-  const fixtures = (matches ?? []).sort((a, b) => (a.match_date || "9999").localeCompare(b.match_date || "9999"));
+  const fixtures = (matches ?? []).sort((a: any, b: any) => (a.match_date || "9999").localeCompare(b.match_date || "9999"));
 
   return (
     <div className="min-h-screen bg-warmWhite">
@@ -60,7 +68,7 @@ export default async function StandingsPage() {
                 </tr>
               </thead>
               <tbody>
-                {standings.map((s, i) => (
+                {standings.map((s: any, i: number) => (
                   <tr key={s.team.id} className="border-t border-black/5" style={{ background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.012)" }}>
                     <td className="py-3 px-4 font-semibold text-navyText">{i + 1}. {s.team.name}</td>
                     <td className="text-center py-3 px-2 text-slateText">{s.played}</td>
@@ -81,13 +89,13 @@ export default async function StandingsPage() {
         <h2 className="font-display font-black text-2xl text-navyText mb-5">Fixtures & Results</h2>
         <div className="space-y-3">
           {fixtures.length === 0 && <div className="text-sm text-slateText text-center py-8">Fixtures will be announced soon.</div>}
-          {fixtures.map((m) => {
+          {fixtures.map((m: any) => {
             const pill = statusPill(m.status);
             const cardInner = (
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
                   <div className="text-[11px] text-slateText mb-1">{m.stage}{m.match_number ? ` · Match ${m.match_number}` : ""}</div>
-                  <div className="text-sm font-semibold text-navyText">{teamName(m.team_a_id)} <span className="text-slateText">vs</span> {teamName(m.team_b_id)}</div>
+                  <div className="text-sm font-semibold text-navyText">{sideName(m, "a")} <span className="text-slateText">vs</span> {sideName(m, "b")}</div>
                   <div className="text-[11px] text-slateText mt-1">{m.match_date || "Date TBA"} {m.match_time || ""} {m.ground ? `· ${m.ground}` : ""}</div>
                   {m.status === "Completed" && (
                     <div className="text-xs text-orange mt-1.5">
