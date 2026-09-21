@@ -402,3 +402,189 @@ export function buildCommentary(p: {
 
   return p.isFreeHit ? `FREE HIT: ${text}` : text;
 }
+
+// ---------------------------------------------------------------------------
+// Smart Hinglish commentary (free, no AI). Picks a varied line for each ball
+// from the match situation: boundaries, wickets, dots, extras, free hits,
+// milestones, hat-tricks, chase pressure and an end-of-over summary.
+// The pick is seeded by the ball, so a ball's line never changes on refresh.
+// ---------------------------------------------------------------------------
+export type CommentaryContext = {
+  seed: number;
+  bowler: string;
+  batter: string;
+  dismissed: string;
+  fielder: string | null;
+  zone: string | null;
+  runsOffBat: number;
+  extraType: ExtraType;
+  extraRuns: number;
+  isWicket: boolean;
+  wicketType: string | null;
+  isFreeHit: boolean;
+  batterRunsBefore: number;
+  batterRunsAfter: number;
+  batterBallsAfter: number;
+  dismissedRuns: number;
+  dismissedBalls: number;
+  bowlerWicketStreak: number;     // consecutive wicket-taking deliveries by this bowler, including this one
+  totalRuns: number;
+  totalWickets: number;
+  allOut: boolean;
+  battingName: string;
+  target: number | null;
+  ballsLeft: number;
+  overCompleted: { number: number; runs: number; wickets: number; bowler: string } | null;
+};
+
+function pick(list: string[], seed: number): string {
+  return list[Math.abs(seed) % list.length];
+}
+
+function fill(t: string, v: Record<string, string | number>): string {
+  return t.replace(/\{(\w+)\}/g, (_, k) => (v[k] !== undefined ? String(v[k]) : ""));
+}
+
+export function smartCommentary(c: CommentaryContext): string {
+  const zoneTo = c.zone ? ` ${c.zone.toLowerCase()} ki taraf` : "";
+  const zoneOver = c.zone ? ` ${c.zone.toLowerCase()} ke upar se` : "";
+  const v = {
+    bat: c.batter, bowl: c.bowler, out: c.dismissed, f: c.fielder || "fielder",
+    r: c.dismissedRuns, b: c.dismissedBalls, zt: zoneTo, zo: zoneOver,
+    n: c.extraRuns, runs: c.runsOffBat,
+  };
+  const s = c.seed;
+  let line = "";
+
+  if (c.isWicket && c.wicketType && c.wicketType !== "Retired Hurt") {
+    const W: Record<string, string[]> = {
+      "Bowled": [
+        "BOWLED! {bowl} ne stumps uda diye! {out} {r} ({b}) pe wapas pavilion.",
+        "Clean bowled! Kya ball daali hai {bowl} ne, {out} ke paas koi jawab nahi. {r} ({b})",
+        "Timber! Gilliyan hawa mein, {out} {r} ({b}) pe chalte bane.",
+      ],
+      "Caught": [
+        "OUT! {out} ne hawa mein maara aur {f} ne safe catch pakad liya. {r} ({b})",
+        "Catch! {f} ne koi galti nahi ki. {out} {r} ({b}) pe out.",
+        "Uncha gaya... aur pakda gaya! {f} ke haathon mein ball, {out} {r} ({b}).",
+      ],
+      "Caught & Bowled": [
+        "Caught and bowled! {bowl} ne khud hi pakad liya! {out} {r} ({b}).",
+      ],
+      "LBW": [
+        "LBW! Pad pe lagi aur umpire ki ungli upar. {out} {r} ({b}).",
+        "Plumb! Seedha pad pe, {out} ko jaana padega. {r} ({b})",
+      ],
+      "Stumped": [
+        "Stumped! {out} crease se bahar, {f} ne bijli ki tarah bails gira di. {r} ({b})",
+        "Bahar nikle aur phas gaye! {f} ki fast stumping, {out} {r} ({b}).",
+      ],
+      "Run Out": [
+        "RUN OUT! Bhaagne mein gadbad ho gayi, {out} {r} ({b}) pe out.",
+        "Direct hit! {f} ne kamaal kar diya, {out} run out {r} ({b}).",
+        "Mix-up aur run out! {out} ko {r} ({b}) pe wapas jaana padega.",
+      ],
+      "Hit Wicket": [
+        "Hit wicket! Apne hi bat se stumps gira diye {out} ne. {r} ({b})",
+      ],
+    };
+    const isCandB = c.wicketType === "Caught" && c.fielder && c.fielder === c.bowler;
+    const key = isCandB ? "Caught & Bowled" : c.wicketType;
+    line = fill(pick(W[key] || ["OUT! {out} {r} ({b}) pe wapas pavilion."], s), v);
+    if (!/[.!?]$/.test(line)) line += ".";
+    if (c.extraType === "wide") line = "Wide ball pe bhi wicket! " + line;
+    if (c.extraType === "no_ball") line = "No ball pe run out! " + line;
+    if (c.bowlerWicketStreak >= 3) line += ` HAT-TRICK! ${c.bowler} ne itihaas bana diya!`;
+    else if (c.bowlerWicketStreak === 2) line += ` ${c.bowler} ab hat-trick pe hain!`;
+    if (c.allOut) line += ` ${c.battingName} all out ${c.totalRuns} pe!`;
+  } else if (c.extraType === "wide") {
+    line = c.extraRuns > 1
+      ? fill(pick(["Wide aur upar se bhaag ke run bhi! Total {n} extra.", "Wide ball, aur batters ne {n} extra le liye."], s), v)
+      : fill(pick(["Wide! {bowl} line bhatak gaye, ek extra.", "Wide ball, leg side pe nikal gayi. Free ka run.", "Umpire ne wide diya, {bowl} ko line pe dhyaan dena hoga."], s), v);
+  } else if (c.extraType === "no_ball") {
+    line = c.runsOffBat === 6 ? fill("No ball aur SIX! {bat} ne poora fayda uthaya, aur ab FREE HIT!", v)
+      : c.runsOffBat === 4 ? fill("No ball pe FOUR! {bat} ki mauj, aur agli ball FREE HIT!", v)
+      : c.runsOffBat > 0 ? fill("No ball pe {bat} ne {runs} run le liye, aur ab FREE HIT!", v)
+      : fill(pick(["No ball! Ek extra aur ab FREE HIT aayega!", "Overstep! {bowl} ki no ball, agli ball FREE HIT."], s), v);
+  } else if (c.extraType === "bye" || c.extraType === "leg_bye") {
+    const word = c.extraType === "bye" ? "bye" : "leg bye";
+    line = c.extraRuns > 0
+      ? `${c.extraRuns} ${word}${c.extraRuns === 1 ? "" : "s"}. ${c.extraType === "bye" ? "Keeper se chook ho gayi." : "Pad se lag ke ball nikal gayi."}`
+      : "Koi run nahi.";
+  } else if (c.runsOffBat === 6) {
+    line = fill(pick([
+      "SIX! {bat} ne ball ko{zo} ground ke bahar bhej diya!",
+      "Kya maara hai! {bat} ka lamba chhakka{zo}.",
+      "Chhakka! {bowl} ki ball pe {bat} ne full swing lagaya, crowd pagal!",
+      "Upar se! {bat} ne seedha rassi ke paar pahuncha diya, SIX.",
+      "Maximum! {bat} ki taqat dekho, ball abhi bhi hawa mein hai!",
+    ], s), v);
+  } else if (c.runsOffBat === 4) {
+    line = fill(pick([
+      "FOUR! {bat} ne{zt} zabardast shot khela.",
+      "Chauka! {bat} ka timing ekdum perfect, ball seedha boundary ke paar.",
+      "FOUR! {bowl} ki ball pe {bat} ne koi daya nahi dikhayi.",
+      "Kya shot hai! {bat} ne gap dhoondh liya{zt}, char run.",
+      "Boundary! Fielder bas dekhta reh gaya, {bat} ka FOUR.",
+    ], s), v);
+  } else if (c.runsOffBat === 0) {
+    line = fill(pick([
+      "Dot ball. {bowl} ne {bat} ko baandh ke rakha.",
+      "Koi run nahi. Accha tight ball {bowl} ka.",
+      "{bat} ne defend kiya, run nahi mila.",
+      "Beat! Ball {bat} ke bat ke paas se nikal gayi.",
+      "Dot! Pressure bana rahe hain {bowl}.",
+    ], s), v);
+  } else if (c.runsOffBat === 1) {
+    line = fill(pick(["{bat} ne single le liya{zt}.", "Ek run. Strike rotate, smart cricket.", "Aaram se ek run, {bat}{zt} push karke."], s), v);
+  } else if (c.runsOffBat === 2) {
+    line = fill(pick(["Do run! Tez bhaag ke {bat} ne double poora kiya.", "{bat} ne gap mein daala{zt}, do run aaram se."], s), v);
+  } else if (c.runsOffBat === 3) {
+    line = fill("Teen run! {bat} ne fielders ki daud lagwa di.", v);
+  } else {
+    line = fill("{runs} run! Overthrow ka fayda, batting side khush.", v);
+  }
+
+  if (!/[.!?]$/.test(line)) line += ".";
+  if (c.isFreeHit) line = "FREE HIT: " + line;
+
+  // Retired hurt on a delivery
+  if (c.isWicket && c.wicketType === "Retired Hurt") line += ` ${c.dismissed} retire hurt ho ke bahar ja rahe hain.`;
+
+  // Batter milestones (25, 50, 75, 100)
+  if (!c.isWicket || c.dismissed !== c.batter) {
+    for (const m of [100, 75, 50, 25]) {
+      if (c.batterRunsBefore < m && c.batterRunsAfter >= m) {
+        line += m >= 50
+          ? ` ${m} run poore ${c.batter} ke! Shandaar innings, ${c.batterRunsAfter} (${c.batterBallsAfter}).`
+          : ` ${c.batter} ke ${m} run poore, ${c.batterBallsAfter} balls mein.`;
+        break;
+      }
+    }
+  }
+
+  // Chase pressure
+  if (c.target) {
+    const need = c.target - c.totalRuns;
+    if (need <= 0) {
+      line += ` Aur match khatam! ${c.battingName} ne target chase kar liya!`;
+    } else if (!c.allOut && c.ballsLeft > 0 && c.ballsLeft <= 36) {
+      const rrr = ((need / c.ballsLeft) * 6).toFixed(1);
+      line += c.ballsLeft <= 6
+        ? ` Aakhri over ka drama! ${need} chahiye ${c.ballsLeft} balls mein.`
+        : ` Ab ${need} chahiye ${c.ballsLeft} balls mein, RRR ${rrr}.`;
+    }
+  }
+
+  // End-of-over summary on its own line
+  if (c.overCompleted) {
+    const o = c.overCompleted;
+    let summary = `Over ${o.number} khatam: ${o.runs} run${o.runs === 1 ? "" : "s"}${o.wickets ? `, ${o.wickets} wicket` : ""}. Score ${c.totalRuns}/${c.totalWickets}.`;
+    if (o.runs === 0) summary += ` Maiden over! ${o.bowler} ne ek bhi run nahi diya.`;
+    else if (o.runs >= 15) summary += " Bada over, momentum badal gaya!";
+    else if (o.runs <= 3) summary += ` Kasa hua over ${o.bowler} ka.`;
+    line += "\n" + summary;
+  }
+
+  return line;
+}
