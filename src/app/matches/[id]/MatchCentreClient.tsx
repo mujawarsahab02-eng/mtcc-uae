@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui";
-import { computeInningsState, economy, formatOvers, runRate, strikeRate, ballLabel, type BallRow } from "@/lib/scoring";
+import { computeInningsState, economy, formatOvers, runRate, strikeRate, ballLabel, SHOT_ZONES, type BallRow } from "@/lib/scoring";
 // Shared with the scorer's screen so fans and scorers see identical cards.
 import { OversView, PartnershipsView, ScorecardView, ThisOverChips, type InningsView } from "@/app/admin/(dashboard)/scoring/[matchId]/MatchTabs";
 
-type Tab = "Live" | "Commentary" | "Scorecard" | "Overs" | "Partnerships";
+type Tab = "Live" | "Commentary" | "Scorecard" | "Wagon Wheel" | "Overs" | "Partnerships";
 
 export default function MatchCentreClient({ match, teamA, teamB, players, xiCounts, settings, initialInnings1, initialInnings2, initialBalls1, initialBalls2 }: any) {
   const router = useRouter();
@@ -58,7 +58,7 @@ export default function MatchCentreClient({ match, teamA, teamB, players, xiCoun
     : match.winner_id ? `${teamName(match.winner_id)} won${match.margin ? " by " + match.margin : ""}`
     : null;
 
-  const tabs: Tab[] = ["Live", "Commentary", "Scorecard", "Overs", "Partnerships"];
+  const tabs: Tab[] = ["Live", "Commentary", "Scorecard", "Wagon Wheel", "Overs", "Partnerships"];
 
   return (
     <div className="min-h-screen bg-bg pb-28">
@@ -136,6 +136,7 @@ export default function MatchCentreClient({ match, teamA, teamB, players, xiCoun
             )}
             {tab === "Commentary" && <CommentaryFeed views={views} />}
             {tab === "Scorecard" && <ScorecardView views={views} playerName={playerName} />}
+            {tab === "Wagon Wheel" && <WagonWheel views={views} playerName={playerName} />}
             {tab === "Overs" && <OversView views={views} playerName={playerName} />}
             {tab === "Partnerships" && <PartnershipsView views={views} playerName={playerName} />}
           </>
@@ -277,6 +278,88 @@ function CommentaryFeed({ views }: { views: InningsView[] }) {
   return (
     <div className="rounded-2xl bg-bgCard border border-line p-4">
       <CommentaryList views={views} />
+    </div>
+  );
+}
+
+// Where the runs went. Each scoring shot the scorer tagged with a direction
+// is drawn from the batter to that part of the ground.
+function WagonWheel({ views, playerName }: { views: InningsView[]; playerName: (id: string | null) => string }) {
+  const [idx, setIdx] = useState(views.length - 1);
+  const [batter, setBatter] = useState("");
+  const v = views[Math.min(idx, views.length - 1)];
+
+  const shots = v.balls.filter((b: any) =>
+    !b.event_type && b.shot_x !== null && b.shot_x !== undefined && b.runs_off_bat > 0 && (!batter || b.striker_id === batter)
+  );
+  const batters = v.state.battingOrder.filter((id) => v.balls.some((b: any) => b.striker_id === id && b.shot_x !== null && b.shot_x !== undefined));
+
+  const C = 150, BOUNDARY = 136;
+  const lines = shots.map((b: any) => {
+    const dx = Number(b.shot_x) - 0.5, dy = Number(b.shot_y) - 0.5;
+    const len = Math.hypot(dx, dy) || 1;
+    const reach = b.runs_off_bat >= 4 ? BOUNDARY : 55 + b.runs_off_bat * 20;
+    // Small spread so several shots to one zone don't sit on top of each other.
+    const jitter = ((b.sequence_no * 37) % 13 - 6) / 100;
+    const ux = dx / len, uy = dy / len;
+    const jx = ux * Math.cos(jitter) - uy * Math.sin(jitter), jy = ux * Math.sin(jitter) + uy * Math.cos(jitter);
+    return { id: b.id, x2: C + jx * reach, y2: C + jy * reach, runs: b.runs_off_bat };
+  });
+  const color = (r: number) => (r === 6 ? "#F0C94A" : r === 4 ? "#4E9BFF" : r >= 2 ? "#3DDC97" : "#C7CEDD");
+
+  const zoneTotals = SHOT_ZONES.map((z) => {
+    const inZone = shots.filter((b: any) => Number(b.shot_x) === z.x && Number(b.shot_y) === z.y);
+    return { label: z.label, runs: inZone.reduce((t: number, b: any) => t + b.runs_off_bat, 0), count: inZone.length };
+  }).filter((z) => z.count > 0).sort((a, b) => b.runs - a.runs);
+
+  return (
+    <div className="rounded-2xl bg-bgCard border border-line p-4">
+      <div className="flex gap-2 flex-wrap mb-3">
+        {views.length > 1 && views.map((vv, i) => (
+          <button key={vv.innings.id} type="button" onClick={() => { setIdx(i); setBatter(""); }}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+            style={{ color: i === idx ? "#F0C94A" : "#8B98B5", background: i === idx ? "rgba(212,175,55,0.12)" : "transparent" }}>
+            {vv.battingName}
+          </button>
+        ))}
+        <select value={batter} onChange={(e: any) => setBatter(e.target.value)} className="text-xs !w-auto">
+          <option value="">All batters</option>
+          {batters.map((id) => <option key={id} value={id}>{playerName(id)}</option>)}
+        </select>
+      </div>
+
+      <svg viewBox="0 0 300 300" className="w-full max-w-sm mx-auto block">
+        <circle cx={C} cy={C} r={146} fill="#123524" />
+        <circle cx={C} cy={C} r={BOUNDARY} fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth={1.5} />
+        <circle cx={C} cy={C} r={62} fill="none" stroke="rgba(255,255,255,0.18)" strokeDasharray="4 4" />
+        <rect x={C - 5} y={C - 24} width={10} height={32} rx={2} fill="#C9B27C" opacity={0.85} />
+        {lines.map((l) => (
+          <line key={l.id} x1={C} y1={C} x2={l.x2} y2={l.y2} stroke={color(l.runs)} strokeWidth={l.runs >= 4 ? 2.2 : 1.4} strokeLinecap="round" opacity={0.9} />
+        ))}
+        <text x={C} y={14} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.55)">bowler's end</text>
+        <text x={290} y={C + 3} textAnchor="end" fontSize={9} fill="rgba(255,255,255,0.45)">OFF</text>
+        <text x={10} y={C + 3} fontSize={9} fill="rgba(255,255,255,0.45)">LEG</text>
+      </svg>
+
+      <div className="flex justify-center gap-4 text-[11px] mt-3 flex-wrap">
+        {[["1s", "#C7CEDD"], ["2s/3s", "#3DDC97"], ["4s", "#4E9BFF"], ["6s", "#F0C94A"]].map(([l, c]) => (
+          <span key={l} className="flex items-center gap-1.5 text-mutedDim"><span className="w-3 h-0.5 inline-block" style={{ background: c }} />{l}</span>
+        ))}
+      </div>
+
+      {shots.length === 0 ? (
+        <div className="text-xs text-mutedDim text-center mt-4">No shot directions recorded yet for this innings.</div>
+      ) : (
+        <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1">
+          {zoneTotals.map((z) => (
+            <div key={z.label} className="flex justify-between text-xs py-1 border-b border-line">
+              <span className="text-mutedDim">{z.label}</span>
+              <span><b>{z.runs}</b> <span className="text-mutedDim">({z.count} shot{z.count === 1 ? "" : "s"})</span></span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="text-[10px] text-mutedDim text-center mt-3">Directions shown as for a right-handed batter.</div>
     </div>
   );
 }
