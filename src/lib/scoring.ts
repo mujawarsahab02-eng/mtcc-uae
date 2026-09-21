@@ -37,11 +37,11 @@ export function allowedWicketTypes(extraType: ExtraType, isFreeHit: boolean = fa
 
 // Dismissals not credited to the bowler's wickets tally.
 const NOT_BOWLER_WICKET = new Set(["Run Out", "Obstructing The Field", "Timed Out", "Handled The Ball", "Retired Out", "Retired Hurt"]);
-// Dismissals that don't reduce the batting side's "wickets in hand" count
-// (the batter can, in principle, resume — V1 doesn't model the resumption).
+// Dismissals that don't reduce the batting side's "wickets in hand" count.
 const NON_COUNTING_WICKET = new Set(["Retired Hurt"]);
 
 export type BallRow = {
+  id?: string;
   striker_id: string;
   non_striker_id: string;
   bowler_id: string;
@@ -52,10 +52,17 @@ export type BallRow = {
   wicket_type: string | null;
   dismissed_player_id: string | null;
   new_batsman_id: string | null;
+  fielder_id?: string | null;
+  // Non-delivery events recorded in the ball log, e.g. "retired" (a batter
+  // retiring between deliveries). They never count as a ball.
+  event_type?: string | null;
 };
 
 export type BattingLine = { playerId: string; runs: number; balls: number; fours: number; sixes: number; out: boolean; howOut: string; bowlerId: string | null; fielderId: string | null };
-export type BowlingLine = { playerId: string; legalBalls: number; runsConceded: number; wickets: number };
+export type BowlingLine = { playerId: string; legalBalls: number; runsConceded: number; wickets: number; maidens: number; dots: number; wides: number; noBalls: number; fours: number; sixes: number };
+export type FallOfWicket = { wicket: number; runs: number; legalBalls: number; playerId: string };
+export type Partnership = { batter1: string; batter2: string; runs: number; balls: number; b1Runs: number; b1Balls: number; b2Runs: number; b2Balls: number };
+export type OverSummary = { overNumber: number; bowlerId: string | null; balls: { label: string; isWicket: boolean; isBoundary: boolean }[]; runs: number; wickets: number; totalRuns: number; totalWickets: number };
 
 export type InningsState = {
   totalRuns: number;
@@ -72,8 +79,21 @@ export type InningsState = {
   batting: Record<string, BattingLine>;
   bowlingOrder: string[];
   bowling: Record<string, BowlingLine>;
+  fallOfWickets: FallOfWicket[];
+  partnerships: Partnership[];
+  overs: OverSummary[];
   isInningsComplete: boolean;
 };
+
+// Short label for a delivery, as shown in "this over" chips.
+export function ballLabel(b: BallRow): string {
+  if (b.is_wicket) return "W";
+  if (b.extra_type === "wide") return b.extra_runs > 1 ? `${b.extra_runs}wd` : "wd";
+  if (b.extra_type === "no_ball") return b.runs_off_bat > 0 ? `${b.runs_off_bat}nb` : "nb";
+  if (b.extra_type === "bye") return `${b.extra_runs}b`;
+  if (b.extra_type === "leg_bye") return `${b.extra_runs}lb`;
+  return String(b.runs_off_bat);
+}
 
 export function computeInningsState(
   balls: BallRow[],
@@ -96,57 +116,133 @@ export function computeInningsState(
   const batting: Record<string, BattingLine> = {};
   const bowlingOrder: string[] = [];
   const bowling: Record<string, BowlingLine> = {};
+  const fallOfWickets: FallOfWicket[] = [];
+  const partnerships: Partnership[] = [];
+  const overs: OverSummary[] = [];
+  let overRunsForBowler = 0;
+  const overBowlers = new Set<string>();
 
   function ensureBatter(id: string) {
-    if (!batting[id]) {
+    if (id && !batting[id]) {
       batting[id] = { playerId: id, runs: 0, balls: 0, fours: 0, sixes: 0, out: false, howOut: "", bowlerId: null, fielderId: null };
       battingOrder.push(id);
     }
   }
   function ensureBowler(id: string) {
     if (!bowling[id]) {
-      bowling[id] = { playerId: id, legalBalls: 0, runsConceded: 0, wickets: 0 };
+      bowling[id] = { playerId: id, legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0, dots: 0, wides: 0, noBalls: 0, fours: 0, sixes: 0 };
       bowlingOrder.push(id);
     }
   }
+  // Current partnership = whoever is at the crease; a new pair starts a new one.
+  function currentPartnership(): Partnership {
+    const last = partnerships[partnerships.length - 1];
+    const samePair = last && ((last.batter1 === striker && last.batter2 === nonStriker) || (last.batter1 === nonStriker && last.batter2 === striker));
+    if (samePair) return last;
+    const p: Partnership = { batter1: striker, batter2: nonStriker, runs: 0, balls: 0, b1Runs: 0, b1Balls: 0, b2Runs: 0, b2Balls: 0 };
+    partnerships.push(p);
+    return p;
+  }
 
   for (const b of balls) {
-    ensureBatter(b.striker_id);
-    ensureBatter(b.non_striker_id);
-    ensureBowler(b.bowler_id);
-
-    const isLegal = b.extra_type !== "wide" && b.extra_type !== "no_ball";
-    totalRuns += b.runs_off_bat + b.extra_runs;
-
-    if (b.extra_type !== "wide") {
-      batting[b.striker_id].balls += 1;
-      batting[b.striker_id].runs += b.runs_off_bat;
-      if (b.runs_off_bat === 4) batting[b.striker_id].fours += 1;
-      if (b.runs_off_bat === 6) batting[b.striker_id].sixes += 1;
+    // The ball log records who was actually at the crease and bowling — the
+    // scorer may have swapped strike, changed bowler mid-over or brought in a
+    // new batter since the previous ball — so it is always trusted.
+    if (b.striker_id) striker = b.striker_id;
+    if (b.non_striker_id) nonStriker = b.non_striker_id;
+    ensureBatter(striker);
+    ensureBatter(nonStriker);
+    // A retired-hurt batter who has come back in is batting again, not "retired".
+    for (const id of [striker, nonStriker]) {
+      if (batting[id] && batting[id].howOut === "Retired Hurt") batting[id].howOut = "";
     }
 
+    if (b.event_type === "retired") {
+      const id = b.dismissed_player_id || striker;
+      ensureBatter(id);
+      const isOut = b.wicket_type === "Retired Out";
+      batting[id].howOut = b.wicket_type || "Retired Hurt";
+      batting[id].out = isOut;
+      if (isOut) {
+        totalWickets += 1;
+        fallOfWickets.push({ wicket: totalWickets, runs: totalRuns, legalBalls, playerId: id });
+      }
+      if (b.new_batsman_id) {
+        ensureBatter(b.new_batsman_id);
+        if (id === striker) striker = b.new_batsman_id;
+        else if (id === nonStriker) nonStriker = b.new_batsman_id;
+      }
+      continue;
+    }
+
+    ensureBowler(b.bowler_id);
+    const bw = bowling[b.bowler_id];
+    const isLegal = b.extra_type !== "wide" && b.extra_type !== "no_ball";
+    const ballRuns = b.runs_off_bat + b.extra_runs;
+    totalRuns += ballRuns;
+
+    const partnership = currentPartnership();
+    partnership.runs += ballRuns;
+    if (isLegal) partnership.balls += 1;
+    const strikerIsB1 = partnership.batter1 === striker;
+
+    if (b.extra_type !== "wide") {
+      batting[striker].balls += 1;
+      batting[striker].runs += b.runs_off_bat;
+      if (b.runs_off_bat === 4) batting[striker].fours += 1;
+      if (b.runs_off_bat === 6) batting[striker].sixes += 1;
+      if (strikerIsB1) { partnership.b1Runs += b.runs_off_bat; partnership.b1Balls += 1; }
+      else { partnership.b2Runs += b.runs_off_bat; partnership.b2Balls += 1; }
+    }
+
+    let bowlerRuns = 0;
     if (b.extra_type === "bye" || b.extra_type === "leg_bye") {
       // nothing charged to the bowler
     } else if (b.extra_type === "wide" || b.extra_type === "no_ball") {
-      bowling[b.bowler_id].runsConceded += b.extra_runs + b.runs_off_bat;
+      bowlerRuns = b.extra_runs + b.runs_off_bat;
     } else {
-      bowling[b.bowler_id].runsConceded += b.runs_off_bat;
+      bowlerRuns = b.runs_off_bat;
     }
-    if (isLegal) bowling[b.bowler_id].legalBalls += 1;
+    bw.runsConceded += bowlerRuns;
+    if (b.extra_type === "wide") bw.wides += 1;
+    if (b.extra_type === "no_ball") bw.noBalls += 1;
+    if (b.runs_off_bat === 4) bw.fours += 1;
+    if (b.runs_off_bat === 6) bw.sixes += 1;
+    if (isLegal) {
+      bw.legalBalls += 1;
+      if (bowlerRuns === 0) bw.dots += 1;
+    }
     if (b.extra_type) extras[b.extra_type] += b.extra_runs;
+    overRunsForBowler += bowlerRuns;
+    overBowlers.add(b.bowler_id);
 
+    // Over-by-over summary
+    const overIndex = Math.floor(legalBalls / 6);
+    let over = overs[overs.length - 1];
+    if (!over || over.overNumber !== overIndex) {
+      over = { overNumber: overIndex, bowlerId: b.bowler_id, balls: [], runs: 0, wickets: 0, totalRuns: 0, totalWickets: 0 };
+      overs.push(over);
+    }
+    over.bowlerId = b.bowler_id;
+    over.balls.push({ label: ballLabel(b), isWicket: b.is_wicket, isBoundary: b.runs_off_bat === 4 || b.runs_off_bat === 6 });
+    over.runs += ballRuns;
+
+    let dismissedThisBall: string | null = null;
     if (b.is_wicket) {
-      const dismissedId = b.dismissed_player_id || b.striker_id;
+      const dismissedId = b.dismissed_player_id || striker;
       ensureBatter(dismissedId);
-      batting[dismissedId].out = true;
+      batting[dismissedId].out = !(b.wicket_type && NON_COUNTING_WICKET.has(b.wicket_type));
       batting[dismissedId].howOut = b.wicket_type || "Out";
       batting[dismissedId].bowlerId = b.wicket_type && !NOT_BOWLER_WICKET.has(b.wicket_type) ? b.bowler_id : null;
+      batting[dismissedId].fielderId = b.fielder_id ?? null;
 
       if (!(b.wicket_type && NON_COUNTING_WICKET.has(b.wicket_type))) {
         totalWickets += 1;
+        over.wickets += 1;
+        dismissedThisBall = dismissedId;
       }
       if (b.wicket_type && !NOT_BOWLER_WICKET.has(b.wicket_type)) {
-        bowling[b.bowler_id].wickets += 1;
+        bw.wickets += 1;
       }
       if (b.new_batsman_id) {
         ensureBatter(b.new_batsman_id);
@@ -155,9 +251,7 @@ export function computeInningsState(
       }
     }
 
-    // Strike rotates on odd runs actually run by the batsmen — this
-    // includes byes/leg-byes and any runs taken off a wide/no-ball beyond
-    // the automatic penalty, per Law 18.
+    // Strike rotates on odd runs actually run by the batters (Law 18).
     const ranRuns =
       b.extra_type === "bye" || b.extra_type === "leg_bye"
         ? b.runs_off_bat + b.extra_runs
@@ -173,12 +267,22 @@ export function computeInningsState(
     if (isLegal) {
       legalBalls += 1;
       ballsInCurrentOver += 1;
-      if (ballsInCurrentOver === 6) {
-        [striker, nonStriker] = [nonStriker, striker];
-        lastOverBowler = b.bowler_id;
-        ballsInCurrentOver = 0;
-        isFreeHit = false;
-      }
+    }
+    if (dismissedThisBall) {
+      fallOfWickets.push({ wicket: totalWickets, runs: totalRuns, legalBalls, playerId: dismissedThisBall });
+    }
+    over.totalRuns = totalRuns;
+    over.totalWickets = totalWickets;
+
+    if (isLegal && ballsInCurrentOver === 6) {
+      // Maiden only if one bowler bowled the whole over without conceding.
+      if (overRunsForBowler === 0 && overBowlers.size === 1) bw.maidens += 1;
+      [striker, nonStriker] = [nonStriker, striker];
+      lastOverBowler = b.bowler_id;
+      ballsInCurrentOver = 0;
+      overRunsForBowler = 0;
+      overBowlers.clear();
+      isFreeHit = false;
     }
 
     bowler = b.bowler_id;
@@ -188,8 +292,34 @@ export function computeInningsState(
 
   return {
     totalRuns, totalWickets, legalBalls, extras, striker, nonStriker, bowler, lastOverBowler,
-    isFreeHit, ballsInCurrentOver, battingOrder, batting, bowlingOrder, bowling, isInningsComplete,
+    isFreeHit, ballsInCurrentOver, battingOrder, batting, bowlingOrder, bowling,
+    fallOfWickets, partnerships, overs, isInningsComplete,
   };
+}
+
+// "c Khan b Patil", "run out (Shaikh)", "not out", ...
+export function describeDismissal(line: BattingLine, name: (id: string | null) => string): string {
+  if (!line.howOut) return "not out";
+  const bowler = line.bowlerId ? name(line.bowlerId) : "";
+  const fielder = line.fielderId ? name(line.fielderId) : "";
+  switch (line.howOut) {
+    case "Bowled": return `b ${bowler}`;
+    case "Caught": return !fielder ? `c ? b ${bowler}` : line.fielderId === line.bowlerId ? `c & b ${bowler}` : `c ${fielder} b ${bowler}`;
+    case "LBW": return `lbw b ${bowler}`;
+    case "Stumped": return fielder ? `st ${fielder} b ${bowler}` : `st b ${bowler}`;
+    case "Hit Wicket": return `hit wicket b ${bowler}`;
+    case "Run Out": return fielder ? `run out (${fielder})` : "run out";
+    case "Retired Hurt": return "retired hurt";
+    default: return line.howOut.toLowerCase();
+  }
+}
+
+export function strikeRate(runs: number, balls: number): string {
+  return balls ? ((runs / balls) * 100).toFixed(1) : "-";
+}
+
+export function economy(runs: number, legalBalls: number): string {
+  return legalBalls ? ((runs / legalBalls) * 6).toFixed(2) : "-";
 }
 
 export function formatOvers(legalBalls: number): string {
