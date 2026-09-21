@@ -1,23 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Badge, Button, Card, Field, SectionHeader, SeamDivider } from "@/components/ui";
-import { computeInningsState, allowedWicketTypes, formatOvers, runRate, type BallRow } from "@/lib/scoring";
-import { startInnings, recordBall, undoLastBall, setNewBowler } from "./actions";
+import { computeInningsState, formatOvers, type BallRow } from "@/lib/scoring";
+import { startInnings, undoLastBall } from "./actions";
+import MatchSetup from "./MatchSetup";
+import LiveScoring from "./LiveScoring";
+import AdminPanel from "./AdminPanel";
+import { ScorecardView, type InningsView } from "./MatchTabs";
 
 type Player = { id: string; full_name: string; team_id: string };
+type XiRow = { player_id: string; team_id: string; is_captain: boolean; is_wicket_keeper: boolean };
 
 export default function ScoringClient({
-  match, teamA, teamB, squadA, squadB, settings,
-  initialInnings1, initialInnings2, initialBalls1, initialBalls2, canScore,
+  match, teamA, teamB, squadA, squadB, xiRows, settings,
+  initialInnings1, initialInnings2, initialBalls1, initialBalls2, canScore, isSuperAdmin,
 }: {
-  match: any; teamA: any; teamB: any; squadA: Player[]; squadB: Player[]; settings: { playingXI: number; oversLimit: number };
-  initialInnings1: any; initialInnings2: any; initialBalls1: any[]; initialBalls2: any[]; canScore: boolean;
+  match: any; teamA: any; teamB: any; squadA: Player[]; squadB: Player[]; xiRows: XiRow[];
+  settings: { playingXI: number; oversLimit: number };
+  initialInnings1: any; initialInnings2: any; initialBalls1: any[]; initialBalls2: any[];
+  canScore: boolean; isSuperAdmin: boolean;
 }) {
   const router = useRouter();
   const supabase = createClient();
+  const [editingSetup, setEditingSetup] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
 
   useEffect(() => {
     const channel = supabase
@@ -31,49 +40,141 @@ export default function ScoringClient({
 
   const allPlayers = [...squadA, ...squadB];
   const playerName = (id: string | null) => allPlayers.find((p) => p.id === id)?.full_name || "—";
-  const squadFor = (teamId: string) => (teamId === teamA.id ? squadA : squadB);
+  const teamName = (id: string | null) => (id === teamA.id ? teamA.name : id === teamB.id ? teamB.name : "—");
 
-  const activeInnings = !initialInnings1 ? null
-    : initialInnings1.status === "In Progress" ? { innings: initialInnings1, balls: initialBalls1 }
-    : initialInnings2 && initialInnings2.status === "In Progress" ? { innings: initialInnings2, balls: initialBalls2 }
-    : null;
+  // The Playing XI from Match Setup, or the whole squad if none was picked.
+  const xiFor = (teamId: string, squad: Player[]) => {
+    const ids = xiRows.filter((r) => r.team_id === teamId).map((r) => r.player_id);
+    return ids.length ? squad.filter((p) => ids.includes(p.id)) : squad;
+  };
+  const playingA = xiFor(teamA.id, squadA);
+  const playingB = xiFor(teamB.id, squadB);
+  const playingFor = (teamId: string) => (teamId === teamA.id ? playingA : playingB);
+  // All out when only one batter is left.
+  const maxWicketsFor = (teamId: string) => {
+    const n = xiRows.filter((r) => r.team_id === teamId).length;
+    return (n >= 2 ? n : settings.playingXI) - 1;
+  };
 
-  if (match.status === "Completed" && initialInnings2?.status === "Completed") {
-    return <MatchSummary match={match} teamA={teamA} teamB={teamB} innings1={initialInnings1} innings2={initialInnings2} balls1={initialBalls1} balls2={initialBalls2} settings={settings} />;
-  }
+  const innings1 = initialInnings1;
+  // Ignore an empty placeholder innings 2 left by the earlier version until it's started properly.
+  const innings2 = initialInnings2 && initialInnings2.opening_striker_id ? initialInnings2 : null;
 
-  if (!initialInnings1) {
-    return <StartInningsForm matchId={match.id} inningsNumber={1} teamA={teamA} teamB={teamB} squadA={squadA} squadB={squadB} defaultBattingTeamId={match.batting_first_id} />;
-  }
+  const makeView = (innings: any, balls: any[]): InningsView => {
+    const oversLimit: number = innings.overs_limit ?? settings.oversLimit;
+    return {
+      innings, balls, oversLimit,
+      battingName: teamName(innings.batting_team_id),
+      bowlingName: teamName(innings.bowling_team_id),
+      state: computeInningsState(
+        balls as BallRow[],
+        { striker: innings.opening_striker_id, nonStriker: innings.opening_non_striker_id, bowler: innings.opening_bowler_id },
+        maxWicketsFor(innings.batting_team_id), oversLimit
+      ),
+    };
+  };
+  const views: InningsView[] = [];
+  if (innings1) views.push(makeView(innings1, initialBalls1));
+  if (innings2) views.push(makeView(innings2, initialBalls2));
 
-  if (initialInnings1.status === "Completed" && !initialInnings2) {
+  const adminToggle = isSuperAdmin && innings1 ? (
+    <div className="flex justify-end mb-3">
+      <Button variant="subtle" size="sm" onClick={() => setShowAdmin(!showAdmin)}>{showAdmin ? "← Back to scoring" : "🛠 Match controls"}</Button>
+    </div>
+  ) : null;
+
+  if (showAdmin && isSuperAdmin && innings1) {
     return (
       <div>
-        <InningsSummaryCard title="Innings 1 Complete" innings={initialInnings1} balls={initialBalls1} teamName={initialInnings1.batting_team_id === teamA.id ? teamA.name : teamB.name} settings={settings} />
-        <StartInningsForm
-          matchId={match.id} inningsNumber={2} teamA={teamA} teamB={teamB} squadA={squadA} squadB={squadB}
-          defaultBattingTeamId={initialInnings1.bowling_team_id} lockBattingTeam target={initialInnings1.total_runs + 1}
+        {adminToggle}
+        <AdminPanel
+          match={match} teamA={teamA} teamB={teamB} views={views}
+          squadA={squadA} squadB={squadB} playingA={playingA} playingB={playingB}
+          xiRows={xiRows} settings={settings} playerName={playerName}
         />
       </div>
     );
   }
 
-  if (activeInnings) {
+  // Finished: innings 2 done, or the result was set by hand (No Result / Abandoned).
+  const nothingInProgress = innings1?.status !== "In Progress" && innings2?.status !== "In Progress";
+  const matchOver = !!innings1 && (innings2?.status === "Completed" || match.status === "Abandoned" || (match.status === "Completed" && nothingInProgress));
+
+  if (matchOver) {
     return (
-      <LiveScoring
-        match={match} teamA={teamA} teamB={teamB}
-        innings={activeInnings.innings} balls={activeInnings.balls}
-        battingSquad={squadFor(activeInnings.innings.batting_team_id)}
-        bowlingSquad={squadFor(activeInnings.innings.bowling_team_id)}
-        settings={settings} playerName={playerName} canScore={canScore}
+      <div>
+        {adminToggle}
+        <MatchSummary match={match} teamA={teamA} teamB={teamB} views={views} innings2={innings2} playerName={playerName} canScore={canScore} />
+      </div>
+    );
+  }
+
+  if (!innings1) {
+    if (!match.overs_per_innings || editingSetup) {
+      if (!canScore) return <Card className="p-8 text-center text-sm text-mutedDim">This match hasn't started yet.</Card>;
+      return (
+        <MatchSetup
+          match={match} teamA={teamA} teamB={teamB} squadA={squadA} squadB={squadB} xiRows={xiRows} settings={settings}
+          onSaved={() => setEditingSetup(false)}
+          onCancel={match.overs_per_innings ? () => setEditingSetup(false) : undefined}
+        />
+      );
+    }
+    return (
+      <StartInningsForm
+        match={match} inningsNumber={1} teamA={teamA} teamB={teamB} squadA={playingA} squadB={playingB}
+        defaultBattingTeamId={match.batting_first_id} lockBattingTeam={!!match.batting_first_id}
+        onEditSetup={canScore ? () => setEditingSetup(true) : undefined}
       />
+    );
+  }
+
+  if (innings1.status === "Completed" && !innings2) {
+    return (
+      <div>
+        {adminToggle}
+        <Card className="p-5 mb-4">
+          <div className="text-xs font-bold uppercase text-mutedDim mb-1">Innings 1 complete</div>
+          <div className="text-2xl font-bold font-display">
+            {views[0].battingName}: {views[0].state.totalRuns}/{views[0].state.totalWickets}{" "}
+            <span className="text-base text-mutedDim">({formatOvers(views[0].state.legalBalls)} ov)</span>
+          </div>
+        </Card>
+        {canScore && <UndoBar inningsId={innings1.id} matchId={match.id} label={innings1.declared ? "Undo “End innings”" : "Undo last ball of Innings 1"} />}
+        <StartInningsForm
+          match={match} inningsNumber={2} teamA={teamA} teamB={teamB} squadA={playingA} squadB={playingB}
+          defaultBattingTeamId={innings1.bowling_team_id} lockBattingTeam target={innings1.total_runs + 1}
+        />
+        <div className="mt-4"><ScorecardView views={views} playerName={playerName} /></div>
+      </div>
+    );
+  }
+
+  const active = innings1.status === "In Progress" ? views[0]
+    : innings2 && innings2.status === "In Progress" ? views[1]
+    : null;
+
+  if (active) {
+    return (
+      <div>
+        {adminToggle}
+        <LiveScoring
+          match={match} teamA={teamA} teamB={teamB}
+          view={active} views={views}
+          battingSquad={playingFor(active.innings.batting_team_id)}
+          bowlingSquad={playingFor(active.innings.bowling_team_id)}
+          maxWickets={maxWicketsFor(active.innings.batting_team_id)}
+          maxBowlerOvers={match.max_overs_per_bowler}
+          playerName={playerName} canScore={canScore}
+        />
+      </div>
     );
   }
 
   return <Card className="p-8 text-center text-sm text-mutedDim">Loading match state…</Card>;
 }
 
-function StartInningsForm({ matchId, inningsNumber, teamA, teamB, squadA, squadB, defaultBattingTeamId, lockBattingTeam, target }: any) {
+function StartInningsForm({ match, inningsNumber, teamA, teamB, squadA, squadB, defaultBattingTeamId, lockBattingTeam, target, onEditSetup }: any) {
   const router = useRouter();
   const [battingTeamId, setBattingTeamId] = useState(defaultBattingTeamId || teamA.id);
   const battingSquad = battingTeamId === teamA.id ? squadA : squadB;
@@ -86,12 +187,12 @@ function StartInningsForm({ matchId, inningsNumber, teamA, teamB, squadA, squadB
 
   async function handleStart() {
     if (!striker || !nonStriker || !bowler || striker === nonStriker) {
-      setErr("Select two different opening batsmen and an opening bowler.");
+      setErr("Select two different opening batters and an opening bowler.");
       return;
     }
     setBusy(true); setErr("");
     const res: any = await startInnings({
-      matchId, inningsNumber, battingTeamId, bowlingTeamId: battingTeamId === teamA.id ? teamB.id : teamA.id,
+      matchId: match.id, inningsNumber, battingTeamId, bowlingTeamId: battingTeamId === teamA.id ? teamB.id : teamA.id,
       strikerId: striker, nonStrikerId: nonStriker, bowlerId: bowler,
     });
     setBusy(false);
@@ -99,16 +200,25 @@ function StartInningsForm({ matchId, inningsNumber, teamA, teamB, squadA, squadB
     else router.refresh();
   }
 
+  const tossWinnerName = match.toss_winner_id === teamA.id ? teamA.name : match.toss_winner_id === teamB.id ? teamB.name : null;
+
   return (
     <Card className="p-5">
       <SectionHeader eyebrow="Live Scoring" title={`Start Innings ${inningsNumber}`} />
       <SeamDivider />
+      {inningsNumber === 1 && (
+        <div className="text-xs text-mutedDim mb-4">
+          {match.overs_per_innings} overs per innings
+          {match.max_overs_per_bowler ? `, max ${match.max_overs_per_bowler} per bowler` : ""}
+          {tossWinnerName ? `. ${tossWinnerName} won the toss and chose to ${match.toss_decision === "Bat" ? "bat" : "bowl"}.` : ""}
+        </div>
+      )}
       {target && <div className="text-sm text-goldBright font-semibold mb-4">Target: {target} runs</div>}
       <Field label="Batting Team">
         {lockBattingTeam ? (
           <div className="text-sm font-semibold py-2">{battingTeamId === teamA.id ? teamA.name : teamB.name}</div>
         ) : (
-          <select value={battingTeamId} onChange={(e) => setBattingTeamId(e.target.value)}>
+          <select value={battingTeamId} onChange={(e: any) => setBattingTeamId(e.target.value)}>
             <option value={teamA.id}>{teamA.name}</option>
             <option value={teamB.id}>{teamB.name}</option>
           </select>
@@ -116,284 +226,79 @@ function StartInningsForm({ matchId, inningsNumber, teamA, teamB, squadA, squadB
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Striker (on strike)">
-          <select value={striker} onChange={(e) => setStriker(e.target.value)}>
+          <select value={striker} onChange={(e: any) => setStriker(e.target.value)}>
             <option value="">Select</option>
             {battingSquad.map((p: Player) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
           </select>
         </Field>
         <Field label="Non-Striker">
-          <select value={nonStriker} onChange={(e) => setNonStriker(e.target.value)}>
+          <select value={nonStriker} onChange={(e: any) => setNonStriker(e.target.value)}>
             <option value="">Select</option>
             {battingSquad.map((p: Player) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
           </select>
         </Field>
       </div>
       <Field label="Opening Bowler">
-        <select value={bowler} onChange={(e) => setBowler(e.target.value)}>
+        <select value={bowler} onChange={(e: any) => setBowler(e.target.value)}>
           <option value="">Select</option>
           {bowlingSquad.map((p: Player) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
         </select>
       </Field>
       {err && <div className="text-xs mb-3 text-red">{err}</div>}
       <Button variant="primary" className="w-full" onClick={handleStart} disabled={busy}>{busy ? "Starting…" : `Start Innings ${inningsNumber}`}</Button>
+      {onEditSetup && <Button variant="subtle" size="sm" className="w-full mt-2" onClick={onEditSetup}>Edit Match Setup</Button>}
     </Card>
   );
 }
 
-function LiveScoring({ match, teamA, teamB, innings, balls, battingSquad, bowlingSquad, settings, playerName, canScore }: any) {
+function UndoBar({ inningsId, matchId, label }: { inningsId: string; matchId: string; label: string }) {
   const router = useRouter();
-  const battingTeamName = innings.batting_team_id === teamA.id ? teamA.name : teamB.name;
-  const bowlingTeamName = innings.bowling_team_id === teamA.id ? teamA.name : teamB.name;
-
-  const state = useMemo(
-    () => computeInningsState(
-      balls as BallRow[],
-      { striker: innings.opening_striker_id, nonStriker: innings.opening_non_striker_id, bowler: innings.opening_bowler_id },
-      settings.playingXI, settings.oversLimit
-    ),
-    [balls, innings, settings]
-  );
-
-  const needsNewBowler = innings.legal_balls > 0 && innings.legal_balls % 6 === 0 && innings.current_bowler_id === innings.last_over_bowler_id;
-
-  const [extraType, setExtraType] = useState<null | "wide" | "no_ball" | "bye" | "leg_bye">(null);
-  const [wicketMode, setWicketMode] = useState(false);
-  const [wicketType, setWicketType] = useState("");
-  const [dismissedId, setDismissedId] = useState("");
-  const [fielderId, setFielderId] = useState("");
-  const [newBatsmanId, setNewBatsmanId] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [newBowlerId, setNewBowlerId] = useState("");
 
-  const remainingBattingSquad = battingSquad.filter((p: Player) => !state.batting[p.id]?.out && p.id !== state.striker && p.id !== state.nonStriker);
-
-  async function submitNewBowler() {
-    if (!newBowlerId) return;
+  async function run() {
+    if (!window.confirm("Undo? This re-opens the innings.")) return;
     setBusy(true); setErr("");
-    const res: any = await setNewBowler(innings.id, match.id, newBowlerId);
-    setBusy(false);
-    if (res.error) setErr(res.error);
-    else { setNewBowlerId(""); router.refresh(); }
-  }
-
-  async function submitBall(runsOffBat: number) {
-    if (wicketMode && !wicketType) { setErr("Select a dismissal type."); return; }
-    const allowed = allowedWicketTypes(extraType);
-    if (wicketMode && !allowed.includes(wicketType)) { setErr(`${wicketType} is not valid off a ${extraType || "normal delivery"}.`); return; }
-    if (wicketMode && remainingBattingSquad.length > 0 && !newBatsmanId) { setErr("Select the incoming batsman."); return; }
-
-    let payloadExtraRuns = 0;
-    let payloadRunsOffBat = runsOffBat;
-    if (extraType === "wide") { payloadExtraRuns = 1 + runsOffBat; payloadRunsOffBat = 0; }
-    else if (extraType === "bye" || extraType === "leg_bye") { payloadExtraRuns = runsOffBat; payloadRunsOffBat = 0; }
-    else if (extraType === "no_ball") { payloadExtraRuns = 1; payloadRunsOffBat = runsOffBat; }
-
-    const payload = {
-      runsOffBat: payloadRunsOffBat,
-      extraType,
-      extraRuns: payloadExtraRuns,
-      isWicket: wicketMode,
-      wicketType: wicketMode ? wicketType : null,
-      dismissedPlayerId: wicketMode ? (dismissedId || state.striker) : null,
-      fielderId: wicketMode ? fielderId || null : null,
-      newBatsmanId: wicketMode ? newBatsmanId || null : null,
-    };
-
-    setBusy(true); setErr("");
-    const res: any = await recordBall(innings.id, match.id, payload);
-    setBusy(false);
-    if (res.error) { setErr(res.error); return; }
-    setExtraType(null); setWicketMode(false); setWicketType(""); setDismissedId(""); setFielderId(""); setNewBatsmanId("");
-    router.refresh();
-  }
-
-  async function handleUndo() {
-    setBusy(true); setErr("");
-    const res: any = await undoLastBall(innings.id, match.id);
+    const res: any = await undoLastBall(inningsId, matchId);
     setBusy(false);
     if (res.error) setErr(res.error);
     else router.refresh();
   }
 
-  const recentBalls = [...balls].slice(-8).reverse();
-  const target = innings.target;
-  const runsNeeded = target ? target - state.totalRuns : null;
-  const ballsLeft = settings.oversLimit * 6 - state.legalBalls;
-
   return (
-    <div>
-      <SectionHeader eyebrow={`Innings ${innings.innings_number} · Live`} title={`${battingTeamName} vs ${bowlingTeamName}`} />
-      <SeamDivider />
-
-      <Card className="p-5 mb-4 text-center">
-        <div className="text-sm text-mutedDim mb-1">{battingTeamName} batting</div>
-        <div className="text-4xl font-bold font-display text-goldBright">{state.totalRuns}/{state.totalWickets}</div>
-        <div className="text-sm text-muted mt-1">{formatOvers(state.legalBalls)} overs · CRR {runRate(state.totalRuns, state.legalBalls)}</div>
-        {target && (
-          <div className="text-sm text-orange font-semibold mt-2">
-            Need {Math.max(0, runsNeeded!)} runs from {Math.max(0, ballsLeft)} balls
-          </div>
-        )}
-      </Card>
-
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <Card className="p-4">
-          <div className="text-[11px] uppercase text-mutedDim mb-2">Batting</div>
-         {[state.striker, state.nonStriker].filter((id): id is string => !!id).map((id) => (
-            <div key={id} className="flex justify-between text-sm py-0.5">
-              <span>{playerName(id)}{id === state.striker ? " *" : ""}</span>
-              <span className="text-mutedDim">{state.batting[id]?.runs ?? 0} ({state.batting[id]?.balls ?? 0})</span>
-            </div>
-          ))}
-        </Card>
-        <Card className="p-4">
-          <div className="text-[11px] uppercase text-mutedDim mb-2">Bowling</div>
-          {state.bowler && (
-            <div className="flex justify-between text-sm py-0.5">
-              <span>{playerName(state.bowler)}</span>
-              <span className="text-mutedDim">{formatOvers(state.bowling[state.bowler]?.legalBalls ?? 0)}-{state.bowling[state.bowler]?.runsConceded ?? 0}-{state.bowling[state.bowler]?.wickets ?? 0}</span>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {recentBalls.length > 0 && (
-        <div className="flex gap-1.5 mb-4 flex-wrap">
-          {recentBalls.map((b: any) => (
-            <span key={b.id} className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border" style={{
-              borderColor: b.is_wicket ? "#FF5D6C" : "rgba(212,175,55,0.4)",
-              color: b.is_wicket ? "#FF5D6C" : b.runs_off_bat === 4 || b.runs_off_bat === 6 ? "#F0C94A" : "#8B98B5",
-              background: b.is_wicket ? "rgba(255,93,108,0.1)" : "transparent",
-            }}>
-              {b.is_wicket ? "W" : b.extra_type === "wide" ? "wd" : b.extra_type === "no_ball" ? "nb" : b.extra_type === "bye" ? `${b.extra_runs}b` : b.extra_type === "leg_bye" ? `${b.extra_runs}lb` : b.runs_off_bat}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {!canScore && <Card className="p-4 text-sm text-orange">Read-only for your role.</Card>}
-
-      {canScore && needsNewBowler && (
-        <Card className="p-5 mb-4">
-          <div className="text-sm font-bold mb-3">Over complete — select the next bowler</div>
-          <Field label="Next Bowler">
-            <select value={newBowlerId} onChange={(e) => setNewBowlerId(e.target.value)}>
-              <option value="">Select</option>
-              {bowlingSquad.filter((p: Player) => p.id !== innings.last_over_bowler_id).map((p: Player) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-            </select>
-          </Field>
-          {err && <div className="text-xs mb-2 text-red">{err}</div>}
-          <Button variant="primary" className="w-full" onClick={submitNewBowler} disabled={busy || !newBowlerId}>Confirm Bowler</Button>
-        </Card>
-      )}
-
-      {canScore && !needsNewBowler && (
-        <Card className="p-5">
-          <div className="text-[11px] uppercase text-mutedDim mb-2">Delivery Type</div>
-          <div className="flex gap-2 flex-wrap mb-4">
-            {[
-              { v: null, l: "Normal" }, { v: "wide", l: "Wide" }, { v: "no_ball", l: "No Ball" },
-              { v: "bye", l: "Bye" }, { v: "leg_bye", l: "Leg Bye" },
-            ].map((opt) => (
-              <button key={opt.l} onClick={() => setExtraType(opt.v as any)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold border"
-                style={{ borderColor: extraType === opt.v ? "#D4AF37" : "rgba(255,255,255,0.1)", color: extraType === opt.v ? "#F0C94A" : "#8B98B5", background: extraType === opt.v ? "rgba(212,175,55,0.1)" : "transparent" }}>
-                {opt.l}
-              </button>
-            ))}
-          </div>
-
-          {innings.is_free_hit && !wicketMode && <div className="text-xs text-orange font-semibold mb-3">🎯 FREE HIT</div>}
-
-          <div className="text-[11px] uppercase text-mutedDim mb-2">{extraType === "bye" || extraType === "leg_bye" ? "Runs Run" : extraType ? "Additional Runs" : "Runs Off Bat"}</div>
-          <div className="grid grid-cols-4 gap-2 mb-4">
-            {[0, 1, 2, 3, 4, 5, 6].map((r) => (
-              <Button key={r} variant="subtle" onClick={() => submitBall(r)} disabled={busy}>{r}</Button>
-            ))}
-          </div>
-
-          <label className="flex items-center gap-2 text-sm mb-3 text-muted">
-            <input type="checkbox" className="!w-auto" checked={wicketMode} onChange={(e) => setWicketMode(e.target.checked)} /> Wicket on this delivery
-          </label>
-
-          {wicketMode && (
-            <div className="mb-4 p-3 rounded-xl border border-red/30 bg-red/5">
-              <Field label="Dismissal Type">
-                <select value={wicketType} onChange={(e) => setWicketType(e.target.value)}>
-                  <option value="">Select</option>
-                  {allowedWicketTypes(extraType).map((w) => <option key={w}>{w}</option>)}
-                </select>
-              </Field>
-              <Field label="Batsman Out">
-                <select value={dismissedId} onChange={(e) => setDismissedId(e.target.value)}>
-                  <option value="">Striker ({playerName(state.striker)})</option>
-                  <option value={state.nonStriker || ""}>Non-Striker ({playerName(state.nonStriker)})</option>
-                </select>
-              </Field>
-              {["Caught", "Run Out", "Stumped"].includes(wicketType) && (
-                <Field label="Fielder (optional)">
-                  <select value={fielderId} onChange={(e) => setFielderId(e.target.value)}>
-                    <option value="">—</option>
-                    {bowlingSquad.map((p: Player) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-                  </select>
-                </Field>
-              )}
-              {remainingBattingSquad.length > 0 && (
-                <Field label="Incoming Batsman">
-                  <select value={newBatsmanId} onChange={(e) => setNewBatsmanId(e.target.value)}>
-                    <option value="">Select</option>
-                    {remainingBattingSquad.map((p: Player) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-                  </select>
-                </Field>
-              )}
-            </div>
-          )}
-
-          {err && <div className="text-xs mb-3 text-red">{err}</div>}
-
-          <Button variant="subtle" size="sm" className="w-full" onClick={handleUndo} disabled={busy || balls.length === 0}>Undo Last Ball</Button>
-        </Card>
-      )}
+    <div className="mb-4">
+      <Button variant="subtle" size="sm" className="w-full" onClick={run} disabled={busy}>{busy ? "Undoing…" : label}</Button>
+      {err && <div className="text-xs mt-2 text-red">{err}</div>}
     </div>
   );
 }
 
-function InningsSummaryCard({ title, innings, balls, teamName, settings }: any) {
-  const state = computeInningsState(balls as BallRow[], { striker: innings.opening_striker_id, nonStriker: innings.opening_non_striker_id, bowler: innings.opening_bowler_id }, settings.playingXI, settings.oversLimit);
-  return (
-    <Card className="p-5 mb-5">
-      <div className="text-xs font-bold uppercase text-mutedDim mb-1">{title}</div>
-      <div className="text-2xl font-bold font-display">{teamName}: {state.totalRuns}/{state.totalWickets} <span className="text-base text-mutedDim">({formatOvers(state.legalBalls)} ov)</span></div>
-    </Card>
-  );
-}
-
-function MatchSummary({ match, teamA, teamB, innings1, innings2, balls1, balls2, settings }: any) {
-  const s1 = computeInningsState(balls1 as BallRow[], { striker: innings1.opening_striker_id, nonStriker: innings1.opening_non_striker_id, bowler: innings1.opening_bowler_id }, settings.playingXI, settings.oversLimit);
-  const s2 = computeInningsState(balls2 as BallRow[], { striker: innings2.opening_striker_id, nonStriker: innings2.opening_non_striker_id, bowler: innings2.opening_bowler_id }, settings.playingXI, settings.oversLimit);
-  const team1Name = innings1.batting_team_id === teamA.id ? teamA.name : teamB.name;
-  const team2Name = innings2.batting_team_id === teamA.id ? teamA.name : teamB.name;
+function MatchSummary({ match, teamA, teamB, views, innings2, playerName, canScore }: any) {
+  const winnerName = match.winner_id === teamA.id ? teamA.name : match.winner_id === teamB.id ? teamB.name : null;
+  const result = match.status === "Abandoned" ? "Match Abandoned"
+    : match.result_type === "No Result" ? "No Result"
+    : match.is_tie ? "Match Tied"
+    : winnerName ? `${winnerName} won${match.margin ? ` by ${match.margin}` : ""}` : "Result Pending";
 
   return (
     <div>
       <SectionHeader eyebrow="Match Complete" title={`${teamA.name} vs ${teamB.name}`} />
       <SeamDivider />
-      <Card className="p-6 text-center mb-6">
+      <Card className="p-6 text-center mb-4">
         <div className="grid grid-cols-2 gap-6 mb-4">
-          <div>
-            <div className="text-sm text-mutedDim">{team1Name}</div>
-            <div className="text-2xl font-bold font-display">{s1.totalRuns}/{s1.totalWickets}</div>
-            <div className="text-xs text-mutedDim">{formatOvers(s1.legalBalls)} ov</div>
-          </div>
-          <div>
-            <div className="text-sm text-mutedDim">{team2Name}</div>
-            <div className="text-2xl font-bold font-display">{s2.totalRuns}/{s2.totalWickets}</div>
-            <div className="text-xs text-mutedDim">{formatOvers(s2.legalBalls)} ov</div>
-          </div>
+          {views.map((v: InningsView) => (
+            <div key={v.innings.id}>
+              <div className="text-sm text-mutedDim">{v.battingName}</div>
+              <div className="text-2xl font-bold font-display">{v.state.totalRuns}/{v.state.totalWickets}</div>
+              <div className="text-xs text-mutedDim">{formatOvers(v.state.legalBalls)} ov</div>
+            </div>
+          ))}
         </div>
-        <Badge tone="gold">{match.is_tie ? "Match Tied" : match.margin ? `Winner by ${match.margin}` : "Result Pending"}</Badge>
+        <Badge tone="gold">{result}</Badge>
+        {match.man_of_match && <div className="text-xs text-mutedDim mt-3">Man of the Match: <b className="text-ink">{match.man_of_match}</b></div>}
       </Card>
+      {canScore && innings2 && <UndoBar inningsId={innings2.id} matchId={match.id} label={innings2.declared ? "Undo “End innings” (re-opens the match)" : "Undo last ball (re-opens the match)"} />}
+      <ScorecardView views={views} playerName={playerName} />
     </div>
   );
 }

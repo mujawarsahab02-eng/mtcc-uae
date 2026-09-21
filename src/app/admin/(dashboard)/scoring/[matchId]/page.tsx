@@ -12,16 +12,24 @@ export default async function ScoringPage({ params }: { params: { matchId: strin
   const { data: match } = await supabase.from("matches").select("*").eq("id", params.matchId).single();
   if (!match) notFound();
 
-  const [{ data: teamA }, { data: teamB }, { data: players }, { data: settings }, { data: innings }] = await Promise.all([
+  const [{ data: teamA }, { data: teamB }, { data: players }, { data: settings }, { data: innings }, { data: xiRows }] = await Promise.all([
     supabase.from("teams").select("id, name").eq("id", match.team_a_id).single(),
     supabase.from("teams").select("id, name").eq("id", match.team_b_id).single(),
-    supabase.from("players").select("id, full_name, team_id").in("team_id", [match.team_a_id, match.team_b_id]).eq("application_status", "Sold / Selected"),
+    supabase.from("players").select("id, full_name, team_id, team_role").in("team_id", [match.team_a_id, match.team_b_id]),
     supabase.from("tournament_settings").select("playing_xi, number_of_overs").eq("id", 1).single(),
     supabase.from("innings").select("*").eq("match_id", params.matchId).order("innings_number"),
+    supabase.from("match_players").select("player_id, team_id, is_captain, is_wicket_keeper").eq("match_id", params.matchId),
   ]);
 
-  const innings1 = (innings ?? []).find((i) => i.innings_number === 1) || null;
-  const innings2 = (innings ?? []).find((i) => i.innings_number === 2) || null;
+  if (!teamA || !teamB) notFound();
+
+  // Everyone in each squad except non-playing Owners, alphabetical.
+  const squad = (players ?? [])
+    .filter((p: any) => p.team_role !== "Owner")
+    .sort((a: any, b: any) => (a.full_name || "").localeCompare(b.full_name || ""));
+
+  const innings1 = (innings ?? []).find((i: any) => i.innings_number === 1) || null;
+  const innings2 = (innings ?? []).find((i: any) => i.innings_number === 2) || null;
 
   const [{ data: balls1 }, { data: balls2 }] = await Promise.all([
     innings1 ? supabase.from("balls").select("*").eq("innings_id", innings1.id).order("sequence_no") : Promise.resolve({ data: [] }),
@@ -35,14 +43,16 @@ export default async function ScoringPage({ params }: { params: { matchId: strin
       match={match}
       teamA={teamA}
       teamB={teamB}
-      squadA={(players ?? []).filter((p) => p.team_id === match.team_a_id)}
-      squadB={(players ?? []).filter((p) => p.team_id === match.team_b_id)}
-      settings={{ playingXI: settings?.playing_xi ?? 11, oversLimit: settings?.number_of_overs ?? 16 }}
+      squadA={squad.filter((p: any) => p.team_id === match.team_a_id)}
+      squadB={squad.filter((p: any) => p.team_id === match.team_b_id)}
+      xiRows={xiRows ?? []}
+      settings={{ playingXI: settings?.playing_xi ?? 11, oversLimit: match.overs_per_innings ?? settings?.number_of_overs ?? 16 }}
       initialInnings1={innings1}
       initialInnings2={innings2}
       initialBalls1={balls1 ?? []}
       initialBalls2={balls2 ?? []}
       canScore={canScore}
+      isSuperAdmin={profile.role === "Super Admin"}
     />
   );
 }
