@@ -14,5 +14,12 @@ export default async function FixturesPage() {
 
   const canManage = ["Super Admin", "Tournament Admin", "Scorer"].includes(profile.role);
 
-  return <FixturesClient initialMatches={matches ?? []} teams={teams ?? []} canManage={canManage} />;
+  return (
+    <FixturesClient
+      initialMatches={matches ?? []}
+      teams={teams ?? []}
+      canManage={canManage}
+      isSuperAdmin={profile.role === "Super Admin"}
+    />
+  );
 }

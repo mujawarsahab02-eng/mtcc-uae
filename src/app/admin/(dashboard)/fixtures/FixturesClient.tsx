@@ -19,7 +19,7 @@ function emptyForm() {
   };
 }
 
-export default function FixturesClient({ initialMatches, teams, canManage }: { initialMatches: any[]; teams: any[]; canManage: boolean }) {
+export default function FixturesClient({ initialMatches, teams, canManage, isSuperAdmin }: { initialMatches: any[]; teams: any[]; canManage: boolean; isSuperAdmin: boolean }) {
   const router = useRouter();
   const [matches, setMatches] = useState(initialMatches);
   const [editing, setEditing] = useState<any>(null);
@@ -113,11 +113,12 @@ export default function FixturesClient({ initialMatches, teams, canManage }: { i
     }
   }
   async function handleDelete(id: string) {
-    if (!window.confirm("Remove this match? Any scoring recorded for it will be deleted too.")) return;
+    if (!window.confirm("Delete this match? Any scoring recorded for it will be deleted too. This can't be undone.")) return;
     setBusy(true);
     const res: any = await deleteMatch(id);
     setBusy(false);
-    if (!res.error) { setMatches((prev) => prev.filter((m) => m.id !== id)); router.refresh(); }
+    if (res.error) window.alert(res.error);
+    else { setMatches((prev) => prev.filter((m) => m.id !== id)); router.refresh(); }
   }
 
   const teamSelect = (side: "a" | "b") => {
@@ -148,7 +149,7 @@ export default function FixturesClient({ initialMatches, teams, canManage }: { i
 
       {!canManage && (
         <LightCard className="p-3 mb-5 text-xs text-orange" style={{ borderColor: "rgba(255,122,61,0.3)" }}>
-          Read-only for your role. Super Admin, Tournament Admin or Scorer can manage fixtures.
+          Read-only for your role. Super Admin, Tournament Admin or Scorer can add and score fixtures.
         </LightCard>
       )}
 
@@ -228,7 +229,7 @@ export default function FixturesClient({ initialMatches, teams, canManage }: { i
         {matches.map((m) => {
           const bothTeamsPicked = !!m.team_a_id && !!m.team_b_id;
           return (
-            <LightCard key={m.id} className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => canManage && startEdit(m)}>
+            <LightCard key={m.id} className="p-4">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
                   <div className="text-xs text-slateText mb-1">{m.stage} {m.match_number ? `· Match ${m.match_number}` : ""}</div>
@@ -254,7 +255,12 @@ export default function FixturesClient({ initialMatches, teams, canManage }: { i
                       {m.status === "Live" ? "Match Centre" : "Scorecard"}
                     </Link>
                   )}
-                  {canManage && <LightButton variant="danger" size="sm" onClick={(e: any) => { e.stopPropagation(); handleDelete(m.id); }}>Remove</LightButton>}
+                  {isSuperAdmin && (
+                    <div className="flex gap-1.5">
+                      <LightButton variant="ghost" size="sm" onClick={() => { startEdit(m); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Edit</LightButton>
+                      <LightButton variant="danger" size="sm" onClick={() => handleDelete(m.id)}>Delete</LightButton>
+                    </div>
+                  )}
                 </div>
               </div>
             </LightCard>

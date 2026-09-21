@@ -10,7 +10,16 @@ const MATCH_ROLES = ["Super Admin", "Tournament Admin", "Scorer"];
 async function guardRole() {
   const profile = await getCurrentProfile();
   if (!profile || !MATCH_ROLES.includes(profile.role)) {
-    return { error: "Only Super Admin, Tournament Admin or Scorer can manage fixtures." };
+    return { error: "Only Super Admin, Tournament Admin or Scorer can add fixtures." };
+  }
+  return { profile };
+}
+
+// Editing and deleting fixtures is Super Admin only.
+async function guardSuperAdmin() {
+  const profile = await getCurrentProfile();
+  if (!profile || profile.role !== "Super Admin") {
+    return { error: "Only Super Admin can edit or delete matches." };
   }
   return { profile };
 }
@@ -30,7 +39,7 @@ export async function addMatch(match: Record<string, any>): Promise<any> {
 }
 
 export async function updateMatch(id: string, patch: Record<string, any>): Promise<any> {
-  const guard: any = await guardRole();
+  const guard: any = await guardSuperAdmin();
   if (guard.error) return guard;
 
   const supabase = createClient();
@@ -47,11 +56,12 @@ export async function updateMatch(id: string, patch: Record<string, any>): Promi
   }
   revalidatePath("/admin/fixtures");
   revalidatePath("/standings");
+  revalidatePath(`/matches/${id}`);
   return { ok: true };
 }
 
 export async function deleteMatch(id: string): Promise<any> {
-  const guard: any = await guardRole();
+  const guard: any = await guardSuperAdmin();
   if (guard.error) return guard;
 
   const supabase = createClient();
