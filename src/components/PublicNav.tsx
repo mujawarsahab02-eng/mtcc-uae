@@ -8,6 +8,8 @@ import InstallAppButton from "@/components/InstallAppButton";
 
 const LINKS = [
   { href: "/", label: "Home" },
+  { href: "/matches", label: "Matches" },
+  { href: "/stats", label: "Stats" },
   { href: "/squads", label: "Squads" },
   { href: "/standings", label: "Standings" },
   { href: "/rules", label: "Rules" },
