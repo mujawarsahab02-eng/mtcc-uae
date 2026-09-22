@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Badge, Button, Card, SectionHeader, SeamDivider, StatCard } from "@/components/ui";
 import { AUCTION_ROLES, OVERRIDE_ROLES, computeAge } from "@/lib/constants";
 import { computeRemainingPoints, computeSquad, computeGuestCount, validateSale } from "@/lib/auction";
-import { startAuction, pauseAuction, placeBid, markSold, markUnsold, deferPlayer, undoLastPlayerResult, resetAuction, startUnsoldRound } from "./actions";
+import { startAuction, pauseAuction, placeBid, undoLastBid, markSold, markUnsold, deferPlayer, undoLastPlayerResult, resetAuction, startUnsoldRound } from "./actions";
 
 // Tiered bid step: the increment gets bigger as the bid climbs, per the
 // organiser's planned structure. Falls back to sensible defaults if a
@@ -30,14 +30,27 @@ function computeNextBid(currentBid: number, s: any) {
 }
 
 export default function AuctionControlRoom({ initialAuction, initialPlayers, initialTeams, settings, currentRole }: any) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [auction, setAuction] = useState(initialAuction);
   const [players, setPlayers] = useState(initialPlayers);
   const [teams, setTeams] = useState(initialTeams);
   const [override, setOverride] = useState(false);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [flash, setFlash] = useState<"sold" | "unsold" | null>(null);
+  const [showQueue, setShowQueue] = useState(false);
+
+  // Instant bidding: taps update the screen straight away, and the saves
+  // run one after another in the background so none overtake each other.
+  const auctionRef = useRef<any>(initialAuction);
+  const queueRef = useRef<Promise<any>>(Promise.resolve());
+  const pendingRef = useRef(0);
+
+  function applyAuction(next: any) {
+    auctionRef.current = next;
+    setAuction(next);
+  }
 
   const canRun = AUCTION_ROLES.includes(currentRole);
   const canOverride = OVERRIDE_ROLES.includes(currentRole);
@@ -45,14 +58,17 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
   const nextBidAmount = computeNextBid(auction?.current_bid || 0, settings);
   const bidMaxReached = nextBidAmount > maxBid;
 
-  // Realtime: any Auction Admin action anywhere updates every open Control
-  // Room, Team Owner dashboard and the public Display instantly — this is
-  // the piece window.storage in the artifact could never do.
+  async function resyncAuction() {
+    const { data } = await supabase.from("auction_state").select("*").eq("id", 1).single();
+    if (data && pendingRef.current === 0) applyAuction(data);
+  }
+
   useEffect(() => {
     const channel = supabase
       .channel("auction-control-room")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "auction_state", filter: "id=eq.1" }, (payload) => {
-        setAuction(payload.new);
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "auction_state", filter: "id=eq.1" }, (payload: any) => {
+        // While this screen still has bids saving, its own view is newer.
+        if (pendingRef.current === 0) applyAuction(payload.new);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "players" }, (payload: any) => {
         setPlayers((prev: any[]) => {
@@ -66,6 +82,7 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]);
 
   const currentPlayer = players.find((p: any) => p.id === auction?.current_player_id) || null;
@@ -78,6 +95,7 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
   }));
 
   const unsoldPlayers = useMemo(() => players.filter((p: any) => p.application_status === "Unsold / Not Selected"), [players]);
+  const isUnsoldRound = auction?.round === "Unsold";
 
   const summary = useMemo(() => {
     if (!auction?.pool_order) return { total: 0, sold: 0, unsold: 0, totalSpent: 0 };
@@ -87,19 +105,75 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
     return { total: processed.length, sold: sold.length, unsold: unsold.length, totalSpent: sold.reduce((s: number, p: any) => s + Number(p.sold_points || 0), 0) };
   }, [auction, players]);
 
-  async function run(fn: () => Promise<any>) {
-    setBusy(true); setMsg("");
-    const res = await fn();
-    setBusy(false);
-    if (res?.error) setMsg(res.error);
+  // Queue a background save. Errors show a message and the screen is
+  // re-synced from the server once the last pending save finishes.
+  function enqueue(task: () => Promise<any>) {
+    pendingRef.current += 1;
+    setSaving(true);
+    queueRef.current = queueRef.current
+      .then(async () => {
+        let res: any;
+        try { res = await task(); } catch (e: any) { res = { error: e?.message || "Network problem. Please try again." }; }
+        if (res?.error) setMsg(res.error);
+      })
+      .finally(() => {
+        pendingRef.current -= 1;
+        // If a save failed, any bids queued after it are rejected as stale
+        // and this final resync puts the true server state back on screen.
+        if (pendingRef.current === 0) {
+          setSaving(false);
+          resyncAuction();
+        }
+      });
   }
 
-  function tryPlaceBid(amount: number, teamId: string) {
+  // Waits for every queued bid to be saved before a SOLD/UNSOLD etc.
+  async function afterPendingBids<T>(fn: () => Promise<T>): Promise<T> {
+    await queueRef.current;
+    return fn();
+  }
+
+  async function run(fn: () => Promise<any>) {
+    setBusy(true); setMsg("");
+    const res = await afterPendingBids(fn);
+    setBusy(false);
+    if (res?.error) setMsg(res.error);
+    resyncAuction();
+  }
+
+  function tryPlaceBid(teamId: string) {
+    const cur = auctionRef.current;
     const team = teams.find((t: any) => t.id === teamId);
-    if (!team || !currentPlayer) return;
-    const warnings = validateSale(team, currentPlayer, amount, players, settings);
+    const player = players.find((p: any) => p.id === cur?.current_player_id);
+    if (!team || !player || !cur) return;
+    if (cur.current_team_id === teamId) { setMsg(`${team.name} is already the highest bidder.`); return; }
+
+    const expected = Number(cur.current_bid || 0);
+    const amount = computeNextBid(expected, settings);
+    if (amount > maxBid) { setMsg(`Maximum bid reached (${maxBid} pts).`); return; }
+    const warnings = validateSale(team, player, amount, players, settings);
     if (warnings.length && !(override && canOverride)) { setMsg(warnings.join(" ")); return; }
-    run(() => placeBid(teamId, amount, override));
+
+    setMsg("");
+    applyAuction({
+      ...cur,
+      current_bid: amount,
+      current_team_id: teamId,
+      bid_history: [...(cur.bid_history || []), { teamId, teamName: team.name, amount, ts: Date.now() }],
+    });
+    enqueue(() => placeBid(teamId, amount, override, expected));
+  }
+
+  function tryUndoBid() {
+    const cur = auctionRef.current;
+    const history: any[] = cur?.bid_history || [];
+    if (!history.length) return;
+    const expected = Number(cur.current_bid || 0);
+    const remaining = history.slice(0, -1);
+    const prev = remaining[remaining.length - 1];
+    setMsg("");
+    applyAuction({ ...cur, current_bid: prev?.amount ?? 0, current_team_id: prev?.teamId ?? null, bid_history: remaining });
+    enqueue(() => undoLastBid(expected));
   }
 
   function flashResult(kind: "sold" | "unsold", fn: () => Promise<any>) {
@@ -121,13 +195,32 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
     );
   }
 
+  const unsoldQueuePanel = unsoldPlayers.length > 0 && (
+    <Card className="p-4 mb-5">
+      <button type="button" onClick={() => setShowQueue(!showQueue)} className="w-full flex items-center justify-between">
+        <span className="text-[11px] font-bold uppercase tracking-wide text-orange">📂 Unsold Queue ({unsoldPlayers.length})</span>
+        <span className="text-[11px] text-mutedDim">{isUnsoldRound ? "Unsold again this round" : "Runs after the main list"} · {showQueue ? "Hide" : "Show"}</span>
+      </button>
+      {showQueue && (
+        <div className="max-h-48 overflow-y-auto space-y-1 mt-3">
+          {unsoldPlayers.map((p: any) => (
+            <div key={p.id} className="flex justify-between text-xs py-1 border-b last:border-0 border-line">
+              <span>{p.full_name}</span>
+              <span className="text-mutedDim">{p.playing_role} · {p.auction_category || "Unassigned"}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+
   return (
     <div
       className="-mx-4 sm:-mx-6 -mt-20 md:-mt-8 -mb-16 px-4 sm:px-6 pt-20 md:pt-8 pb-16"
       style={{ background: "radial-gradient(ellipse 900px 500px at 50% 0%, #16213D 0%, #0A0F1C 55%, #05070d 100%)", minHeight: "100vh" }}
     >
       <SectionHeader
-        eyebrow="Live"
+        eyebrow={isUnsoldRound ? "Live · Unsold Round" : "Live · Main List"}
         title="Player Auction — Control Room"
         action={
           <div className="flex gap-2 flex-wrap">
@@ -160,12 +253,14 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
 
       {auction?.status === "completed" && (
         <Card className="p-5 mb-5">
-          <div className="text-sm font-bold uppercase tracking-wide mb-4 text-gold font-display">Auction Completion Summary</div>
+          <div className="text-sm font-bold uppercase tracking-wide mb-4 text-gold font-display">
+            {isUnsoldRound ? "Unsold Round Complete" : "Main List Complete"}
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5">
-            <StatCard label="Total Auction Players" value={summary.total} tone="gold" />
-            <StatCard label="Sold Players" value={summary.sold} tone="green" />
-            <StatCard label="Unsold Players" value={summary.unsold} tone="red" />
-            <StatCard label="Total Points Spent" value={summary.totalSpent} tone="blue" />
+            <StatCard label="Players This Round" value={summary.total} tone="gold" />
+            <StatCard label="Sold" value={summary.sold} tone="green" />
+            <StatCard label="Unsold" value={summary.unsold} tone="red" />
+            <StatCard label="Points Spent" value={summary.totalSpent} tone="blue" />
           </div>
           <div className="text-xs font-bold uppercase tracking-wide mb-2 text-muted">Team Squad Completion & Guest Distribution</div>
           <div className="space-y-2 mb-5">
@@ -177,38 +272,36 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
             ))}
           </div>
 
-          {unsoldPlayers.length > 0 && (
+          {unsoldPlayers.length > 0 ? (
             <div className="pt-4 border-t border-line">
-              <div className="text-[11px] font-bold uppercase tracking-wide mb-3 text-orange">Unsold Players ({unsoldPlayers.length}) — Available for a Second Round</div>
-              <div className="max-h-40 overflow-y-auto space-y-1 mb-4">
-                {unsoldPlayers.map((p: any) => (
-                  <div key={p.id} className="flex justify-between text-xs py-1 border-b last:border-0 border-line">
-                    <span>{p.full_name}</span>
-                    <span className="text-mutedDim">{p.playing_role} · {p.auction_category || "Unassigned"}</span>
-                  </div>
-                ))}
+              <div className="text-sm font-semibold mb-3">
+                📂 {unsoldPlayers.length} player{unsoldPlayers.length === 1 ? " is" : "s are"} in the Unsold Queue.
               </div>
               <Button
                 variant="primary"
                 size="sm"
                 className="w-full"
                 onClick={() => {
-                  if (window.confirm(`Start a second round for all ${unsoldPlayers.length} unsold players? They'll be moved back into an active pool for bidding.`)) {
+                  if (window.confirm(`Start the Unsold Round with all ${unsoldPlayers.length} players from the Unsold Queue? They'll be shuffled into a new pool.`)) {
                     run(startUnsoldRound);
                   }
                 }}
                 disabled={busy}
               >
-                Start Unsold Players Round
+                Start Unsold Round ({unsoldPlayers.length})
               </Button>
             </div>
+          ) : (
+            <div className="pt-4 border-t border-line text-sm text-mutedDim">The Unsold Queue is empty.</div>
           )}
         </Card>
       )}
 
+      {auction?.status !== "completed" && unsoldQueuePanel}
+
       {!currentPlayer ? (
         <Card className="p-8 text-center text-sm text-mutedDim">
-          {!auction?.pool_order?.length ? "No players in the auction pool yet. Approve and segregate players first, then Start Auction." : "Auction complete — all players in the pool have been processed."}
+          {!auction?.pool_order?.length ? "No players in the auction pool yet. Approve and segregate players first, then Start Auction." : "All players in this list have been processed."}
         </Card>
       ) : (
         <>
@@ -248,7 +341,9 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
                   </div>
                 </div>
               </div>
-              <div className="text-right text-[11px] text-mutedDim">Player {auction.pool_index + 1} of {auction.pool_order.length}</div>
+              <div className="text-right text-[11px] text-mutedDim">
+                {isUnsoldRound ? "Unsold Round · " : ""}Player {auction.pool_index + 1} of {auction.pool_order.length}
+              </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-3">
               <MiniRow label="Role" value={currentPlayer.playing_role} />
@@ -273,6 +368,7 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
                 {auction.current_bid || 0} <span className="text-lg text-mutedDim font-normal">pts</span>
               </div>
               <div className="text-base font-bold mt-2">{leadingTeam ? leadingTeam.name : "No bids yet"}</div>
+              <div className="text-[10px] mt-1 h-3" style={{ color: saving ? "#F0C94A" : "#3DDC97" }}>{saving ? "saving…" : (auction.bid_history || []).length ? "✓ saved" : ""}</div>
             </div>
             <Card className="p-5">
               <div className="text-[11px] uppercase tracking-wide font-semibold mb-2 text-mutedDim">Bid History</div>
@@ -282,6 +378,9 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
                   <div key={i} className="flex justify-between text-xs"><span className="text-muted">{b.teamName}</span><span className="font-mono text-goldBright">{b.amount} pts</span></div>
                 ))}
               </div>
+              <Button variant="subtle" size="sm" className="w-full mt-3" onClick={tryUndoBid} disabled={busy || !(auction.bid_history || []).length}>
+                ↶ Undo Last Bid
+              </Button>
             </Card>
           </div>
 
@@ -299,8 +398,8 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
                 return (
                   <button
                     key={t.id}
-                    onClick={() => tryPlaceBid(nextBidAmount, t.id)}
-                    disabled={busy || bidMaxReached}
+                    onClick={() => tryPlaceBid(t.id)}
+                    disabled={busy || bidMaxReached || auction.status !== "live"}
                     className="rounded-xl p-3 text-center transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                     style={{
                       background: isLeading ? "rgba(61,220,151,0.12)" : "#131D33",
@@ -320,7 +419,7 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
             {msg && <div className="text-xs font-semibold mb-2 text-red">⚠ {msg}</div>}
             {canOverride ? (
               <label className="flex items-center gap-2 text-xs mb-3 text-mutedDim">
-                <input type="checkbox" className="!w-auto" checked={override} onChange={(e) => setOverride(e.target.checked)} /> Super Admin override (ignore squad/quota/purse limits)
+                <input type="checkbox" className="!w-auto" checked={override} onChange={(e: any) => setOverride(e.target.checked)} /> Super Admin override (ignore squad/quota/purse limits)
               </label>
             ) : (
               <div className="text-[11px] mb-3 text-mutedDim">Only Super Admin can override squad, guest quota or purse limits.</div>
