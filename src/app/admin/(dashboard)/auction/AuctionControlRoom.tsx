@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Badge, Button, Card, SectionHeader, SeamDivider, StatCard } from "@/components/ui";
 import { AUCTION_ROLES, OVERRIDE_ROLES, computeAge } from "@/lib/constants";
 import { computeRemainingPoints, computeSquad, computeGuestCount, validateSale } from "@/lib/auction";
-import { startAuction, pauseAuction, placeBid, undoLastBid, markSold, markUnsold, deferPlayer, undoLastPlayerResult, resetAuction, fullResetAuction, startUnsoldRound } from "./actions";
+import { startAuction, pauseAuction, placeBid, undoLastBid, markSold, markUnsold, deferPlayer, undoLastPlayerResult, resetAuction, fullResetAuction, startUnsoldRound, setCallStatus, setBidTimer } from "./actions";
 
 // Tiered bid step: the increment gets bigger as the bid climbs, per the
 // organiser's planned structure. Falls back to sensible defaults if a
@@ -40,6 +40,8 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
   const [saving, setSaving] = useState(false);
   const [flash, setFlash] = useState<"sold" | "unsold" | null>(null);
   const [showQueue, setShowQueue] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(t); }, []);
 
   // Instant bidding: taps update the screen straight away, and the saves
   // run one after another in the background so none overtake each other.
@@ -159,6 +161,7 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
       ...cur,
       current_bid: amount,
       current_team_id: teamId,
+      call_status: null,
       bid_history: [...(cur.bid_history || []), { teamId, teamName: team.name, amount, ts: Date.now() }],
     });
     enqueue(() => placeBid(teamId, amount, override, expected));
@@ -445,6 +448,42 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
             ) : (
               <div className="text-[11px] mb-3 text-mutedDim">Only Super Admin can override squad, guest quota or purse limits.</div>
             )}
+            <div className="rounded-xl p-3 mb-3" style={{ background: "#0E1628", border: "1px solid #22304F" }}>
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                <span className="text-[11px] uppercase tracking-wide font-semibold text-mutedDim">Call on Display</span>
+                <span className="text-xs font-bold" style={{ color: auction.call_status ? "#FF9A66" : "#3DDC97" }}>
+                  {auction.call_status ? auction.call_status.toUpperCase() : "OPEN"}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {([null, "Going Once", "Going Twice"] as const).map((c) => (
+                  <button key={c ?? "open"} type="button" disabled={busy || !auction.current_team_id}
+                    onClick={() => { applyAuction({ ...auctionRef.current, call_status: c }); run(() => setCallStatus(c)); }}
+                    className="py-2 rounded-lg text-xs font-bold border disabled:opacity-40"
+                    style={{ borderColor: auction.call_status === c ? "#D4AF37" : "#22304F", color: auction.call_status === c ? "#F0C94A" : "#8B98B5", background: auction.call_status === c ? "rgba(212,175,55,0.12)" : "transparent" }}>
+                    {c ?? "Open"}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                <span className="text-[11px] uppercase tracking-wide font-semibold text-mutedDim">Bid Timer (restarts on every bid)</span>
+                {auction.timer_ends_at && (
+                  <span className="text-xs font-bold font-mono text-goldBright">
+                    {Math.max(0, Math.ceil((new Date(auction.timer_ends_at).getTime() - now) / 1000))}s
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {[null, 15, 30, 45].map((sec) => (
+                  <button key={sec ?? "off"} type="button" disabled={busy}
+                    onClick={() => run(() => setBidTimer(sec))}
+                    className="py-2 rounded-lg text-xs font-bold border disabled:opacity-40"
+                    style={{ borderColor: (auction.timer_seconds ?? null) === sec ? "#D4AF37" : "#22304F", color: (auction.timer_seconds ?? null) === sec ? "#F0C94A" : "#8B98B5", background: (auction.timer_seconds ?? null) === sec ? "rgba(212,175,55,0.12)" : "transparent" }}>
+                    {sec ? `${sec}s` : "Off"}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <Button variant="primary" onClick={() => flashResult("sold", () => markSold(override))} disabled={!auction.current_team_id || busy}>SOLD</Button>
               <Button variant="danger" onClick={() => flashResult("unsold", markUnsold)} disabled={busy}>UNSOLD</Button>
