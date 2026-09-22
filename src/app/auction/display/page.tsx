@@ -94,8 +94,10 @@ export default function AuctionDisplayPage() {
   const [unsoldCount, setUnsoldCount] = useState(0);
   const [players, setPlayers] = useState<Record<string, any>>({});
   const [banner, setBanner] = useState<any>(null);
-  const [now, setNow] = useState(Date.now());
   const lastResultTs = useRef<number | null>(null);
+  const lastBlockKey = useRef<string>("");
+  const initialised = useRef(false);
+  const countsTimer = useRef<any>(null);
   const bannerTimer = useRef<any>(null);
   const requested = useRef<Set<string>>(new Set());
   const auctionRef = useRef<any>(null);
@@ -125,6 +127,16 @@ export default function AuctionDisplayPage() {
     setPoolStatus(map);
   }
 
+  // Team purses and squads are re-counted whenever the player on the block
+  // changes (SOLD, UNSOLD, defer, undo, new round) — once straight away and
+  // once more a moment later, so a sale is always reflected even if the
+  // player record lands a split second after the auction update.
+  function refreshCounts() {
+    loadCounts();
+    clearTimeout(countsTimer.current);
+    countsTimer.current = setTimeout(loadCounts, 1500);
+  }
+
   function onAuction(next: any) {
     if (!next) return;
     auctionRef.current = next;
@@ -133,32 +145,39 @@ export default function AuctionDisplayPage() {
     const upcoming = next.pool_order?.[Number(next.pool_index ?? 0) + 1];
     if (upcoming) ensurePlayer(upcoming);
 
+    const blockKey = `${next.current_player_id}|${next.pool_index}|${next.status}|${next.pool_order?.length}|${next.last_action?.ts ?? ""}`;
+    if (blockKey !== lastBlockKey.current) {
+      lastBlockKey.current = blockKey;
+      refreshCounts();
+    }
+
     const ts = next.last_action?.ts ?? null;
     if (ts !== lastResultTs.current) {
-      const first = lastResultTs.current === null;
       lastResultTs.current = ts;
-      loadCounts();
-      if (!first && next.last_action) {
+      // Don't replay an old result when the screen is first opened.
+      if (initialised.current && next.last_action) {
         setBanner(next.last_action);
         clearTimeout(bannerTimer.current);
         bannerTimer.current = setTimeout(() => setBanner(null), 6000);
       }
     }
+    initialised.current = true;
   }
 
   useEffect(() => {
     supabase.from("tournament_settings").select("*").eq("id", 1).single().then(({ data }: any) => setSettings(data));
-    supabase.from("auction_state").select("*").eq("id", 1).single().then(({ data }: any) => { onAuction(data); loadCounts(); });
+    supabase.from("auction_state").select("*").eq("id", 1).single().then(({ data }: any) => onAuction(data));
 
     const channel = supabase
       .channel("auction-display")
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "auction_state", filter: "id=eq.1" }, (payload: any) => onAuction(payload.new))
       .subscribe();
+    // Safety net for patchy venue Wi-Fi: re-check everything every 15 seconds.
     const poll = setInterval(() => {
       supabase.from("auction_state").select("*").eq("id", 1).single().then(({ data }: any) => onAuction(data));
+      loadCounts();
     }, 15000);
-    const tick = setInterval(() => setNow(Date.now()), 250);
-    return () => { supabase.removeChannel(channel); clearInterval(poll); clearInterval(tick); clearTimeout(bannerTimer.current); };
+    return () => { supabase.removeChannel(channel); clearInterval(poll); clearTimeout(bannerTimer.current); clearTimeout(countsTimer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -185,16 +204,7 @@ export default function AuctionDisplayPage() {
   const increment = nextIncrement(currentBid, settings);
   const age = player ? computeAge(player.dob) : null;
 
-  const secondsLeft = auction?.timer_ends_at ? Math.max(0, Math.ceil((new Date(auction.timer_ends_at).getTime() - now) / 1000)) : null;
   const isUnsoldRound = auction?.round === "Unsold";
-
-  const status: { label: string; color: string } =
-    banner ? (banner.type === "SOLD" ? { label: "SOLD", color: "#3DDC97" } : { label: "UNSOLD", color: "#FF5D6C" })
-    : auction?.status === "paused" ? { label: "PAUSED", color: "#FF9A66" }
-    : auction?.call_status === "Going Twice" ? { label: "GOING TWICE", color: "#FF6B3D" }
-    : auction?.call_status === "Going Once" ? { label: "GOING ONCE", color: "#FFB547" }
-    : auction?.current_player_id ? { label: "OPEN", color: "#3DDC97" }
-    : { label: "STANDBY", color: "#8B98B5" };
 
   const pool: string[] = auction?.pool_order || [];
   const soldInRound = pool.filter((id) => poolStatus[id] === "Sold / Selected").length;
@@ -370,59 +380,39 @@ export default function AuctionDisplayPage() {
                   </div>
                 </div>
 
-                {/* timer + currently bidding */}
-                <div className="grid grid-cols-5 gap-[0.8vw]">
-                  <div className="col-span-2 rounded-2xl flex flex-col items-center justify-center py-[1vh]" style={{ background: "rgba(8,13,26,0.7)", border: "1px solid rgba(212,175,55,0.45)" }}>
-                    <div className="text-[clamp(10px,0.8vw,14px)] font-bold uppercase tracking-[0.3em] text-[#C7CEDD]">⏱ Time Left</div>
-                    <div className="font-display font-black tabular-nums text-[clamp(30px,3.4vw,68px)] leading-tight"
-                      style={secondsLeft !== null && secondsLeft <= 5 ? { color: "#FF5D6C", textShadow: "0 0 20px rgba(255,93,108,0.6)" } : GOLD_TEXT}>
-                      {secondsLeft === null ? "--:--" : `00:${String(secondsLeft).padStart(2, "0")}`}
-                    </div>
-                    {secondsLeft === 0 && <div className="text-[clamp(9px,0.7vw,12px)] font-bold tracking-widest text-[#FF5D6C]">TIME UP</div>}
-                  </div>
-                  <div className="col-span-3 rounded-2xl flex items-center gap-[1vw] px-[1vw] py-[1vh]"
-                    style={leading ? { background: "linear-gradient(135deg, rgba(61,220,151,0.18), rgba(8,13,26,0.7))", border: "2px solid #3DDC97", boxShadow: "0 0 30px rgba(61,220,151,0.3)" } : { background: "rgba(8,13,26,0.7)", border: "1px solid rgba(212,175,55,0.45)" }}>
-                    {leading ? (
-                      <>
-                        {logoUrl(leading.logo_path)
-                          ? <img src={logoUrl(leading.logo_path)!} alt="" className="w-[clamp(48px,4.6vw,92px)] h-[clamp(48px,4.6vw,92px)] object-contain rounded-xl bg-white/5 p-1 shrink-0" />
-                          : <div className="w-[clamp(48px,4.6vw,92px)] h-[clamp(48px,4.6vw,92px)] rounded-xl flex items-center justify-center font-black text-xl shrink-0" style={{ background: "#101a31", color: "#3DDC97" }}>{leading.name.slice(0, 2)}</div>}
-                        <div className="min-w-0">
-                          <div className="text-[clamp(10px,0.8vw,14px)] font-bold uppercase tracking-[0.3em]" style={{ color: "#3DDC97" }}>Currently Bidding</div>
-                          <div className="font-display font-black uppercase leading-tight text-[clamp(16px,1.6vw,32px)]" style={{ color: "#5CF0B0", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{leading.name}</div>
-                          <div className="text-[clamp(10px,0.8vw,14px)] text-[#C7CEDD]">{fmt(leading.remaining)} pts left · {leading.bought}{maxSquad ? `/${maxSquad}` : ""} squad</div>
+                {/* currently bidding */}
+                <div className="rounded-2xl flex items-center gap-[1.2vw] px-[1.4vw] py-[1.4vh]"
+                  style={leading ? { background: "linear-gradient(135deg, rgba(61,220,151,0.18), rgba(8,13,26,0.7))", border: "2px solid #3DDC97", boxShadow: "0 0 30px rgba(61,220,151,0.3)" } : { background: "rgba(8,13,26,0.7)", border: "1px solid rgba(212,175,55,0.45)" }}>
+                  {leading ? (
+                    <>
+                      {logoUrl(leading.logo_path)
+                        ? <img src={logoUrl(leading.logo_path)!} alt="" className="w-[clamp(56px,5.4vw,108px)] h-[clamp(56px,5.4vw,108px)] object-contain rounded-xl bg-white/5 p-1 shrink-0" />
+                        : <div className="w-[clamp(56px,5.4vw,108px)] h-[clamp(56px,5.4vw,108px)] rounded-xl flex items-center justify-center font-black text-2xl shrink-0" style={{ background: "#101a31", color: "#3DDC97" }}>{leading.name.slice(0, 2)}</div>}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[clamp(10px,0.85vw,15px)] font-bold uppercase tracking-[0.3em]" style={{ color: "#3DDC97" }}>
+                          <span className="inline-block w-2 h-2 rounded-full mr-2 align-middle animate-pulse" style={{ background: "#3DDC97" }} />Currently Bidding
                         </div>
-                      </>
-                    ) : (
-                      <div className="w-full text-center">
-                        <div className="text-[clamp(10px,0.8vw,14px)] font-bold uppercase tracking-[0.3em] text-[#C7CEDD]">Opening Bid</div>
-                        <div className="font-display font-black text-[clamp(20px,2vw,40px)]" style={GOLD_TEXT}>{fmt(basePrice)} PTS</div>
-                        <div className="text-[clamp(10px,0.8vw,14px)] text-[#9AA6C2]">Waiting for the first paddle…</div>
+                        <div className="font-display font-black uppercase leading-tight text-[clamp(20px,2.2vw,44px)]" style={{ color: "#5CF0B0", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{leading.name}</div>
                       </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* status strip */}
-                <div className="grid grid-cols-4 gap-[0.6vw]">
-                  {["OPEN", "GOING ONCE", "GOING TWICE", "SOLD"].map((s) => {
-                    const active = status.label === s;
-                    return (
-                      <div key={s} className="rounded-xl py-[0.9vh] text-center font-display font-black tracking-wider text-[clamp(10px,0.95vw,18px)] transition-all"
-                        style={active
-                          ? { background: `linear-gradient(180deg, ${status.color}33, ${status.color}10)`, border: `2px solid ${status.color}`, color: status.color, boxShadow: `0 0 24px ${status.color}55` }
-                          : { background: "rgba(8,13,26,0.6)", border: "1px solid rgba(255,255,255,0.08)", color: "#56607A" }}>
-                        {active && <span className="inline-block w-2 h-2 rounded-full mr-2 align-middle animate-pulse" style={{ background: status.color }} />}{s}
+                      <div className="text-right shrink-0 text-[clamp(10px,0.85vw,15px)] text-[#C7CEDD] leading-relaxed">
+                        <div><b className="text-white">{fmt(leading.remaining)}</b> pts left</div>
+                        <div><b className="text-white">{leading.bought}{maxSquad ? `/${maxSquad}` : ""}</b> squad</div>
                       </div>
-                    );
-                  })}
+                    </>
+                  ) : (
+                    <div className="w-full text-center">
+                      <div className="text-[clamp(10px,0.85vw,15px)] font-bold uppercase tracking-[0.3em] text-[#C7CEDD]">Bidding Open · Opening Bid</div>
+                      <div className="font-display font-black text-[clamp(22px,2.3vw,46px)]" style={GOLD_TEXT}>{fmt(basePrice)} PTS</div>
+                      <div className="text-[clamp(10px,0.85vw,15px)] text-[#9AA6C2]">Waiting for the first bid…</div>
+                    </div>
+                  )}
                 </div>
 
                 {/* recent bids */}
-                <div className="rounded-xl px-3 py-2 min-h-0 overflow-hidden" style={{ background: "rgba(8,13,26,0.55)", border: "1px solid rgba(212,175,55,0.2)" }}>
+                <div className="rounded-xl px-3 py-2 flex-1 min-h-0 overflow-hidden" style={{ background: "rgba(8,13,26,0.55)", border: "1px solid rgba(212,175,55,0.2)" }}>
                   <div className="text-[clamp(9px,0.7vw,12px)] font-bold uppercase tracking-[0.3em] text-[#9AA6C2] mb-1">Bid Trail</div>
-                  <div className="flex gap-2 overflow-hidden whitespace-nowrap">
-                    {[...(auction.bid_history || [])].reverse().slice(0, 6).map((b: any, i: number) => (
+                  <div className="flex flex-wrap gap-2 overflow-hidden">
+                    {[...(auction.bid_history || [])].reverse().slice(0, 12).map((b: any, i: number) => (
                       <span key={`${b.ts}-${i}`} className="px-2.5 py-1 rounded-lg text-[clamp(10px,0.8vw,14px)]"
                         style={{ background: i === 0 ? "rgba(212,175,55,0.16)" : "rgba(255,255,255,0.04)", color: i === 0 ? "#F0C94A" : "#C7CEDD", fontWeight: i === 0 ? 800 : 500 }}>
                         {b.teamName} · {fmt(b.amount)}
