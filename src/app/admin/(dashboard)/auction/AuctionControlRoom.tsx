@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Badge, Button, Card, SectionHeader, SeamDivider, StatCard } from "@/components/ui";
 import { AUCTION_ROLES, OVERRIDE_ROLES, computeAge } from "@/lib/constants";
 import { computeRemainingPoints, computeSquad, computeGuestCount, validateSale } from "@/lib/auction";
-import { startAuction, pauseAuction, placeBid, undoLastBid, markSold, markUnsold, deferPlayer, undoLastPlayerResult, resetAuction, startUnsoldRound } from "./actions";
+import { startAuction, pauseAuction, placeBid, undoLastBid, markSold, markUnsold, deferPlayer, undoLastPlayerResult, resetAuction, fullResetAuction, startUnsoldRound } from "./actions";
 
 // Tiered bid step: the increment gets bigger as the bid climbs, per the
 // organiser's planned structure. Falls back to sensible defaults if a
@@ -242,6 +242,27 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
                 disabled={busy}
               >
                 Reset Auction
+              </Button>
+            )}
+            {canOverride && (
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={async () => {
+                  const typed = window.prompt(
+                    "FULL RESET (for test runs)\n\nThis undoes EVERY auction result: all Sold and Unsold players go back to the auction list and every team's purse is restored. Owners and Captain/Icon players stay with their teams.\n\nDon't use this after the real auction has started.\n\nType RESET to confirm."
+                  );
+                  if (typed !== "RESET") return;
+                  setBusy(true); setMsg("");
+                  const res: any = await afterPendingBids(fullResetAuction);
+                  setBusy(false);
+                  if (res?.error) window.alert(res.error);
+                  else window.alert(`Full reset done. ${res.count} player${res.count === 1 ? "" : "s"} returned to the auction list and team purses restored.`);
+                  resyncAuction();
+                }}
+                disabled={busy}
+              >
+                Full Reset
               </Button>
             )}
           </div>

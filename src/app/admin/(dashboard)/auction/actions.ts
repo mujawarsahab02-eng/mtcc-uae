@@ -287,6 +287,37 @@ export async function resetAuction(): Promise<any> {
   return { ok: true };
 }
 
+// FULL RESET, for test runs: everything "Reset Auction" does, PLUS every
+// auctioned player (Sold, Unsold or still in the pool) goes back to
+// "Approved for Auction" with no team and no points, so every team purse is
+// restored. Owners and Captain/Icon players are never touched — only
+// players whose role is "Auction Player". Super Admin only.
+export async function fullResetAuction(): Promise<any> {
+  const profile = await getCurrentProfile();
+  if (!profile || !OVERRIDE_ROLES.includes(profile.role)) {
+    return { error: "Only Super Admin can do a full reset." };
+  }
+  const supabase = createClient();
+
+  const { data: reverted, error } = await supabase.from("players")
+    .update({ application_status: "Approved for Auction", team_id: null, sold_points: null })
+    .in("application_status", ["Sold / Selected", "Unsold / Not Selected", "Auction Pool"])
+    .or('team_role.is.null,team_role.eq."Auction Player"')
+    .select("id");
+  if (error) return { error: error.message };
+
+  await supabase.from("auction_state").update({
+    status: "idle", round: "Main",
+    pool_order: [], pool_index: 0, current_player_id: null,
+    current_bid: 0, current_team_id: null, bid_history: [], action_log: [], last_action: null,
+    updated_at: new Date().toISOString(),
+  }).eq("id", 1);
+
+  await logAudit({ action: "Auction Full Reset", entity: "Auction", entityId: "auction", newValue: `${reverted?.length ?? 0} players returned to the auction list` });
+  revalidateAuctionPaths();
+  return { ok: true, count: reverted?.length ?? 0 };
+}
+
 // Runs the Unsold Queue: every "Unsold / Not Selected" player goes back into
 // a fresh, shuffled pool. Anyone unsold again returns to the queue, so more
 // rounds can be run. Sold players and team purses are untouched.
