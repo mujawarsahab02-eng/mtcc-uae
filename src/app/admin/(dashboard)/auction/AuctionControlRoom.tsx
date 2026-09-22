@@ -94,6 +94,17 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
     guestCount: computeGuestCount(t, players),
   }));
 
+  // The most recent SOLD/UNSOLD in this round — the one "Undo" reverses.
+  const lastLog = (auction?.action_log || [])[(auction?.action_log || []).length - 1];
+  const lastResult = (() => {
+    if (!lastLog) return null;
+    const p = players.find((x: any) => x.id === lastLog.playerId);
+    if (!p) return null;
+    const sold = p.application_status === "Sold / Selected";
+    const team = sold ? teams.find((t: any) => t.id === p.team_id) : null;
+    return { name: p.full_name || "Player", sold, teamName: team?.name || "", amount: p.sold_points || 0 };
+  })();
+
   const unsoldPlayers = useMemo(() => players.filter((p: any) => p.application_status === "Unsold / Not Selected"), [players]);
   const isUnsoldRound = auction?.round === "Unsold";
 
@@ -269,6 +280,37 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
         }
       />
       <SeamDivider />
+
+      {lastResult && (
+        <Card className="p-3 mb-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="text-xs min-w-0">
+              <div className="uppercase tracking-wide font-semibold text-mutedDim text-[10px] mb-0.5">Last result</div>
+              <div className="truncate">
+                <b>{lastResult.name}</b>{" "}
+                {lastResult.sold
+                  ? <span className="text-green">sold to {lastResult.teamName} for {lastResult.amount} pts</span>
+                  : <span className="text-red">unsold</span>}
+              </div>
+            </div>
+            <Button
+              variant="subtle"
+              size="sm"
+              disabled={busy}
+              onClick={() => {
+                const what = lastResult.sold
+                  ? `${lastResult.name} (sold to ${lastResult.teamName} for ${lastResult.amount} pts)`
+                  : `${lastResult.name} (unsold)`;
+                if (window.confirm(`Undo ${what}?\n\n${lastResult.sold ? `${lastResult.teamName} gets the ${lastResult.amount} pts back, and ` : ""}${lastResult.name} comes back on the block for fresh bidding. Nothing else changes.`)) {
+                  run(undoLastPlayerResult);
+                }
+              }}
+            >
+              ↶ Undo {lastResult.name.split(" ")[0]}
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {auction?.status === "paused" && <Card className="p-3 mb-4 text-sm font-semibold text-center text-orange" style={{ borderColor: "rgba(255,122,61,0.3)" }}>Auction Paused</Card>}
 
@@ -449,7 +491,6 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
               <Button variant="primary" onClick={() => flashResult("sold", () => markSold(override))} disabled={!auction.current_team_id || busy}>SOLD</Button>
               <Button variant="danger" onClick={() => flashResult("unsold", markUnsold)} disabled={busy}>UNSOLD</Button>
               <Button variant="ghost" size="sm" className="col-span-2" onClick={() => run(deferPlayer)} disabled={busy}>DEFER PLAYER</Button>
-              <Button variant="subtle" size="sm" className="col-span-2" onClick={() => run(undoLastPlayerResult)} disabled={busy || !(auction.action_log?.length)}>UNDO LAST PLAYER RESULT</Button>
             </div>
           </Card>
         </>
