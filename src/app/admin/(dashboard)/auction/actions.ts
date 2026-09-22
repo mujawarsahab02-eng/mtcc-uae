@@ -46,11 +46,6 @@ function revalidateAuctionPaths() {
 
 const STALE = "Another bid came in first. The screen has been refreshed, tap again if needed.";
 
-// The bid timer (if switched on) restarts with every new bid.
-function timerEndsFrom(seconds: number | null | undefined) {
-  return seconds ? new Date(Date.now() + seconds * 1000).toISOString() : null;
-}
-
 // Saves the new bid only if the bid on the server hasn't changed since it
 // was read, so two quick taps can never both land on the same amount.
 function onlyIfBidIs(query: any, bid: any) {
@@ -123,7 +118,7 @@ export async function placeBid(teamId: string, nextAmount: number, override: boo
   const bidHistory = [...(auction.bid_history || []), { teamId, teamName: (team as any).name, amount: nextAmount, ts: Date.now() }];
   const { data: saved } = await onlyIfBidIs(supabase.from("auction_state").update({
     current_bid: nextAmount, current_team_id: teamId, bid_history: bidHistory,
-    call_status: null, timer_ends_at: timerEndsFrom(auction.timer_seconds),
+    call_status: null, timer_ends_at: null,
     updated_at: new Date().toISOString(),
   }).eq("id", 1), auction.current_bid).select("id");
   if (!saved?.length) return { error: STALE, stale: true };
@@ -153,7 +148,7 @@ export async function undoLastBid(expectedBid?: number): Promise<any> {
   const prev = remaining[remaining.length - 1];
   const { data: saved } = await onlyIfBidIs(supabase.from("auction_state").update({
     current_bid: prev?.amount ?? 0, current_team_id: prev?.teamId ?? null, bid_history: remaining,
-    call_status: null, timer_ends_at: remaining.length ? timerEndsFrom(auction.timer_seconds) : null,
+    call_status: null, timer_ends_at: null,
     updated_at: new Date().toISOString(),
   }).eq("id", 1), auction.current_bid).select("id");
   if (!saved?.length) return { error: STALE, stale: true };
@@ -360,27 +355,3 @@ export async function startUnsoldRound(): Promise<any> {
   return { ok: true };
 }
 
-// "Going once" / "Going twice" call shown on Display Mode. Any new bid
-// clears it back to OPEN.
-export async function setCallStatus(status: "Going Once" | "Going Twice" | null): Promise<any> {
-  const guard = await requireAuctionRole();
-  if ("error" in guard) return guard;
-  const supabase = createClient();
-  await supabase.from("auction_state").update({ call_status: status, updated_at: new Date().toISOString() }).eq("id", 1);
-  return { ok: true };
-}
-
-// Bid timer shown on Display Mode. When on, it starts at the first bid and
-// restarts with every new bid; pass null to switch it off.
-export async function setBidTimer(seconds: number | null): Promise<any> {
-  const guard = await requireAuctionRole();
-  if ("error" in guard) return guard;
-  const supabase = createClient();
-  const { data: auction } = await supabase.from("auction_state").select("current_team_id").eq("id", 1).single();
-  await supabase.from("auction_state").update({
-    timer_seconds: seconds,
-    timer_ends_at: seconds && auction?.current_team_id ? timerEndsFrom(seconds) : null,
-    updated_at: new Date().toISOString(),
-  }).eq("id", 1);
-  return { ok: true };
-}
