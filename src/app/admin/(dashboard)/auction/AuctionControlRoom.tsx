@@ -364,7 +364,7 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
 
       {!currentPlayer ? (
         <Card className="p-8 text-center text-sm text-mutedDim">
-          {!auction?.pool_order?.length ? "No players in the auction pool yet. Approve and segregate players first, then Start Auction." : "All players in this list have been processed."}
+          {!auction?.pool_order?.length ? "Ready when you are. Press Start Auction to shuffle every approved player into a random order." : "All players in this list have been processed."}
         </Card>
       ) : (
         <>
