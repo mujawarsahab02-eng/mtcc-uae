@@ -188,7 +188,7 @@ export default function AuctionDisplayPage() {
     const squad = (soldPlayers || []).filter((p: any) => p.team_id === t.id);
     const spent = squad.reduce((s: number, p: any) => s + Number(p.sold_points || 0), 0);
     const total = Number(t.auction_points || 0);
-    return { ...t, total, spent, remaining: total - spent, bought: squad.length, slots: maxSquad ? Math.max(0, maxSquad - squad.length) : null };
+    return { ...t, total, spent, remaining: total - spent, bought: squad.filter((p: any) => (p.team_role ?? "Auction Player") === "Auction Player").length, squad: squad.length, slots: maxSquad ? Math.max(0, maxSquad - squad.length) : null };
   });
   const leading = teamStats.find((t: any) => t.id === auction?.current_team_id) || null;
   const bidHistory: any[] = auction?.bid_history || [];
@@ -446,7 +446,7 @@ export default function AuctionDisplayPage() {
                       </div>
                       <div className="text-right shrink-0 text-[clamp(10px,0.85vw,15px)] text-[#C7CEDD] leading-relaxed">
                         <div><b className="text-white">{fmt(leading.remaining)}</b> pts left</div>
-                        <div><b className="text-white">{leading.bought}{maxSquad ? `/${maxSquad}` : ""}</b> squad</div>
+                        <div><b className="text-white">{leading.squad ?? leading.bought}{maxSquad ? `/${maxSquad}` : ""}</b> squad</div>
                       </div>
                     </>
                   ) : (
@@ -489,7 +489,7 @@ export default function AuctionDisplayPage() {
               const inBidding = !!bidTeamIds[t.id];
               const logo = logoUrl(t.logo_path);
               const spentPct = t.total ? Math.min(100, (t.spent / t.total) * 100) : 0;
-              const squadPct = maxSquad ? Math.min(100, (t.bought / maxSquad) * 100) : 0;
+              const squadPct = maxSquad ? Math.min(100, ((t.squad ?? t.bought) / maxSquad) * 100) : 0;
               return (
                 <div key={t.id} className="rounded-xl px-2 py-[0.7vh] transition-all"
                   style={isLeading
