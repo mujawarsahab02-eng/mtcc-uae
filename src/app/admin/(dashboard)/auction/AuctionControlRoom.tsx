@@ -8,7 +8,7 @@ import { AUCTION_ROLES, OVERRIDE_ROLES, computeAge } from "@/lib/constants";
 import { computeRemainingPoints, computeSquad, computeGuestCount, validateSale } from "@/lib/auction";
 import {
   startAuction, pauseAuction, placeBid, undoLastBid, markSold, markUnsold,
-  deferPlayer, undoLastPlayerResult, resetAuction, fullResetAuction, startUnsoldRound,
+  deferPlayer, undoLastPlayerResult, resetAuction, fullResetAuction, startUnsoldRound, refreshTeamStats,
 } from "./actions";
 
 // Tiered bid step: the increment grows as the bid climbs.
@@ -85,9 +85,12 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
         setTeams((prev) => prev.map((t) => (t.id === payload.new.id ? payload.new : t)));
       })
       .subscribe();
+    // Makes sure Display Mode has a team table to show before the first
+    // sale of the day.
+    refreshTeamStats().catch(() => {});
     // Safety net: even if the live feed drops, nothing is ever more than a
     // few seconds stale.
-    const poll = setInterval(refreshAll, 5000);
+    const poll = setInterval(refreshAll, 4000);
     return () => { supabase.removeChannel(channel); clearInterval(poll); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]);

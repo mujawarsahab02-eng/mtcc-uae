@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/supabase/profile";
 import { AUCTION_ROLES, OVERRIDE_ROLES } from "@/lib/constants";
-import { validateSale, type PlayerRow, type TeamRow } from "@/lib/auction";
+import { validateSale, computeSquad, computeRemainingPoints, type PlayerRow, type TeamRow } from "@/lib/auction";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 
@@ -45,6 +45,52 @@ function revalidateSlowPaths() {
   revalidatePath("/team");
 }
 
+// Every team's purse and squad, worked out here on the server and saved
+// into auction_state alongside the sale itself. The Display screen then
+// reads the numbers out of the same row it already reads the bid from, so
+// the purse can never lag behind a sale and needs no extra queries. Uses
+// the very same helpers as the Control Room, so both screens always agree.
+function buildTeamStats(teams: any[], players: any[], settings: any) {
+  const maxSquad = Number(settings?.max_squad_size || 0);
+  return (teams || []).map((t: any) => {
+    const squad = computeSquad(t, players);
+    const remaining = computeRemainingPoints(t, players);
+    const total = Number(t.auction_points || 0);
+    return {
+      id: t.id, name: t.name, logo_path: t.logo_path ?? null,
+      total, spent: total - remaining, remaining,
+      bought: squad.length, slots: maxSquad ? Math.max(0, maxSquad - squad.length) : null,
+    };
+  });
+}
+
+// Counters for the footer strip, saved in the same write.
+function buildRoundStats(auction: any, players: any[]) {
+  const order: string[] = auction?.pool_order || [];
+  const byId: Record<string, any> = {};
+  for (const p of players || []) byId[p.id] = p;
+  const inPool = order.map((id) => byId[id]).filter(Boolean);
+  return {
+    sold: inPool.filter((p: any) => p.application_status === "Sold / Selected").length,
+    unsold: inPool.filter((p: any) => p.application_status === "Unsold / Not Selected").length,
+    queue: (players || []).filter((p: any) => p.application_status === "Unsold / Not Selected").length,
+  };
+}
+
+// Recalculates and saves the team table on its own. Used when a screen
+// opens before any sale has happened.
+export async function refreshTeamStats(): Promise<any> {
+  const guard = await requireAuctionRole();
+  if ("error" in guard) return guard;
+  const supabase = createClient();
+  const { auction, players, teams, settings } = await loadContext(supabase);
+  await supabase.from("auction_state").update({
+    team_stats: buildTeamStats(teams, players, settings),
+    round_stats: buildRoundStats(auction, players),
+  }).eq("id", 1);
+  return { ok: true };
+}
+
 const STALE = "Another bid landed first — the screen has been refreshed. Tap again if you still want this bid.";
 
 // Compare-and-set: the bid only saves if the bid on the server is still what
@@ -57,7 +103,7 @@ export async function startAuction(): Promise<any> {
   const guard = await requireAuctionRole();
   if ("error" in guard) return guard;
   const supabase = createClient();
-  const { auction, players } = await loadContext(supabase);
+  const { auction, players, teams, settings } = await loadContext(supabase);
   if (!auction) return { error: "Auction state not initialised." };
 
   if (auction.status === "idle" || (auction.pool_order?.length ?? 0) === 0) {
@@ -68,9 +114,13 @@ export async function startAuction(): Promise<any> {
     if (!order.length) return { error: "No players are Approved for Auction yet." };
 
     await supabase.from("players").update({ application_status: "Auction Pool" }).in("id", order);
+    const seeded = players.map((p: any) => order.includes(p.id) ? { ...p, application_status: "Auction Pool" } : p);
     await supabase.from("auction_state").update({
       status: "live", round: "Main", pool_order: order, pool_index: 0, current_player_id: order[0],
-      current_bid: 0, current_team_id: null, bid_history: [], updated_at: new Date().toISOString(),
+      current_bid: 0, current_team_id: null, bid_history: [],
+      team_stats: buildTeamStats(teams, seeded, settings),
+      round_stats: buildRoundStats({ pool_order: order }, seeded),
+      updated_at: new Date().toISOString(),
     }).eq("id", 1);
     await logAudit({ action: "Auction Started", entity: "Auction", entityId: "auction", newValue: `${order.length} players` });
   } else {
@@ -166,7 +216,13 @@ export async function undoLastBid(expectedBid?: number): Promise<any> {
   return { ok: true };
 }
 
-async function advancePool(supabase: ReturnType<typeof createClient>, auction: any, actionLog: any[], lastAction: any) {
+// One single write: the result, the next player, and the recalculated team
+// table all land together, so every screen sees a consistent picture in one
+// live message rather than catching it halfway through.
+async function advancePool(
+  supabase: ReturnType<typeof createClient>, auction: any, actionLog: any[], lastAction: any,
+  teams: any[], players: any[], settings: any
+) {
   const nextIndex = Number(auction.pool_index || 0) + 1;
   const order: string[] = auction.pool_order || [];
   const done = nextIndex >= order.length;
@@ -176,6 +232,8 @@ async function advancePool(supabase: ReturnType<typeof createClient>, auction: a
     current_player_id: done ? null : order[nextIndex],
     current_bid: 0, current_team_id: null, bid_history: [],
     action_log: actionLog, last_action: lastAction,
+    team_stats: buildTeamStats(teams, players, settings),
+    round_stats: buildRoundStats(auction, players),
     updated_at: new Date().toISOString(),
   }).eq("id", 1);
 }
@@ -207,7 +265,10 @@ export async function markSold(override: boolean): Promise<any> {
     type: "SOLD", playerName: (player as any).full_name || "Player",
     teamName: (team as any).name || "", teamId: (team as any).id, amount: Number(auction.current_bid || 0), ts: Date.now(),
   };
-  await advancePool(supabase, auction, actionLog, lastAction);
+  const afterSale = players.map((p: any) => p.id === (player as any).id
+    ? { ...p, application_status: "Sold / Selected", team_id: (team as any).id, sold_points: auction.current_bid }
+    : p);
+  await advancePool(supabase, auction, actionLog, lastAction, teams, afterSale, settings);
 
   await logAudit({ action: "Player Sold", entity: "Player", entityId: (player as any).id, field: "application_status", previousValue: prevStatus, newValue: "Sold / Selected" });
   if (warnings.length && effectiveOverride) {
@@ -221,9 +282,9 @@ export async function markUnsold(): Promise<any> {
   const guard = await requireAuctionRole();
   if ("error" in guard) return guard;
   const supabase = createClient();
-  const { data: auction } = await supabase.from("auction_state").select("*").eq("id", 1).single();
+  const { auction, players, teams, settings } = await loadContext(supabase);
   if (!auction?.current_player_id) return { error: "No player is on the block." };
-  const { data: player } = await supabase.from("players").select("id, full_name, application_status").eq("id", auction.current_player_id).single();
+  const player = players.find((p: any) => p.id === auction.current_player_id);
   if (!player) return { error: "Player not found." };
 
   const prevStatus = player.application_status;
@@ -232,7 +293,8 @@ export async function markUnsold(): Promise<any> {
 
   const actionLog = [...(auction.action_log || []), { playerId: player.id, prevStatus, poolIndex: auction.pool_index }];
   const lastAction = { type: "UNSOLD", playerName: player.full_name || "Player", teamName: null, teamId: null, amount: 0, ts: Date.now() };
-  await advancePool(supabase, auction, actionLog, lastAction);
+  const after = players.map((p: any) => p.id === player.id ? { ...p, application_status: "Unsold / Not Selected" } : p);
+  await advancePool(supabase, auction, actionLog, lastAction, teams, after, settings);
 
   await logAudit({ action: "Player Unsold", entity: "Player", entityId: player.id, field: "application_status", previousValue: prevStatus, newValue: "Unsold / Not Selected" });
   revalidateSlowPaths();
@@ -263,7 +325,7 @@ export async function undoLastPlayerResult(): Promise<any> {
   const guard = await requireAuctionRole();
   if ("error" in guard) return guard;
   const supabase = createClient();
-  const { data: auction } = await supabase.from("auction_state").select("*").eq("id", 1).single();
+  const { auction, players, teams, settings } = await loadContext(supabase);
   const log = auction?.action_log || [];
   if (!log.length) return { error: "There is no result to undo." };
 
@@ -273,9 +335,14 @@ export async function undoLastPlayerResult(): Promise<any> {
     .eq("id", last.playerId);
   if (error) return { error: error.message };
 
+  const reverted = players.map((p: any) => p.id === last.playerId
+    ? { ...p, application_status: last.prevStatus, team_id: null, sold_points: null } : p);
+  const nextAuction = { ...auction, pool_index: last.poolIndex };
   await supabase.from("auction_state").update({
     status: "live", pool_index: last.poolIndex, current_player_id: auction.pool_order[last.poolIndex],
     action_log: log.slice(0, -1), current_bid: 0, current_team_id: null, bid_history: [], last_action: null,
+    team_stats: buildTeamStats(teams, reverted, settings),
+    round_stats: buildRoundStats(nextAuction, reverted),
     updated_at: new Date().toISOString(),
   }).eq("id", 1);
 
@@ -290,9 +357,11 @@ export async function resetAuction(): Promise<any> {
   const profile = await getCurrentProfile();
   if (!profile || !OVERRIDE_ROLES.includes(profile.role)) return { error: "Only Super Admin can reset the auction." };
   const supabase = createClient();
+  const { players, teams, settings } = await loadContext(supabase);
   await supabase.from("auction_state").update({
     status: "idle", round: "Main", pool_order: [], pool_index: 0, current_player_id: null,
     current_bid: 0, current_team_id: null, bid_history: [], action_log: [], last_action: null,
+    team_stats: buildTeamStats(teams, players, settings), round_stats: { sold: 0, unsold: 0, queue: 0 },
     updated_at: new Date().toISOString(),
   }).eq("id", 1);
   await logAudit({ action: "Auction Reset", entity: "Auction", entityId: "auction" });
@@ -315,9 +384,11 @@ export async function fullResetAuction(): Promise<any> {
     .select("id");
   if (error) return { error: error.message };
 
+  const { players: after, teams, settings } = await loadContext(supabase);
   await supabase.from("auction_state").update({
     status: "idle", round: "Main", pool_order: [], pool_index: 0, current_player_id: null,
     current_bid: 0, current_team_id: null, bid_history: [], action_log: [], last_action: null,
+    team_stats: buildTeamStats(teams, after, settings), round_stats: { sold: 0, unsold: 0, queue: 0 },
     updated_at: new Date().toISOString(),
   }).eq("id", 1);
 
@@ -337,9 +408,12 @@ export async function startUnsoldRound(): Promise<any> {
 
   const ids = shuffle(unsoldPlayers.map((p: any) => p.id));
   await supabase.from("players").update({ application_status: "Auction Pool" }).in("id", ids);
+  const { players, teams, settings } = await loadContext(supabase);
   await supabase.from("auction_state").update({
     status: "live", round: "Unsold", pool_order: ids, pool_index: 0, current_player_id: ids[0],
     current_bid: 0, current_team_id: null, bid_history: [], action_log: [], last_action: null,
+    team_stats: buildTeamStats(teams, players, settings),
+    round_stats: buildRoundStats({ pool_order: ids }, players),
     updated_at: new Date().toISOString(),
   }).eq("id", 1);
   await logAudit({ action: "Unsold Round Started", entity: "Auction", entityId: "auction", newValue: `${ids.length} players` });
