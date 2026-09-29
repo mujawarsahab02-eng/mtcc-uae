@@ -79,21 +79,35 @@ export default function AuctionDisplayPage() {
       .catch(() => { delete requested.current[id]; });
   }
 
-  // One round trip for everything the screen shows. Runs on every live
-  // update and every 2 seconds, so purses and squad counts can never lag
-  // behind a sale.
-  async function refresh(fromLive?: any) {
+  // Two clocks. The fast one asks a single question — "what is the auction
+  // doing?" — which is one tiny row carrying the bid, the player AND the
+  // team table the server worked out at the moment of sale. That row is all
+  // the live screen needs, so it can be asked twice a second.
+  const inFlight = useRef(false);
+  async function tickFast() {
+    if (inFlight.current) return;
+    inFlight.current = true;
     try {
-      if (fromLive) applyAuction(fromLive);
-      const pool: string[] = (fromLive || auctionRef.current)?.pool_order || [];
-      const [stateRes, teamRes, soldRes, unsoldRes, poolRes] = await Promise.all([
-        fromLive ? Promise.resolve({ data: fromLive }) : supabase.from("auction_state").select("*").eq("id", 1).maybeSingle(),
+      const { data } = await supabase.from("auction_state").select("*").eq("id", 1).maybeSingle();
+      if (data) applyAuction(data);
+    } catch {
+      // Ignored — the next tick, half a second later, tries again.
+    } finally {
+      inFlight.current = false;
+    }
+  }
+
+  // The slow one is only a fallback, for the moments before the first sale
+  // of the day when the server hasn't written a team table yet.
+  async function tickSlow() {
+    try {
+      const pool: string[] = auctionRef.current?.pool_order || [];
+      const [teamRes, soldRes, unsoldRes, poolRes] = await Promise.all([
         supabase.from("team_public").select("*"),
         supabase.from("player_public").select("id, team_id, sold_points").eq("application_status", "Sold / Selected"),
         supabase.from("player_public").select("id", { count: "exact", head: true }).eq("application_status", "Unsold / Not Selected"),
         pool.length ? supabase.from("player_public").select("id, application_status").in("id", pool) : Promise.resolve({ data: [] }),
       ]);
-      if (stateRes?.data) applyAuction(stateRes.data);
       if (teamRes?.data) setTeams(teamRes.data);
       if (soldRes?.data) setSoldPlayers(soldRes.data);
       setUnsoldCount(unsoldRes?.count ?? 0);
@@ -101,7 +115,7 @@ export default function AuctionDisplayPage() {
       for (const r of poolRes?.data ?? []) map[r.id] = r.application_status;
       setPoolStatus(map);
     } catch {
-      // A dropped request is ignored; the next poll in 2 seconds retries.
+      // Ignored — the next pass in a few seconds tries again.
     }
   }
 
@@ -117,6 +131,7 @@ export default function AuctionDisplayPage() {
     if (ts !== lastResultTs.current) {
       const first = lastResultTs.current === undefined;
       lastResultTs.current = ts;
+      // Don't replay an old result when the screen is first opened.
       if (!first && next.last_action) {
         setBanner(next.last_action);
         clearTimeout(bannerTimer.current);
@@ -128,14 +143,17 @@ export default function AuctionDisplayPage() {
   useEffect(() => {
     supabase.from("tournament_settings").select("*").eq("id", 1).maybeSingle()
       .then(({ data }: any) => setSettings(data)).catch(() => {});
-    refresh();
+    tickFast();
+    tickSlow();
 
+    // The live feed puts a bid on screen in a few hundredths of a second.
     const channel = supabase
       .channel("auction-display")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "auction_state", filter: "id=eq.1" }, (payload: any) => refresh(payload.new))
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "auction_state", filter: "id=eq.1" }, (payload: any) => applyAuction(payload.new))
       .subscribe();
-    const poll = setInterval(() => refresh(), 2000);
-    return () => { supabase.removeChannel(channel); clearInterval(poll); clearTimeout(bannerTimer.current); };
+    const fast = setInterval(tickFast, 500);
+    const slow = setInterval(tickSlow, 6000);
+    return () => { supabase.removeChannel(channel); clearInterval(fast); clearInterval(slow); clearTimeout(bannerTimer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -151,7 +169,12 @@ export default function AuctionDisplayPage() {
   const nextPlayer = nextPlayerId ? players[nextPlayerId] : null;
   const maxSquad = Number(settings?.max_squad_size || 0);
 
-  const teamStats = (teams || []).map((t: any) => {
+  // The server writes the team table into auction_state at the moment of
+  // each sale, so these numbers arrive with the same message as the bid and
+  // match the Control Room exactly. The local calculation below is only a
+  // stand-in for before the first sale of the day.
+  const serverStats: any[] = Array.isArray(auction?.team_stats) ? auction.team_stats : [];
+  const teamStats = serverStats.length ? serverStats : (teams || []).map((t: any) => {
     const squad = (soldPlayers || []).filter((p: any) => p.team_id === t.id);
     const spent = squad.reduce((s: number, p: any) => s + Number(p.sold_points || 0), 0);
     const total = Number(t.auction_points || 0);
@@ -169,7 +192,9 @@ export default function AuctionDisplayPage() {
   const isUnsoldRound = auction?.round === "Unsold";
 
   const pool: string[] = auction?.pool_order || [];
-  const soldInRound = pool.filter((id) => poolStatus[id] === "Sold / Selected").length;
+  const roundStats = auction?.round_stats || null;
+  const soldInRound = roundStats ? Number(roundStats.sold || 0) : pool.filter((id) => poolStatus[id] === "Sold / Selected").length;
+  const queueCount = roundStats ? Number(roundStats.queue || 0) : unsoldCount;
   const remainingInRound = auction?.current_player_id ? pool.length - Number(auction.pool_index || 0) : 0;
   const lastSold = auction?.last_action?.type === "SOLD" ? auction.last_action : null;
   const dateText = settings?.auction_date
@@ -373,7 +398,7 @@ export default function AuctionDisplayPage() {
                 </div>
                 <div className="text-[clamp(12px,1vw,18px)] mt-2 text-[#C7CEDD]">
                   {!pool.length ? "Stay tuned. The first player will be on the block shortly."
-                    : unsoldCount > 0 ? `${unsoldCount} player${unsoldCount === 1 ? "" : "s"} in the Unsold Queue. The Unsold Round starts shortly.`
+                    : queueCount > 0 ? `${queueCount} player${queueCount === 1 ? "" : "s"} in the Unsold Queue. The Unsold Round starts shortly.`
                     : "Every player has been auctioned. Thank you for watching!"}
                 </div>
               </div>
@@ -525,7 +550,7 @@ export default function AuctionDisplayPage() {
             ["Players", pool.length],
             ["Sold", soldInRound],
             ["Remaining", remainingInRound],
-            [isUnsoldRound ? "Round" : "Unsold Queue", isUnsoldRound ? "Unsold" : unsoldCount],
+            [isUnsoldRound ? "Round" : "Unsold Queue", isUnsoldRound ? "Unsold" : queueCount],
           ].map(([l, v]) => (
             <div key={l as string} className="text-center py-[1vh] border-r" style={{ borderColor: "rgba(212,175,55,0.2)" }}>
               <div className="text-[clamp(8px,0.65vw,12px)] uppercase tracking-wider text-[#9AA6C2]">{l}</div>
