@@ -7,7 +7,7 @@ import { Button, Card, Field, SectionHeader, SeamDivider, StatCard } from "@/com
 import { AUCTION_ROLES, OVERRIDE_ROLES, computeAge } from "@/lib/constants";
 import { computeRemainingPoints, computeSquad, computeGuestCount, validateSale } from "@/lib/auction";
 import {
-  startAuction, pauseAuction, placeBid, undoLastBid, markSold, markUnsold,
+  startAuction, pauseAuction, markSold, markUnsold,
   deferPlayer, undoLastPlayerResult, resetAuction, fullResetAuction, startUnsoldRound, refreshTeamStats,
 } from "./actions";
 
@@ -178,7 +178,7 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
       ...cur, current_bid: amount, current_team_id: teamId,
       bid_history: [...(cur.bid_history || []), { teamId, teamName: team.name, amount, ts: Date.now() }],
     });
-    enqueue(() => placeBid(teamId, amount, override, expected));
+    enqueue(async () => { const { data, error } = await supabase.rpc("place_bid", { p_team_id: teamId, p_amount: amount, p_expected: expected }); return error ? { error: error.message } : data; });
   }
 
   function tapTeam(teamId: string) {
@@ -209,7 +209,7 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
     const prev = remaining[remaining.length - 1];
     setMsg("");
     applyAuction({ ...cur, current_bid: prev?.amount ?? 0, current_team_id: prev?.teamId ?? null, bid_history: remaining });
-    enqueue(() => undoLastBid(expected));
+    enqueue(async () => { const { data, error } = await supabase.rpc("undo_last_bid", { p_expected: expected }); return error ? { error: error.message } : data; });
   }
 
   function flashResult(kind: "sold" | "unsold", fn: () => Promise<any>) {

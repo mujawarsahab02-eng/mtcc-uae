@@ -59,7 +59,9 @@ function buildTeamStats(teams: any[], players: any[], settings: any) {
     return {
       id: t.id, name: t.name, logo_path: t.logo_path ?? null,
       total, spent: total - remaining, remaining,
-      bought: squad.length, slots: maxSquad ? Math.max(0, maxSquad - squad.length) : null,
+      bought: (players || []).filter((p: any) => p.team_id === t.id && p.application_status === "Sold / Selected" && (p.team_role ?? "Auction Player") === "Auction Player").length,
+      squad: squad.length,
+      slots: maxSquad ? Math.max(0, maxSquad - squad.length) : null,
     };
   });
 }
