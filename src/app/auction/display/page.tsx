@@ -71,12 +71,16 @@ export default function AuctionDisplayPage() {
   const bannerTimer = useRef<any>(null);
   const requested = useRef<Record<string, boolean>>({});
 
-  function ensurePlayer(id: string | null) {
+  async function ensurePlayer(id: string | null) {
     if (!id || requested.current[id]) return;
     requested.current[id] = true;
-    supabase.from("player_public").select("*").eq("id", id).maybeSingle()
-      .then(({ data }: any) => { if (data) setPlayers((p) => ({ ...p, [id]: data })); else delete requested.current[id]; })
-      .catch(() => { delete requested.current[id]; });
+    try {
+      const { data } = await supabase.from("player_public").select("*").eq("id", id).maybeSingle();
+      if (data) setPlayers((p) => ({ ...p, [id]: data }));
+      else delete requested.current[id];
+    } catch {
+      delete requested.current[id];
+    }
   }
 
   // Two clocks. The fast one asks a single question — "what is the auction
@@ -141,8 +145,14 @@ export default function AuctionDisplayPage() {
   }
 
   useEffect(() => {
-    supabase.from("tournament_settings").select("*").eq("id", 1).maybeSingle()
-      .then(({ data }: any) => setSettings(data)).catch(() => {});
+    (async () => {
+      try {
+        const { data } = await supabase.from("tournament_settings").select("*").eq("id", 1).maybeSingle();
+        if (data) setSettings(data);
+      } catch {
+        // Ignored — the screen still runs on its built-in defaults.
+      }
+    })();
     tickFast();
     tickSlow();
 
