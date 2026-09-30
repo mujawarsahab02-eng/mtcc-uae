@@ -13,8 +13,15 @@ function teamMax(team: any, settings: any): number {
   const own = Number(team?.max_squad_override || 0);
   return own > 0 ? own : Number(settings?.max_squad_size || 0);
 }
-function settingsFor(team: any, settings: any) {
-  return { ...(settings || {}), max_squad_size: teamMax(team, settings) };
+function isAuctionBuy(p: any, teamId: string) {
+  return p.team_id === teamId && p.application_status === "Sold / Selected" && (p.team_role ?? "Auction Player") === "Auction Player";
+}
+// The 12 / 13 limit is for players bought in the auction. The squad check in
+// validateSale also counts the Icon, so the Icon's place is added on top here.
+function settingsFor(team: any, settings: any, players: any[]) {
+  const bought = (players || []).filter((p: any) => isAuctionBuy(p, team?.id)).length;
+  const extra = Math.max(0, computeSquad(team, players).length - bought);
+  return { ...(settings || {}), max_squad_size: teamMax(team, settings) + extra };
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -63,15 +70,14 @@ function revalidateSlowPaths() {
 function buildTeamStats(teams: any[], players: any[], settings: any) {
   return (teams || []).map((t: any) => {
     const maxSquad = teamMax(t, settings);
-    const squad = computeSquad(t, players);
+    const bought = (players || []).filter((p: any) => isAuctionBuy(p, t.id)).length;
     const remaining = computeRemainingPoints(t, players);
     const total = Number(t.auction_points || 0);
     return {
       id: t.id, name: t.name, logo_path: t.logo_path ?? null,
       total, spent: total - remaining, remaining,
-      bought: (players || []).filter((p: any) => p.team_id === t.id && p.application_status === "Sold / Selected" && (p.team_role ?? "Auction Player") === "Auction Player").length,
-      squad: squad.length, max: maxSquad || null,
-      slots: maxSquad ? Math.max(0, maxSquad - squad.length) : null,
+      bought, squad: bought, max: maxSquad || null,
+      slots: maxSquad ? Math.max(0, maxSquad - bought) : null,
     };
   });
 }
@@ -263,7 +269,7 @@ export async function markSold(override: boolean): Promise<any> {
   if (!player || !team) return { error: "Player or team not found." };
 
   const effectiveOverride = override && OVERRIDE_ROLES.includes(profile.role);
-  const warnings = validateSale(team, player, auction.current_bid, players as PlayerRow[], settingsFor(team, settings) as any);
+  const warnings = validateSale(team, player, auction.current_bid, players as PlayerRow[], settingsFor(team, settings, players) as any);
   if (warnings.length && !effectiveOverride) return { error: warnings.join(" "), warnings };
 
   const prevStatus = (player as any).application_status;

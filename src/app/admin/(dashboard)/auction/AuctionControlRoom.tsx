@@ -101,7 +101,8 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
   const teamsWithStats = useMemo(() => teams.map((t: any) => ({
     ...t,
     remaining: computeRemainingPoints(t, players),
-    squadCount: computeSquad(t, players).length,
+    squadCount: players.filter((p: any) => p.team_id === t.id && p.application_status === "Sold / Selected" && (p.team_role ?? "Auction Player") === "Auction Player").length,
+    fullSquadCount: computeSquad(t, players).length,
     guestCount: computeGuestCount(t, players),
   })), [teams, players]);
 
@@ -170,7 +171,9 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
     const expected = Number(cur.current_bid || 0);
     if (amount <= expected) { setMsg(`The bid must be higher than the current ${fmt(expected)} pts.`); return; }
     if (amount > maxBid) { setMsg(`Maximum bid is ${fmt(maxBid)} pts.`); return; }
-    const warnings = validateSale(team, player, amount, players, { ...settings, max_squad_size: Number(team.max_squad_override || 0) || settings?.max_squad_size });
+    const capBase = Number(team.max_squad_override || 0) || Number(settings?.max_squad_size || 0);
+    const boughtNow = players.filter((p: any) => p.team_id === team.id && p.application_status === "Sold / Selected" && (p.team_role ?? "Auction Player") === "Auction Player").length;
+    const warnings = validateSale(team, player, amount, players, { ...settings, max_squad_size: capBase + Math.max(0, computeSquad(team, players).length - boughtNow) });
     if (warnings.length && !(override && canOverride)) { setMsg(warnings.join(" ")); return; }
 
     setMsg("");
