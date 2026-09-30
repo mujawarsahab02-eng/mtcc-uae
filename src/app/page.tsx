@@ -6,7 +6,7 @@ import PublicNav from "@/components/PublicNav";
 import Footer from "@/components/Footer";
 import { IconWallet, IconUsers, IconTrophy, IconCalendar, IconGavel, IconShieldCheck, IconClipboardCheck, IconHandshake, IconList, IconRefresh, IconCricketBall, IconStar, IconGlobe } from "@/components/Icons";
 
-export const revalidate = 60;
+export const revalidate = 10;
 
 export default async function LandingPage() {
   const supabase = createClient();
@@ -14,6 +14,10 @@ export default async function LandingPage() {
   const { data: sponsors } = await supabase.from("sponsors").select("*").order("sort_order");
   const { count: playerCount } = await supabase.from("players").select("*", { count: "exact", head: true });
   const { data: teams } = await supabase.from("team_public").select("*");
+  const { data: auctionRow } = await supabase.from("auction_state").select("status").eq("id", 1).single();
+  const auctionStatus: string = auctionRow?.status ?? "idle";
+  const auctionLive = auctionStatus === "live" || auctionStatus === "paused";
+  const auctionDone = auctionStatus === "completed";
 
   function publicUrl(bucket: string, path: string | null) {
     if (!path) return null;
@@ -161,8 +165,31 @@ export default async function LandingPage() {
             </div>
           </div>
 
-          <div className="fade-up mt-6 text-xs" style={{ animationDelay: "0.5s" }}>
-            <Link href="/auction/display" className="text-white/40 underline hover:text-white/70 transition-colors">View Live Auction Display</Link>
+          <div className="fade-up mt-8" style={{ animationDelay: "0.5s" }}>
+            {auctionDone ? (
+              <div className="text-white/70 text-sm sm:text-base">
+                The auction has concluded. <span className="text-goldBright font-semibold">Please contact the organisers.</span>
+              </div>
+            ) : auctionLive ? (
+              <>
+                <Link
+                  href="/auction/display"
+                  className="inline-flex items-center gap-3 sm:gap-4 rounded-2xl px-8 sm:px-11 py-4 sm:py-5 font-display font-black text-lg sm:text-2xl tracking-wide hover:-translate-y-0.5 transition-transform"
+                  style={{ background: "linear-gradient(180deg,#F0C94A,#C9962A)", color: "#0A0F1C", boxShadow: "0 0 0 2px rgba(240,201,74,0.35), 0 10px 40px rgba(240,201,74,0.35)" }}
+                >
+                  <span className="relative flex h-3.5 w-3.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full" style={{ background: "#E5252A", opacity: 0.75 }} />
+                    <span className="relative inline-flex rounded-full h-3.5 w-3.5" style={{ background: "#E5252A" }} />
+                  </span>
+                  WATCH LIVE AUCTION
+                </Link>
+                <div className="mt-3 text-xs sm:text-sm text-white/50 tracking-wide">Live now · Player auction</div>
+              </>
+            ) : (
+              <div className="text-white/70 text-sm sm:text-base">
+                <span className="text-goldBright font-semibold">Player Auction</span> · 4 October 2026 · 5 PM · Dubai
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -273,14 +300,20 @@ export default async function LandingPage() {
           <IconGavel className="w-10 h-10 text-goldBright mx-auto mb-5" />
           <h2 className="font-display font-black text-3xl sm:text-4xl text-white mb-4 leading-tight">Your Name. Your Game.<br />The Auction Awaits.</h2>
           <p className="text-white/60 mb-8">Build the squad. Manage the purse. Chase the championship.</p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/auction/display">
-              <Button variant="primary" size="lg" className="!px-8 hover:-translate-y-0.5 transition-transform">View Auction</Button>
-            </Link>
-            <Link href="/squads">
-              <Button variant="ghost" size="lg" className="!px-8 border-2 border-white/25 text-white hover:-translate-y-0.5 transition-transform">View Squads</Button>
-            </Link>
-          </div>
+          {auctionDone ? (
+            <div className="text-white/70">The auction has concluded. <span className="text-goldBright font-semibold">Please contact the organisers.</span></div>
+          ) : (
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              {auctionLive && (
+                <Link href="/auction/display">
+                  <Button variant="primary" size="lg" className="!px-8 hover:-translate-y-0.5 transition-transform">View Auction</Button>
+                </Link>
+              )}
+              <Link href="/squads">
+                <Button variant="ghost" size="lg" className="!px-8 border-2 border-white/25 text-white hover:-translate-y-0.5 transition-transform">View Squads</Button>
+              </Link>
+            </div>
+          )}
         </div>
       </div>
 
