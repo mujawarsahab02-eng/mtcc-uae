@@ -148,6 +148,21 @@ export async function startAuction(): Promise<any> {
   return { ok: true };
 }
 
+// Closes the auction for good: the Display and public pages stop showing
+// anything and ask visitors to contact the organisers.
+export async function endAuction(): Promise<any> {
+  const guard = await requireAuctionRole();
+  if ("error" in guard) return guard;
+  const supabase = createClient();
+  await supabase.from("auction_state").update({
+    status: "completed", current_player_id: null, current_bid: 0, current_team_id: null,
+    bid_history: [], last_action: null, updated_at: new Date().toISOString(),
+  }).eq("id", 1);
+  await logAudit({ action: "Auction Ended", entity: "Auction", entityId: "auction", newValue: "completed" });
+  revalidateSlowPaths();
+  return { ok: true };
+}
+
 export async function pauseAuction(): Promise<any> {
   const guard = await requireAuctionRole();
   if ("error" in guard) return guard;

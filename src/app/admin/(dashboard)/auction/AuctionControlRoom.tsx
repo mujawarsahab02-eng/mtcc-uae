@@ -7,7 +7,7 @@ import { Button, Card, Field, SectionHeader, SeamDivider, StatCard } from "@/com
 import { AUCTION_ROLES, OVERRIDE_ROLES, computeAge } from "@/lib/constants";
 import { computeRemainingPoints, computeSquad, computeGuestCount, validateSale } from "@/lib/auction";
 import {
-  startAuction, pauseAuction, markSold, markUnsold,
+  startAuction, pauseAuction, endAuction, markSold, markUnsold,
   deferPlayer, undoLastPlayerResult, resetAuction, fullResetAuction, startUnsoldRound, refreshTeamStats,
 } from "./actions";
 
@@ -252,6 +252,14 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
             ) : auction?.status === "live" ? (
               <Button variant="subtle" size="sm" onClick={() => run(pauseAuction)} disabled={busy}>Pause Auction</Button>
             ) : null}
+            {auction?.status !== "completed" && auction?.status !== "idle" && (
+              <Button variant="danger" size="sm" disabled={busy}
+                onClick={() => {
+                  if (window.confirm("END the auction? The Display screen will stop showing the auction and ask visitors to contact the organisers. Only do this when the auction is fully finished.")) run(endAuction);
+                }}>
+                End Auction
+              </Button>
+            )}
             {canOverride && (
               <Button variant="danger" size="sm" disabled={busy}
                 onClick={() => {
