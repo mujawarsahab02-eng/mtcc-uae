@@ -212,6 +212,16 @@ export default function AuctionDisplayPage() {
     ? new Date(settings.auction_date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
     : null;
 
+  if (auction?.status === "completed") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center text-center px-6 text-white" style={{ background: "#05070d" }}>
+        <div className="text-[clamp(14px,1.2vw,22px)] tracking-[0.3em] mb-6" style={{ color: "#D4AF37" }}>MTCC U.A.E. · SEASON 1</div>
+        <div className="font-display font-black uppercase text-[clamp(32px,5vw,96px)] leading-tight">Auction Concluded</div>
+        <div className="mt-6 text-[clamp(16px,1.8vw,34px)] text-[#C7CEDD]">Please contact the organisers for more information.</div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-screen lg:h-screen overflow-hidden text-white flex flex-col"
       style={{ background: "radial-gradient(ellipse 70% 55% at 50% 0%, #1B2A4D 0%, #0B1224 45%, #04070F 100%)" }}>
