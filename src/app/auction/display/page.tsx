@@ -185,10 +185,11 @@ export default function AuctionDisplayPage() {
   // stand-in for before the first sale of the day.
   const serverStats: any[] = Array.isArray(auction?.team_stats) ? auction.team_stats : [];
   const teamStats = serverStats.length ? serverStats : (teams || []).map((t: any) => {
-    const squad = (soldPlayers || []).filter((p: any) => p.team_id === t.id);
+    const squad = (soldPlayers || []).filter((p: any) => p.team_id === t.id && (p.team_role ?? "Auction Player") === "Auction Player");
     const spent = squad.reduce((s: number, p: any) => s + Number(p.sold_points || 0), 0);
     const total = Number(t.auction_points || 0);
-    return { ...t, total, spent, remaining: total - spent, bought: squad.filter((p: any) => (p.team_role ?? "Auction Player") === "Auction Player").length, squad: squad.length, max: (Number(t.max_squad_override || 0) || maxSquad) || null, slots: (Number(t.max_squad_override || 0) || maxSquad) ? Math.max(0, (Number(t.max_squad_override || 0) || maxSquad) - squad.length) : null };
+    const cap = Number(t.max_squad_override || 0) || maxSquad;
+    return { ...t, total, spent, remaining: total - spent, bought: squad.length, squad: squad.length, max: cap || null, slots: cap ? Math.max(0, cap - squad.length) : null };
   });
   const leading = teamStats.find((t: any) => t.id === auction?.current_team_id) || null;
   const bidHistory: any[] = auction?.bid_history || [];
