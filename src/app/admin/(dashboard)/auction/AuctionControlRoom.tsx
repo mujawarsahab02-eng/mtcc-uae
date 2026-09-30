@@ -170,7 +170,7 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
     const expected = Number(cur.current_bid || 0);
     if (amount <= expected) { setMsg(`The bid must be higher than the current ${fmt(expected)} pts.`); return; }
     if (amount > maxBid) { setMsg(`Maximum bid is ${fmt(maxBid)} pts.`); return; }
-    const warnings = validateSale(team, player, amount, players, settings);
+    const warnings = validateSale(team, player, amount, players, { ...settings, max_squad_size: Number(team.max_squad_override || 0) || settings?.max_squad_size });
     if (warnings.length && !(override && canOverride)) { setMsg(warnings.join(" ")); return; }
 
     setMsg("");
@@ -335,7 +335,7 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
             {teamsWithStats.map((t: any) => (
               <div key={t.id} className="flex items-center justify-between text-sm py-1.5 border-b last:border-0 border-line">
                 <span>{t.name}</span>
-                <span className="text-muted">{t.squadCount}/{settings?.max_squad_size ?? "—"} squad · {fmt(t.remaining)} pts left</span>
+                <span className="text-muted">{t.squadCount}/{Number(t.max_squad_override || 0) || (settings?.max_squad_size ?? "—")} squad · {fmt(t.remaining)} pts left</span>
               </div>
             ))}
           </div>
@@ -463,7 +463,7 @@ export default function AuctionControlRoom({ initialAuction, initialPlayers, ini
                     </div>
                     <div className="text-xs font-bold truncate">{t.name}</div>
                     <div className="text-[10px] text-mutedDim">{fmt(t.remaining)} pts left</div>
-                    <div className="text-[10px] text-mutedDim">{t.squadCount}/{settings?.max_squad_size ?? "—"} squad</div>
+                    <div className="text-[10px] text-mutedDim">{t.squadCount}/{Number(t.max_squad_override || 0) || (settings?.max_squad_size ?? "—")} squad</div>
                   </button>
                 );
               })}
@@ -547,7 +547,7 @@ function PurseGrid({ teams, settings }: { teams: any[]; settings: any }) {
           <Card key={t.id} className="p-3">
             <div className="text-sm font-bold truncate">{t.name}</div>
             <div className={`text-lg font-bold font-display ${t.remaining < 0 ? "text-red" : "text-goldBright"}`}>{fmt(t.remaining)} pts</div>
-            <div className="text-[11px] text-mutedDim">{t.squadCount}/{settings?.max_squad_size ?? "—"} squad · {t.guestCount}/{settings?.guest_quota ?? "—"} guests</div>
+            <div className="text-[11px] text-mutedDim">{t.squadCount}/{Number(t.max_squad_override || 0) || (settings?.max_squad_size ?? "—")} squad · {t.guestCount}/{settings?.guest_quota ?? "—"} guests</div>
           </Card>
         ))}
       </div>
