@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
 import LiveScoreBar from "@/components/LiveScoreBar";
+import SocialFloat from "@/components/SocialFloat";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://mtccuae.com";
 
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-bg text-ink min-h-screen">
         {children}
         <LiveScoreBar />
+        <SocialFloat />
         <RegisterServiceWorker />
       </body>
     </html>
