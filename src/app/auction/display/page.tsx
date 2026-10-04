@@ -54,7 +54,7 @@ function PanelTitle({ icon, children }: { icon: string; children: any }) {
   );
 }
 
-export default function AuctionDisplayPage() {
+function LiveDisplay() {
   const supabase = useMemo(() => createClient(), []);
   const [auction, setAuction] = useState<any>(null);
   const [settings, setSettings] = useState<any>(null);
@@ -615,4 +615,32 @@ export default function AuctionDisplayPage() {
       `}</style>
     </div>
   );
+}
+
+
+// Admin-only: the live screen is shown only to a logged-in admin. Everyone else
+// sees a closed message and the page makes no database requests.
+export default function AuctionDisplayPage() {
+  const [allowed, setAllowed] = useState<boolean | null>(null);
+  useEffect(() => {
+    let off = false;
+    (async () => {
+      try {
+        const { data } = await (createClient() as any).auth.getSession();
+        if (!off) setAllowed(!!data?.session);
+      } catch { if (!off) setAllowed(false); }
+    })();
+    return () => { off = true; };
+  }, []);
+  if (allowed === null) return <div className="min-h-screen" style={{ background: "#05070d" }} />;
+  if (!allowed) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center text-center px-6 text-white" style={{ background: "#05070d" }}>
+        <div className="text-[clamp(14px,1.2vw,22px)] tracking-[0.3em] mb-6" style={{ color: "#D4AF37" }}>MTCC U.A.E. · SEASON 1</div>
+        <div className="font-display font-black uppercase text-[clamp(30px,5vw,90px)] leading-tight">Live Auction</div>
+        <div className="mt-6 text-[clamp(16px,1.8vw,34px)] text-[#C7CEDD]">The live view is closed. Please contact the organisers.</div>
+      </div>
+    );
+  }
+  return <LiveDisplay />;
 }
