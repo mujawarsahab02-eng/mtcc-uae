@@ -186,9 +186,20 @@ export default async function LandingPage() {
                 <div className="mt-3 text-xs sm:text-sm text-white/50 tracking-wide">Live now · Player auction</div>
               </>
             ) : (
-              <div className="text-white/70 text-sm sm:text-base">
-                <span className="text-goldBright font-semibold">Player Auction</span> · 4 October 2026 · 5 PM · Dubai
-              </div>
+              <>
+                <Link
+                  href="/auction/display"
+                  className="inline-flex items-center gap-3 sm:gap-4 rounded-2xl px-8 sm:px-11 py-4 sm:py-5 font-display font-black text-lg sm:text-2xl tracking-wide hover:-translate-y-0.5 transition-transform"
+                  style={{ background: "linear-gradient(180deg,#F0C94A,#C9962A)", color: "#0A0F1C", boxShadow: "0 0 0 2px rgba(240,201,74,0.35), 0 10px 40px rgba(240,201,74,0.35)" }}
+                >
+                  <span className="relative flex h-3.5 w-3.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full" style={{ background: "#E5252A", opacity: 0.75 }} />
+                    <span className="relative inline-flex rounded-full h-3.5 w-3.5" style={{ background: "#E5252A" }} />
+                  </span>
+                  PLAYER AUCTION · TODAY 5 PM
+                </Link>
+                <div className="mt-3 text-xs sm:text-sm text-white/50 tracking-wide">4 October 2026 · Dubai</div>
+              </>
             )}
           </div>
         </div>
@@ -304,11 +315,9 @@ export default async function LandingPage() {
             <div className="text-white/70">The auction has concluded. <span className="text-goldBright font-semibold">Please contact the organisers.</span></div>
           ) : (
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              {auctionLive && (
-                <Link href="/auction/display">
-                  <Button variant="primary" size="lg" className="!px-8 hover:-translate-y-0.5 transition-transform">View Auction</Button>
-                </Link>
-              )}
+              <Link href="/auction/display">
+                <Button variant="primary" size="lg" className="!px-8 hover:-translate-y-0.5 transition-transform">View Auction</Button>
+              </Link>
               <Link href="/squads">
                 <Button variant="ghost" size="lg" className="!px-8 border-2 border-white/25 text-white hover:-translate-y-0.5 transition-transform">View Squads</Button>
               </Link>
