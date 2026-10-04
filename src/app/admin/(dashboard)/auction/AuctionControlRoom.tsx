@@ -15,9 +15,8 @@ import {
 function computeNextBid(currentBid: number, s: any) {
   const startingBid = s?.auction_starting_bid ?? 2000;
   if (!currentBid) return startingBid;
-  if (currentBid >= (s?.auction_tier4_threshold ?? 20000)) return currentBid + (s?.auction_tier4_increment ?? 5000);
-  if (currentBid >= (s?.auction_tier3_threshold ?? 15000)) return currentBid + (s?.auction_tier3_increment ?? 3000);
-  if (currentBid >= (s?.auction_tier2_threshold ?? 10000)) return currentBid + (s?.auction_tier2_increment ?? 2000);
+  // No tiers: from 10,000 upwards every bid goes up by 1,000.
+  if (currentBid >= 10000) return currentBid + 1000;
   return currentBid + (s?.auction_bid_increment ?? 1000);
 }
 const fmt = (n: any) => Number(n || 0).toLocaleString("en-US");
