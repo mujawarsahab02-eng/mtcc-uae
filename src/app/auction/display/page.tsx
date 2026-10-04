@@ -28,9 +28,8 @@ const fmt = (n: any) => Number(n || 0).toLocaleString("en-US");
 
 function nextIncrement(currentBid: number, s: any) {
   if (!currentBid) return s?.auction_starting_bid ?? 2000;
-  if (currentBid >= (s?.auction_tier4_threshold ?? 20000)) return s?.auction_tier4_increment ?? 5000;
-  if (currentBid >= (s?.auction_tier3_threshold ?? 15000)) return s?.auction_tier3_increment ?? 3000;
-  if (currentBid >= (s?.auction_tier2_threshold ?? 10000)) return s?.auction_tier2_increment ?? 2000;
+  // No tiers: from 10,000 upwards every bid goes up by 1,000.
+  if (currentBid >= 10000) return 1000;
   return s?.auction_bid_increment ?? 1000;
 }
 
@@ -211,6 +210,18 @@ export default function AuctionDisplayPage() {
   const dateText = settings?.auction_date
     ? new Date(settings.auction_date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
     : null;
+
+  if (auction?.status === "idle") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center text-center px-6 text-white" style={{ background: "radial-gradient(ellipse at 50% 40%, #16213D 0%, #05070d 70%)" }}>
+        <div className="text-[clamp(14px,1.2vw,22px)] tracking-[0.3em] mb-6" style={{ color: "#D4AF37" }}>MTCC U.A.E. · SEASON 1</div>
+        <div className="font-display font-black uppercase text-[clamp(36px,6vw,110px)] leading-tight">Player Auction</div>
+        <div className="mt-4 font-display font-black uppercase text-[clamp(28px,4.5vw,84px)] leading-tight" style={{ color: "#F0C94A" }}>Coming Soon</div>
+        <div className="mt-8 text-[clamp(16px,1.8vw,34px)] text-[#C7CEDD]">4 October 2026 · 5 PM · Dubai</div>
+        <div className="mt-3 text-[clamp(13px,1.2vw,22px)] text-[#8a93a8]">This page goes live automatically when the auction starts.</div>
+      </div>
+    );
+  }
 
   if (auction?.status === "completed") {
     return (
