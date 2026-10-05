@@ -62,14 +62,14 @@ function Cropper({ kind, onCancel, onSave }: { kind: "player" | "team"; onCancel
   async function save() {
     if (!img) return;
     setSaving(true);
-    const OUT = 600, k = OUT / BOX;
+    const OUT = 500, k = OUT / BOX;
     const c = document.createElement("canvas"); c.width = OUT; c.height = OUT;
     const ctx = c.getContext("2d")!;
     if (!logo) { ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, OUT, OUT); }
     const w = img.width * scale * k, h = img.height * scale * k;
     ctx.drawImage(img, OUT / 2 + pos.x * k - w / 2, OUT / 2 + pos.y * k - h / 2, w, h);
-    const blob: Blob | null = await new Promise((res) => c.toBlob((b) => res(b), logo ? "image/png" : "image/jpeg", 0.88));
-    if (blob) await onSave(blob);
+    const blob: Blob | null = await new Promise((res) => c.toBlob((b) => res(b), logo ? "image/png" : "image/jpeg", 0.82));
+    try { if (blob) await onSave(blob); } catch (e: any) { alert(`Could not save: ${e?.message || "unknown error"}`); }
     setSaving(false);
   }
 
@@ -152,7 +152,8 @@ export default function SquadCardsPage() {
     const fd = new FormData();
     fd.append("kind", editing.kind); fd.append("id", editing.id);
     fd.append("file", blob, editing.kind === "team" ? "logo.png" : "photo.jpg");
-    const res: any = await saveImage(fd);
+    let res: any;
+    try { res = await saveImage(fd); } catch (e: any) { res = { error: `Could not save: ${e?.message || "the server did not respond. Try a smaller photo."}` }; }
     if (res?.error) { setNote(res.error); alert(res.error); return; }
     setTeams((prev) => (prev || []).map((t: any) => {
       if (editing.kind === "team") return t.id === editing.id ? { ...t, logo_path: res.path } : t;
