@@ -155,11 +155,12 @@ export default function SquadCardsPage() {
     let res: any;
     try { res = await saveImage(fd); } catch (e: any) { res = { error: `Could not save: ${e?.message || "the server did not respond. Try a smaller photo."}` }; }
     if (res?.error) { setNote(res.error); alert(res.error); return; }
-    setTeams((prev) => (prev || []).map((t: any) => {
-      if (editing.kind === "team") return t.id === editing.id ? { ...t, logo_path: res.path } : t;
-      return { ...t, players: (t.players || []).map((p: any) => (p.id === editing.id ? { ...p, photo_path: res.path } : p)) };
-    }));
-    setNote("Saved. The change is live on the website too.");
+    // Re-read the squads from the database so the card always shows what is really saved.
+    try {
+      const { data } = await supabase.rpc("public_squads");
+      if (Array.isArray(data)) setTeams(data);
+    } catch { /* ignore */ }
+    setNote(res ? "Saved. The change is live on the website too." : "Sent. The cards were refreshed from the database. Please check the photo.");
     setEditing(null);
   }
 
