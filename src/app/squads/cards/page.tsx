@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "@/components/Logo";
-import { saveImage } from "./actions";
 
 // Printable squad cards: MTCC logo + name, team logo + name, owner, 14 players with photos.
 // Open /squads/cards for all teams, or /squads/cards?team=<team id> for one.
@@ -32,13 +31,23 @@ function buildSquad(t: any) {
 
 // ---- Crop tool (admin) ----------------------------------------------------
 const BOX = 300;
-function Cropper({ kind, onCancel, onSave }: { kind: "player" | "team"; onCancel: () => void; onSave: (blob: Blob) => Promise<void> }) {
+function Cropper({ kind, initialUrl, onCancel, onSave }: { kind: "player" | "team"; initialUrl?: string | null; onCancel: () => void; onSave: (blob: Blob) => Promise<void> }) {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [saving, setSaving] = useState(false);
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
   const logo = kind === "team";
+  const [loadNote, setLoadNote] = useState("");
+
+  useEffect(() => {
+    if (!initialUrl) return;
+    const im = new Image();
+    im.crossOrigin = "anonymous";
+    im.onload = () => { setImg(im); setZoom(1); setPos({ x: 0, y: 0 }); };
+    im.onerror = () => setLoadNote("The current picture could not be opened for re-cropping. Please choose a file.");
+    im.src = initialUrl;
+  }, [initialUrl]);
 
   function pick(e: any) {
     const f = e.target.files?.[0];
@@ -77,7 +86,9 @@ function Cropper({ kind, onCancel, onSave }: { kind: "player" | "team"; onCancel
     <div className="no-print" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif" }}>
       <div style={{ background: "#fff", borderRadius: 16, padding: 20, width: 360, maxWidth: "94vw" }}>
         <div style={{ fontWeight: 800, marginBottom: 10 }}>{logo ? "Upload team logo" : "Upload & crop player photo"}</div>
+        <div style={{ fontSize: 12, color: "#555", marginBottom: 6 }}>{initialUrl ? "The current picture is loaded below: drag and zoom to re-crop it, or choose a new file." : "Choose a picture."}</div>
         <input type="file" accept="image/*" onChange={pick} />
+        {loadNote && <div style={{ fontSize: 12, color: "#b00020", marginTop: 6 }}>{loadNote}</div>}
         {img && (
           <>
             <div onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
@@ -105,7 +116,7 @@ export default function SquadCardsPage() {
   const [busy, setBusy] = useState("");
   const refs = useRef<Record<string, HTMLDivElement | null>>({});
   const [admin, setAdmin] = useState(false);
-  const [editing, setEditing] = useState<{ kind: "player" | "team"; id: string; teamId: string } | null>(null);
+  const [editing, setEditing] = useState<{ kind: "player" | "team"; id: string; teamId: string; url: string | null } | null>(null);
   const [note, setNote] = useState("");
 
   useEffect(() => {
@@ -149,18 +160,25 @@ export default function SquadCardsPage() {
 
   async function saveEdit(blob: Blob) {
     if (!editing) return;
-    const fd = new FormData();
-    fd.append("kind", editing.kind); fd.append("id", editing.id);
-    fd.append("file", blob, editing.kind === "team" ? "logo.png" : "photo.jpg");
-    let res: any;
-    try { res = await saveImage(fd); } catch (e: any) { res = { error: `Could not save: ${e?.message || "the server did not respond. Try a smaller photo."}` }; }
-    if (res?.error) { setNote(res.error); alert(res.error); return; }
-    // Re-read the squads from the database so the card always shows what is really saved.
+    const png = editing.kind === "team";
+    const bucket = png ? "team-logos" : "player-photos";
+    const table = png ? "teams" : "players";
+    const col = png ? "logo_path" : "photo_path";
+    const path = `${editing.id}/${Date.now()}.${png ? "png" : "jpg"}`;
+    const sb: any = supabase;
+    const fail = (m: string) => { setNote(m); alert(m); };
+
+    const up = await sb.storage.from(bucket).upload(path, blob, { contentType: png ? "image/png" : "image/jpeg", upsert: true });
+    if (up?.error) { fail(`Upload failed: ${up.error.message}`); return; }
+    const upd = await sb.from(table).update({ [col]: path }).eq("id", editing.id).select("id");
+    if (upd?.error) { fail(`Uploaded, but could not update the record: ${upd.error.message}`); return; }
+    if (!upd?.data || upd.data.length === 0) { fail("Uploaded, but the database did not allow the update (permission). Please tell the developer."); return; }
+
     try {
       const { data } = await supabase.rpc("public_squads");
       if (Array.isArray(data)) setTeams(data);
     } catch { /* ignore */ }
-    setNote(res ? "Saved. The change is live on the website too." : "Sent. The cards were refreshed from the database. Please check the photo.");
+    setNote("Saved. The change is live on the website too.");
     setEditing(null);
   }
 
@@ -199,7 +217,7 @@ export default function SquadCardsPage() {
               {busy === t.id ? "Creating image…" : `Download ${t.name} as image (PNG)`}
             </button>
             {admin && (
-              <button className="no-print" onClick={() => setEditing({ kind: "team", id: t.id, teamId: t.id })}
+              <button className="no-print" onClick={() => setEditing({ kind: "team", id: t.id, teamId: t.id, url: tl })}
                 style={{ marginBottom: 8, padding: "6px 14px", borderRadius: 8, border: "1px solid #D4AF37", background: "#fff8e1", fontWeight: 600, cursor: "pointer", fontFamily: "sans-serif", fontSize: 12 }}>
                 Change logo
               </button>
@@ -243,7 +261,7 @@ export default function SquadCardsPage() {
                         {lab && <div style={{ display: "inline-block", marginTop: 3, fontSize: 10, fontWeight: 900, background: "#D4AF37", color: "#0A0F1C", padding: "2px 8px", borderRadius: 20, letterSpacing: 1 }}>{lab}</div>}
                       </div>
                       {admin && p && p.id !== "owner" && (
-                        <button className="no-print" data-html2canvas-ignore="true" onClick={() => setEditing({ kind: "player", id: p.id, teamId: t.id })}
+                        <button className="no-print" data-html2canvas-ignore="true" onClick={() => setEditing({ kind: "player", id: p.id, teamId: t.id, url: ph })}
                           title="Upload / crop photo" style={{ position: "absolute", top: 4, right: 4, width: 24, height: 24, borderRadius: "50%", border: 0, background: "#D4AF37", color: "#0A0F1C", fontWeight: 900, cursor: "pointer", fontSize: 13 }}>✎</button>
                       )}
                     </div>
@@ -255,7 +273,7 @@ export default function SquadCardsPage() {
           </div>
         );
       })}
-      {editing && <Cropper kind={editing.kind} onCancel={() => setEditing(null)} onSave={saveEdit} />}
+      {editing && <Cropper key={editing.id} kind={editing.kind} initialUrl={editing.url} onCancel={() => setEditing(null)} onSave={saveEdit} />}
     </div>
   );
 }
