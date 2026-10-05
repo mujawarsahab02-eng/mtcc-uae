@@ -7,6 +7,14 @@ import { revalidatePath } from "next/cache";
 
 // Admin-only: replace a player's photo or a team's logo with an already-cropped image.
 export async function saveImage(fd: FormData): Promise<any> {
+  try {
+    return await doSave(fd);
+  } catch (e: any) {
+    return { error: `Server error: ${e?.message || "unknown"}` };
+  }
+}
+
+async function doSave(fd: FormData): Promise<any> {
   const profile = await getCurrentProfile();
   const allowed: string[] = [...AUCTION_ROLES, ...OVERRIDE_ROLES];
   if (!profile || !allowed.includes(profile.role)) return { error: "Only an admin can change photos and logos." };
@@ -21,7 +29,8 @@ export async function saveImage(fd: FormData): Promise<any> {
   const path = `${id}/${Date.now()}.${png ? "png" : "jpg"}`;
   const supabase: any = createClient();
 
-  const up = await supabase.storage.from(bucket).upload(path, file, { contentType: png ? "image/png" : "image/jpeg", upsert: true });
+  const buf = Buffer.from(await file.arrayBuffer());
+  const up = await supabase.storage.from(bucket).upload(path, buf, { contentType: png ? "image/png" : "image/jpeg", upsert: true });
   if (up?.error) return { error: `Upload failed: ${up.error.message}` };
 
   const table = kind === "player" ? "players" : "teams";
