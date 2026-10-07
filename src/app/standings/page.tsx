@@ -90,9 +90,11 @@ export default async function SchedulePage() {
                 const body = (
                   <div className="rounded-xl overflow-hidden border border-white/10 shadow-lg" style={{ background: "#0A0F24" }}>
                     <div className="flex items-stretch min-h-[54px]">
-                      <div className="w-[88px] sm:w-[110px] shrink-0 flex items-center justify-center text-center font-display font-black text-[13px] sm:text-base text-white" style={{ background: knock ? "#8E0F1B" : "#C8102E" }}>
-                        {fmtTime(m.match_time)}
-                      </div>
+                      {m.match_time && (
+                        <div className="w-[88px] sm:w-[110px] shrink-0 flex items-center justify-center text-center font-display font-black text-[13px] sm:text-base text-white" style={{ background: knock ? "#8E0F1B" : "#C8102E" }}>
+                          {fmtTime(m.match_time)}
+                        </div>
+                      )}
                       <div className="w-[70px] sm:w-[96px] shrink-0 flex flex-col items-center justify-center text-center px-1 text-[10px] sm:text-xs font-black leading-tight" style={{ background: knock ? "#6E0B15" : "#14245E", color: knock ? "#fff" : "#F5C542" }}>
                         {left ? (
                           <span className={isFinal ? "text-base sm:text-xl" : ""}>{left}</span>
