@@ -37,7 +37,8 @@ export default async function SchedulePage() {
   const teamName = (id: string | null) => teams?.find((t: any) => t.id === id)?.name || "TBA";
   const sideName = (m: any, side: "a" | "b") => {
     const id = side === "a" ? m.team_a_id : m.team_b_id;
-    if (id) return teamName(id);
+    const found = id ? teams?.find((t: any) => t.id === id)?.name : null;
+    if (found) return found;
     const l = (labels ?? []).find((x: any) => x.id === m.id);
     return (side === "a" ? l?.team_a_label : l?.team_b_label) || "TBA";
   };
