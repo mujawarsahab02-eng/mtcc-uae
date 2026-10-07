@@ -11,7 +11,7 @@ const LINKS = [
   { href: "/matches", label: "Matches" },
   { href: "/stats", label: "Stats" },
   { href: "/squads", label: "Squads" },
-  { href: "/standings", label: "Standings" },
+  { href: "/standings", label: "Schedule" },
   { href: "/rules", label: "Rules" },
   { href: "/#sponsors", label: "Sponsors" },
 ];

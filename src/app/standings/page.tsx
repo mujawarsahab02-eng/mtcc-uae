@@ -15,6 +15,33 @@ function statusPill(status: string) {
   return map[status] || map.Scheduled;
 }
 
+
+const OPEN = "#CFE5FA", WIN = "#C8F0E0", LOSE = "#FBE3B8", SEMI = "#DCD9FB", FINAL = "#F5C542";
+type Cell = { t: string; l: string; n?: string; bg: string } | null;
+const GROUPS: { name: string; rows: Cell[][] }[] = [
+  { name: "Group A", rows: [[
+    { t: "Match 1", l: "WK & Brothers vs MI Mumbaikar", bg: OPEN },
+    { t: "Match 3", l: "Anas 11 Shriwardhan vs Rising Stars Dubai", bg: OPEN },
+    { t: "Match 5 · Winners", l: "W1 vs W3", n: "Winner → Semi-finalist A1", bg: WIN },
+    { t: "Match 6 · Losers", l: "L1 vs L3", n: "Loser knocked out", bg: LOSE },
+  ], [null, null, null,
+    { t: "Match 7 · Eliminator", l: "L5 vs W6", n: "Winner → Semi-finalist A2", bg: LOSE },
+  ]] },
+  { name: "Group B", rows: [[
+    { t: "Match 2", l: "Zainab 11 vs Shams 11 Dubai", bg: OPEN },
+    { t: "Match 4", l: "Desert Falcons CC vs Maldoli Indians", bg: OPEN },
+    { t: "Match 8 · Winners", l: "W2 vs W4", n: "Winner → Semi-finalist B1", bg: WIN },
+    { t: "Match 9 · Losers", l: "L2 vs L4", n: "Loser knocked out", bg: LOSE },
+  ], [null, null, null,
+    { t: "Match 10 · Eliminator", l: "L8 vs W9", n: "Winner → Semi-finalist B2", bg: LOSE },
+  ]] },
+];
+const KO: { t: string; l: string; bg: string; big?: boolean }[] = [
+  { t: "Match 11 · Semi-final 1", l: "A1 vs B1", bg: SEMI },
+  { t: "Match 12 · Semi-final 2", l: "A2 vs B2", bg: SEMI },
+  { t: "Match 13 · Grand Final", l: "Winners of M11 & M12", bg: FINAL, big: true },
+];
+
 export default async function StandingsPage() {
   const supabase = createClient();
   const [{ data: matches }, { data: teams }, { data: labels }] = await Promise.all([
@@ -32,15 +59,6 @@ export default async function StandingsPage() {
     return (side === "a" ? l?.team_a_label : l?.team_b_label) || "TBA";
   };
 
-  const standings = (teams ?? []).map((team: any) => {
-    const played = (matches ?? []).filter((m: any) => m.status === "Completed" && (m.team_a_id === team.id || m.team_b_id === team.id));
-    const won = played.filter((m: any) => !m.is_tie && m.winner_id === team.id).length;
-    const tied = played.filter((m: any) => m.is_tie).length;
-    const lost = played.filter((m: any) => !m.is_tie && m.winner_id && m.winner_id !== team.id).length;
-    const points = won * 2 + tied * 1;
-    return { team, played: played.length, won, lost, tied, points };
-  }).sort((a: any, b: any) => b.points - a.points || b.won - a.won);
-
   const fixtures = (matches ?? []).sort((a: any, b: any) => (a.match_date || "9999").localeCompare(b.match_date || "9999"));
 
   return (
@@ -48,41 +66,42 @@ export default async function StandingsPage() {
       <PublicNav />
 
       <div className="bg-cream py-12 text-center px-6">
-        <div className="text-xs uppercase tracking-[0.3em] text-orange font-bold mb-2">Live Standings</div>
-        <h1 className="font-display font-black text-3xl text-navyText mb-2">Points Table</h1>
-        <p className="text-sm text-slateText">Win = 2 points · Tie/No Result = 1 point · Loss = 0 points</p>
+        <div className="text-xs uppercase tracking-[0.3em] text-orange font-bold mb-2">Season 1</div>
+        <h1 className="font-display font-black text-3xl text-navyText mb-2">Tournament Schedule</h1>
+        <p className="text-sm text-slateText">Two groups · knockout format · 13 matches</p>
       </div>
 
-      <div className="max-w-3xl mx-auto px-5 py-10">
-        <div className="rounded-2xl border border-black/5 shadow-sm bg-white overflow-hidden mb-12">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[420px]">
-              <thead>
-                <tr className="bg-cream text-slateText text-[11px] uppercase tracking-wide">
-                  <th className="text-left py-3 px-4">Team</th>
-                  <th className="py-3 px-2">P</th>
-                  <th className="py-3 px-2">W</th>
-                  <th className="py-3 px-2">L</th>
-                  <th className="py-3 px-2">T</th>
-                  <th className="py-3 px-3 text-orange">Pts</th>
-                </tr>
-              </thead>
-              <tbody>
-                {standings.map((s: any, i: number) => (
-                  <tr key={s.team.id} className="border-t border-black/5" style={{ background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.012)" }}>
-                    <td className="py-3 px-4 font-semibold text-navyText">{i + 1}. {s.team.name}</td>
-                    <td className="text-center py-3 px-2 text-slateText">{s.played}</td>
-                    <td className="text-center py-3 px-2 text-slateText">{s.won}</td>
-                    <td className="text-center py-3 px-2 text-slateText">{s.lost}</td>
-                    <td className="text-center py-3 px-2 text-slateText">{s.tied}</td>
-                    <td className="text-center py-3 px-3 font-bold text-orange">{s.points}</td>
-                  </tr>
-                ))}
-                {standings.length === 0 && (
-                  <tr><td colSpan={6} className="text-center py-8 text-slateText">No teams yet.</td></tr>
+      <div className="max-w-4xl mx-auto px-5 py-10">
+        <div className="space-y-5 mb-12">
+          {GROUPS.map((g) => (
+            <div key={g.name} className="rounded-2xl border border-black/5 shadow-sm bg-white p-4">
+              <h2 className="font-display font-black text-lg text-navyText mb-3">{g.name}</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {g.rows.flat().map((c, i) =>
+                  c ? (
+                    <div key={i} className="rounded-lg p-2.5 text-xs leading-snug text-[#1a1a1a]" style={{ background: c.bg }}>
+                      <div className="font-bold text-[11px] mb-0.5">{c.t}</div>
+                      <div>{c.l}</div>
+                      {c.n && <div className="mt-1 text-[11px] opacity-80">{c.n}</div>}
+                    </div>
+                  ) : (
+                    <div key={i} className="hidden md:block" />
+                  )
                 )}
-              </tbody>
-            </table>
+              </div>
+            </div>
+          ))}
+          <div className="rounded-2xl border border-black/5 shadow-sm bg-white p-4">
+            <h2 className="font-display font-black text-lg text-navyText mb-3">Knockouts</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {KO.map((c) => (
+                <div key={c.t} className="rounded-lg p-2.5 text-xs leading-snug text-[#1a1a1a] text-center" style={{ background: c.bg }}>
+                  <div className="font-bold text-[11px] mb-0.5">{c.t}</div>
+                  <div className={c.big ? "font-bold text-sm" : ""}>{c.l}</div>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-slateText mt-3">W = winner, L = loser of that match number.</p>
           </div>
         </div>
 
