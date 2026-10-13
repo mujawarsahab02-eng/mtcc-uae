@@ -26,7 +26,7 @@ export default async function Footer() {
           <Link href="/squads" className="text-white/70 hover:text-white transition-colors">Squads</Link>
           <Link href="/standings" className="text-white/70 hover:text-white transition-colors">Schedule</Link>
           <Link href="/rules" className="text-white/70 hover:text-white transition-colors">Rules</Link>
-          <Link href="/scorer" className="text-white/70 hover:text-white transition-colors">Scorer Login</Link>
+          <Link href="/account" className="text-white/70 hover:text-white transition-colors">Sign In / Sign Up</Link>
         </div>
 
         {sponsors && sponsors.length > 0 && (

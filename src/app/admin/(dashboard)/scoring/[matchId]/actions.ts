@@ -196,7 +196,7 @@ async function renumberInnings(supabase: any, inningsId: string) {
 async function playerNames(supabase: any, ids: (string | null)[]) {
   const clean = ids.filter(Boolean) as string[];
   if (!clean.length) return (_: string | null) => "—";
-  const { data: people } = await supabase.from("players").select("id, full_name").in("id", clean);
+  const { data: people } = await supabase.from("player_public").select("id, full_name").in("id", clean);
   return (id: string | null) => (people ?? []).find((p: any) => p.id === id)?.full_name || "—";
 }
 

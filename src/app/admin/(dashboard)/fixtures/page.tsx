@@ -9,7 +9,7 @@ export default async function FixturesPage() {
   const supabase = createClient();
   const [{ data: matches }, { data: teams }] = await Promise.all([
     supabase.from("matches").select("*").order("match_date", { ascending: true, nullsFirst: false }).order("match_number"),
-    supabase.from("teams").select("id, name").order("created_at"),
+    supabase.from("team_public").select("id, name").order("name"),
   ]);
 
   const canManage = ["Super Admin", "Tournament Admin", "Scorer"].includes(profile.role);

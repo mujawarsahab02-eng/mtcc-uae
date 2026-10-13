@@ -14,9 +14,9 @@ export default async function ScoringPage({ params }: { params: { matchId: strin
   if (!match) notFound();
 
   const [{ data: teamA }, { data: teamB }, { data: players }, { data: settings }, { data: innings }, { data: xiRows }] = await Promise.all([
-    supabase.from("teams").select("id, name").eq("id", match.team_a_id).single(),
-    supabase.from("teams").select("id, name").eq("id", match.team_b_id).single(),
-    supabase.from("players").select("id, full_name, team_id, team_role").in("team_id", [match.team_a_id, match.team_b_id]),
+    supabase.from("team_public").select("id, name").eq("id", match.team_a_id).single(),
+    supabase.from("team_public").select("id, name").eq("id", match.team_b_id).single(),
+    supabase.rpc("scoring_players", { p_match: params.matchId }),
     supabase.from("tournament_settings").select("playing_xi, number_of_overs").eq("id", 1).single(),
     supabase.from("innings").select("*").eq("match_id", params.matchId).order("innings_number"),
     supabase.from("match_players").select("player_id, team_id, is_captain, is_wicket_keeper").eq("match_id", params.matchId),
