@@ -1,5 +1,6 @@
 "use client";
 
+import { toLoginEmail } from "@/lib/scorerAuth";
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -20,7 +21,7 @@ function LoginForm() {
     e.preventDefault();
     setErr("");
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: toLoginEmail(email), password });
     setLoading(false);
     if (error) {
       setErr(error.message);
@@ -42,8 +43,8 @@ function LoginForm() {
         <Card className="p-6">
           <div className="text-xs uppercase tracking-wide font-semibold mb-4 text-muted">Sign In</div>
           <form onSubmit={handleLogin}>
-            <Field label="Email" required>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+            <Field label="Email or username" required>
+              <input type="text" value={email} onChange={(e) => setEmail(e.target.value)} required autoCapitalize="none" autoComplete="username" />
             </Field>
             <Field label="Password" required>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
