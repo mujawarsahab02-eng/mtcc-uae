@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/supabase/profile";
 import { notFound } from "next/navigation";
 import ScoringClient from "./ScoringClient";
+import ScorerBar from "./ScorerBar";
 
 export const revalidate = 0;
 
@@ -36,9 +37,24 @@ export default async function ScoringPage({ params }: { params: { matchId: strin
     innings2 ? supabase.from("balls").select("*").eq("innings_id", innings2.id).order("sequence_no") : Promise.resolve({ data: [] }),
   ]);
 
-  const canScore = ["Super Admin", "Tournament Admin", "Scorer"].includes(profile.role);
+  const roleOk = ["Super Admin", "Tournament Admin", "Scorer"].includes(profile.role);
+  // One scorer per match: only the person holding the scorer seat can score.
+  const canScore = roleOk && match.scorer_id === profile.id;
+  const matchOver = match.status === "Completed" || match.status === "Abandoned";
 
   return (
+    <>
+    <ScorerBar
+      matchId={match.id}
+      scorerId={match.scorer_id ?? null}
+      scorerName={match.scorer_name ?? null}
+      handoverTo={match.handover_to ?? null}
+      handoverToName={match.handover_to_name ?? null}
+      meId={profile.id}
+      roleOk={roleOk}
+      isSuperAdmin={profile.role === "Super Admin"}
+      matchOver={matchOver}
+    />
     <ScoringClient
       match={match}
       teamA={teamA}
@@ -54,5 +70,6 @@ export default async function ScoringPage({ params }: { params: { matchId: strin
       canScore={canScore}
       isSuperAdmin={profile.role === "Super Admin"}
     />
+    </>
   );
 }

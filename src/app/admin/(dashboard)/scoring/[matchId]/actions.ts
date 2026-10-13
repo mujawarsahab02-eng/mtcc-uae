@@ -8,10 +8,19 @@ import { revalidatePath } from "next/cache";
 
 const SCORE_ROLES = ["Super Admin", "Tournament Admin", "Scorer"];
 
-async function guard(): Promise<any> {
+async function guard(matchId?: string): Promise<any> {
   const profile = await getCurrentProfile();
   if (!profile || !SCORE_ROLES.includes(profile.role)) {
     return { error: "Only Super Admin, Tournament Admin or Scorer can score matches." };
+  }
+  // One scorer per match: only the person holding the scorer seat may score.
+  if (matchId) {
+    const supabase = createClient();
+    const { data: m } = await supabase.from("matches").select("scorer_id, scorer_name").eq("id", matchId).single();
+    if (!m?.scorer_id) return { error: "Tap “Start scoring” first. Nobody is scoring this match yet." };
+    if (m.scorer_id !== profile.id) {
+      return { error: `${m.scorer_name || "Another scorer"} is scoring this match. You can watch, but only they can score.` };
+    }
   }
   return { profile };
 }
@@ -196,7 +205,7 @@ export async function saveMatchSetup(matchId: string, payload: {
   cricheroesUrl: string;
   xi: { playerId: string; teamId: string; isCaptain: boolean; isWicketKeeper: boolean }[];
 }): Promise<any> {
-  const g: any = await guard();
+  const g: any = await guard(matchId);
   if (g.error) return g;
 
   const supabase = createClient();
@@ -275,7 +284,7 @@ export async function startInnings(payload: {
   matchId: string; inningsNumber: number; battingTeamId: string; bowlingTeamId: string;
   strikerId: string; nonStrikerId: string; bowlerId: string;
 }): Promise<any> {
-  const g: any = await guard();
+  const g: any = await guard(payload.matchId);
   if (g.error) return g;
 
   const supabase = createClient();
@@ -321,7 +330,7 @@ export async function recordBall(inningsId: string, matchId: string, payload: {
   isWicket: boolean; wicketType: string | null; dismissedPlayerId: string | null;
   fielderId: string | null; newBatsmanId: string | null; shotZone: string | null;
 }): Promise<any> {
-  const g: any = await guard();
+  const g: any = await guard(matchId);
   if (g.error) return g;
 
   const supabase = createClient();
@@ -387,7 +396,7 @@ export async function recordBall(inningsId: string, matchId: string, payload: {
 }
 
 export async function undoLastBall(inningsId: string, matchId: string): Promise<any> {
-  const g: any = await guard();
+  const g: any = await guard(matchId);
   if (g.error) return g;
 
   const supabase = createClient();
@@ -422,7 +431,7 @@ export async function undoLastBall(inningsId: string, matchId: string): Promise<
 
 // New bowler at the start of an over, or mid-over (injury etc.).
 export async function setNewBowler(inningsId: string, matchId: string, bowlerId: string): Promise<any> {
-  const g: any = await guard();
+  const g: any = await guard(matchId);
   if (g.error) return g;
 
   const supabase = createClient();
@@ -436,7 +445,7 @@ export async function setNewBowler(inningsId: string, matchId: string, bowlerId:
 }
 
 export async function swapStrike(inningsId: string, matchId: string): Promise<any> {
-  const g: any = await guard();
+  const g: any = await guard(matchId);
   if (g.error) return g;
 
   const supabase = createClient();
@@ -453,7 +462,7 @@ export async function swapStrike(inningsId: string, matchId: string): Promise<an
 export async function retireBatter(inningsId: string, matchId: string, payload: {
   playerId: string; type: "Retired Hurt" | "Retired Out"; newBatsmanId: string | null;
 }): Promise<any> {
-  const g: any = await guard();
+  const g: any = await guard(matchId);
   if (g.error) return g;
 
   const supabase = createClient();
@@ -498,7 +507,7 @@ export async function retireBatter(inningsId: string, matchId: string, payload: 
 
 // Rain etc.: change this innings' overs, and (innings 2) the revised target.
 export async function setInningsOvers(inningsId: string, matchId: string, overs: number, target: number | null): Promise<any> {
-  const g: any = await guard();
+  const g: any = await guard(matchId);
   if (g.error) return g;
 
   if (!Number.isInteger(overs) || overs < 1) return { error: "Enter a whole number of overs (at least 1)." };
@@ -524,7 +533,7 @@ export async function setInningsOvers(inningsId: string, matchId: string, overs:
 }
 
 export async function endInnings(inningsId: string, matchId: string): Promise<any> {
-  const g: any = await guard();
+  const g: any = await guard(matchId);
   if (g.error) return g;
 
   const supabase = createClient();
