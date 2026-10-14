@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui";
 import Logo from "@/components/Logo";
 import type { UserRole } from "@/lib/constants";
+import { canAccess } from "@/lib/adminAccess";
 
 const NAV: { href: string; label: string; icon: string; roles?: UserRole[] }[] = [
   { href: "/admin", label: "Dashboard", icon: "▦" },
@@ -29,7 +30,7 @@ export default function Sidebar({ role, fullName }: { role: UserRole; fullName: 
   const supabase = createClient();
   const [open, setOpen] = useState(false);
 
-  const visibleNav = NAV.filter((n) => !n.roles || n.roles.includes(role));
+  const visibleNav = NAV.filter((n) => canAccess(role, n.href));
 
   async function signOut() {
     await supabase.auth.signOut();
