@@ -20,6 +20,9 @@ const labelOf = (p: any) => {
 
 function buildSquad(t: any) {
   const list: any[] = [...(t.players || [])].sort((a, b) => rank(a) - rank(b));
+  // A full squad of 14 other players keeps all 14 on the card; the owner is then shown in the header only.
+  const others = list.filter((p) => rank(p) !== 0);
+  if (others.length >= SLOTS) return others.slice(0, SLOTS);
   const owner = String(t.owner_name || "").trim().toLowerCase();
   const hasOwner = owner && list.some((p) => String(p.full_name || "").trim().toLowerCase() === owner);
   if (owner && !hasOwner && list.length < SLOTS) {
