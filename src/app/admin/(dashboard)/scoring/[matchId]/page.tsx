@@ -24,9 +24,12 @@ export default async function ScoringPage({ params }: { params: { matchId: strin
 
   if (!teamA || !teamB) notFound();
 
-  // Everyone in each squad except non-playing Owners, alphabetical.
+  // Owners play for their team, so they are in the squad list. The exception is a team that
+  // already has 14 other players (Shams 11), where the owner is non-playing.
+  const othersByTeam: Record<string, number> = {};
+  for (const p of players ?? []) if (p.team_role !== "Owner") othersByTeam[p.team_id] = (othersByTeam[p.team_id] || 0) + 1;
   const squad = (players ?? [])
-    .filter((p: any) => p.team_role !== "Owner")
+    .filter((p: any) => p.team_role !== "Owner" || (othersByTeam[p.team_id] || 0) < 14)
     .sort((a: any, b: any) => (a.full_name || "").localeCompare(b.full_name || ""));
 
   const innings1 = (innings ?? []).find((i: any) => i.innings_number === 1) || null;
