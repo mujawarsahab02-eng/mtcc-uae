@@ -393,7 +393,7 @@ export default function RegisterForm({ settings, closed, spotsRemaining, sponsor
           <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl bg-orange/10 text-orange">✕</div>
           <h2 className="text-xl font-bold mb-2 font-display text-navyText">Registration Closed</h2>
           <p className="text-sm leading-relaxed text-slateText">
-            Player registration has reached its maximum capacity for this season. Thank you to everyone who registered — approved players will be contacted ahead of the auction.
+            Player registration for this season is closed. Thank you to everyone who registered. You can still create a free account to follow the tournament and score matches.
           </p>
         </div>
         <SponsorsFooter sponsors={sponsors} />

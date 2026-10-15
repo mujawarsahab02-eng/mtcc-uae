@@ -49,11 +49,11 @@ export default function PublicNav() {
         <div className="flex items-center gap-2">
           <InstallAppButton className="hidden sm:inline-flex items-center px-4 py-2.5 rounded-full text-sm font-semibold border border-black/10 text-navyText transition-colors hover:bg-black/5" />
           <Link
-            href="/register"
+            href="/account"
             className="hidden sm:inline-flex items-center px-5 py-2.5 rounded-full text-sm font-bold text-white transition-transform hover:-translate-y-0.5"
             style={{ background: "linear-gradient(135deg, #D4AF37, #F37032)" }}
           >
-            Register Now
+            Sign In / Sign Up
           </Link>
           <button
             className="md:hidden w-10 h-10 rounded-lg flex items-center justify-center border border-black/10"
@@ -80,12 +80,12 @@ export default function PublicNav() {
           ))}
           <InstallAppButton className="block w-full text-center mt-3 px-5 py-3 rounded-full text-sm font-semibold border border-black/10 text-navyText" />
           <Link
-            href="/register"
+            href="/account"
             onClick={() => setOpen(false)}
             className="block text-center mt-3 px-5 py-3 rounded-full text-sm font-bold text-white"
             style={{ background: "linear-gradient(135deg, #D4AF37, #F37032)" }}
           >
-            Register Now
+            Sign In / Sign Up
           </Link>
         </div>
       )}

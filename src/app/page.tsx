@@ -1,3 +1,4 @@
+import { registrationClosed } from "@/lib/registration";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui";
@@ -26,7 +27,7 @@ export default async function LandingPage() {
 
   const maxReg = settings?.max_registrations ?? 130;
   const currentReg = playerCount ?? 0;
-  const regClosed = currentReg >= maxReg;
+  const regClosed = registrationClosed(settings, currentReg);
   const regPct = Math.min(100, Math.round((currentReg / maxReg) * 100));
   const missionPoints = (settings?.mission_points || "").split("\n").filter((l: string) => l.trim());
   const generalSponsors = (sponsors ?? []).filter((s) => !s.is_powered_by);
@@ -107,9 +108,9 @@ export default async function LandingPage() {
           </p>
 
           <div className="fade-up flex flex-col sm:flex-row gap-4 mb-10" style={{ animationDelay: "0.38s" }}>
-            <Link href="/register">
+            <Link href={regClosed ? "/account" : "/register"}>
               <Button variant="primary" size="lg" className="!px-10 !py-4 !text-lg shadow-[0_8px_30px_rgba(212,175,55,0.4)] hover:-translate-y-0.5 transition-all">
-                Register Now →
+                {regClosed ? "Sign In / Sign Up →" : "Register Now →"}
               </Button>
             </Link>
             <a href="#details">

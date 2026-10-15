@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { registrationClosed } from "@/lib/registration";
 import RegisterForm from "@/components/register/RegisterForm";
 
 export const revalidate = 0;
@@ -11,7 +12,7 @@ export default async function RegisterPage() {
 
   const maxReg = settings?.max_registrations ?? 130;
   const currentCount = count ?? 0;
-  const closed = currentCount >= maxReg;
+  const closed = registrationClosed(settings, currentCount);
   const spotsRemaining = Math.max(0, maxReg - currentCount);
 
   return <RegisterForm settings={settings} closed={closed} spotsRemaining={spotsRemaining} sponsors={sponsors ?? []} />;
