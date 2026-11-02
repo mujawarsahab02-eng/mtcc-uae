@@ -5,6 +5,7 @@ import { Button } from "@/components/ui";
 import Logo from "@/components/Logo";
 import PublicNav from "@/components/PublicNav";
 import Footer from "@/components/Footer";
+import HeroCountdown from "@/components/HeroCountdown";
 import { IconWallet, IconUsers, IconTrophy, IconCalendar, IconGavel, IconShieldCheck, IconClipboardCheck, IconHandshake, IconList, IconRefresh, IconCricketBall, IconStar, IconGlobe } from "@/components/Icons";
 
 export const revalidate = 10;
@@ -106,6 +107,8 @@ export default async function LandingPage() {
           <p className="fade-up text-white/60 text-base max-w-lg mb-8" style={{ animationDelay: "0.3s" }}>
             {settings?.format ?? "One-Day Tennis Cricket Championship on Grass"}
           </p>
+
+          <HeroCountdown date={settings?.tournament_date} venue={settings?.venue} />
 
           <div className="fade-up flex flex-col sm:flex-row gap-4 mb-10" style={{ animationDelay: "0.38s" }}>
             <Link href={regClosed ? "/account" : "/register"}>
