@@ -16,7 +16,7 @@ export default async function MatchCentrePage({ params }: { params: { id: string
     supabase.from("tournament_settings").select("playing_xi, number_of_overs, tournament_name").eq("id", 1).single(),
     supabase.from("innings").select("*").eq("match_id", params.id).order("innings_number"),
     supabase.from("match_labels_public").select("*").eq("id", params.id).maybeSingle(),
-    supabase.from("match_players").select("team_id").eq("match_id", params.id),
+    supabase.from("match_players").select("team_id, player_id, is_captain, is_wicket_keeper, created_at").eq("match_id", params.id).order("created_at"),
   ]);
 
   const innings1 = (innings ?? []).find((i: any) => i.innings_number === 1 && i.opening_striker_id) || null;
@@ -31,6 +31,9 @@ export default async function MatchCentrePage({ params }: { params: { id: string
   const xiCounts: Record<string, number> = {};
   for (const r of xi ?? []) xiCounts[r.team_id] = (xiCounts[r.team_id] || 0) + 1;
 
+  const squads: Record<string, { player_id: string; is_captain: boolean; is_wicket_keeper: boolean }[]> = {};
+  for (const r of xi ?? []) (squads[r.team_id] ||= []).push({ player_id: r.player_id, is_captain: r.is_captain, is_wicket_keeper: r.is_wicket_keeper });
+
   return (
     <MatchCentreClient
       match={{ ...match, ...(extras || {}) }}
@@ -38,6 +41,7 @@ export default async function MatchCentrePage({ params }: { params: { id: string
       teamB={teamB}
       players={players ?? []}
       xiCounts={xiCounts}
+      squads={squads}
       settings={{
         playingXI: settings?.playing_xi ?? 11,
         oversLimit: extras?.overs_per_innings ?? settings?.number_of_overs ?? 16,
