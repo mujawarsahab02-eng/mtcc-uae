@@ -16,13 +16,15 @@ function fmtOvers(balls: number) {
 
 export default async function MatchesPage({ searchParams }: { searchParams: { f?: string } }) {
   const supabase = createClient();
-  const [{ data: matches }, { data: teams }, { data: labels }, { data: innings }] = await Promise.all([
+  const [{ data: matches }, { data: regTeams }, { data: guestTeams }, { data: labels }, { data: innings }] = await Promise.all([
     supabase.from("match_public").select("*"),
     supabase.from("team_public").select("id, name"),
+    supabase.from("guest_teams").select("id, name"),
     supabase.from("match_labels_public").select("id, team_a_label, team_b_label"),
     supabase.from("innings").select("match_id, innings_number, batting_team_id, total_runs, total_wickets, legal_balls, status, opening_striker_id, target, overs_limit"),
   ]);
 
+  const teams = [...(regTeams ?? []), ...(guestTeams ?? [])];
   const teamName = (id: string | null) => (teams ?? []).find((t: any) => t.id === id)?.name || null;
   const side = (m: any, s: "a" | "b") => {
     const id = s === "a" ? m.team_a_id : m.team_b_id;

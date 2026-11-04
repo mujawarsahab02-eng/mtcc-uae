@@ -19,6 +19,16 @@ export default async function MatchCentrePage({ params }: { params: { id: string
     supabase.from("match_players").select("team_id, player_id, is_captain, is_wicket_keeper, created_at").eq("match_id", params.id).order("created_at"),
   ]);
 
+  // Guest teams / players (free-flow scoring) when a side isn't a registered team.
+  const [{ data: guestTeams }, { data: guestPlayers }] = await Promise.all([
+    supabase.from("guest_teams").select("id, name").eq("match_id", params.id),
+    supabase.from("guest_players").select("id, full_name, team_id").eq("match_id", params.id),
+  ]);
+  const pick = (id: string | null, reg: any) => reg || (guestTeams ?? []).find((t: any) => t.id === id) || null;
+  const teamAFinal = pick(match.team_a_id, teamA);
+  const teamBFinal = pick(match.team_b_id, teamB);
+  const playersAll = [...(players ?? []), ...(guestPlayers ?? [])];
+
   const innings1 = (innings ?? []).find((i: any) => i.innings_number === 1 && i.opening_striker_id) || null;
   const innings2 = (innings ?? []).find((i: any) => i.innings_number === 2 && i.opening_striker_id) || null;
 
@@ -37,9 +47,9 @@ export default async function MatchCentrePage({ params }: { params: { id: string
   return (
     <MatchCentreClient
       match={{ ...match, ...(extras || {}) }}
-      teamA={teamA}
-      teamB={teamB}
-      players={players ?? []}
+      teamA={teamAFinal}
+      teamB={teamBFinal}
+      players={playersAll}
       xiCounts={xiCounts}
       squads={squads}
       settings={{

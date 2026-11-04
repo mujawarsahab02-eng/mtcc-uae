@@ -3,6 +3,7 @@ import { requireProfile } from "@/lib/supabase/profile";
 import { notFound } from "next/navigation";
 import ScoringClient from "./ScoringClient";
 import ScorerBar from "./ScorerBar";
+import GuestTeamSetup from "./GuestTeamSetup";
 
 export const revalidate = 0;
 
@@ -13,16 +14,49 @@ export default async function ScoringPage({ params }: { params: { matchId: strin
   const { data: match } = await supabase.from("matches").select("*").eq("id", params.matchId).single();
   if (!match) notFound();
 
-  const [{ data: teamA }, { data: teamB }, { data: players }, { data: settings }, { data: innings }, { data: xiRows }] = await Promise.all([
-    supabase.from("team_public").select("id, name").eq("id", match.team_a_id).single(),
-    supabase.from("team_public").select("id, name").eq("id", match.team_b_id).single(),
+  // A side is either a registered team or a guest team typed in by the scorer.
+  const lookupTeam = async (id: string | null) => {
+    if (!id) return null;
+    const { data: t } = await supabase.from("team_public").select("id, name").eq("id", id).maybeSingle();
+    if (t) return { ...t, isGuest: false };
+    const { data: gt } = await supabase.from("guest_teams").select("id, name").eq("id", id).maybeSingle();
+    return gt ? { ...gt, isGuest: true } : null;
+  };
+  const [teamA, teamB] = await Promise.all([lookupTeam(match.team_a_id), lookupTeam(match.team_b_id)]);
+
+  const roleOk = ["Super Admin", "Tournament Admin", "Scorer"].includes(profile.role);
+  // One scorer per match: only the person holding the scorer seat can score.
+  const canScore = roleOk && match.scorer_id === profile.id;
+  const matchOver = match.status === "Completed" || match.status === "Abandoned";
+  const scorerBar = (
+    <ScorerBar
+      matchId={match.id}
+      scorerId={match.scorer_id ?? null}
+      scorerName={match.scorer_name ?? null}
+      handoverTo={match.handover_to ?? null}
+      handoverToName={match.handover_to_name ?? null}
+      meId={profile.id}
+      roleOk={roleOk}
+      isSuperAdmin={profile.role === "Super Admin"}
+      matchOver={matchOver}
+    />
+  );
+
+  if (!teamA || !teamB) {
+    return (
+      <>
+        {scorerBar}
+        <GuestTeamSetup match={match} teamA={teamA} teamB={teamB} canScore={canScore} />
+      </>
+    );
+  }
+
+  const [{ data: players }, { data: settings }, { data: innings }, { data: xiRows }] = await Promise.all([
     supabase.rpc("scoring_players", { p_match: params.matchId }),
     supabase.from("tournament_settings").select("playing_xi, number_of_overs").eq("id", 1).single(),
     supabase.from("innings").select("*").eq("match_id", params.matchId).order("innings_number"),
     supabase.from("match_players").select("player_id, team_id, is_captain, is_wicket_keeper").eq("match_id", params.matchId),
   ]);
-
-  if (!teamA || !teamB) notFound();
 
   // Owners play for their team, so they are in the squad list. The exception is a team that
   // already has 14 other players (Shams 11), where the owner is non-playing.
@@ -40,24 +74,9 @@ export default async function ScoringPage({ params }: { params: { matchId: strin
     innings2 ? supabase.from("balls").select("*").eq("innings_id", innings2.id).order("sequence_no") : Promise.resolve({ data: [] }),
   ]);
 
-  const roleOk = ["Super Admin", "Tournament Admin", "Scorer"].includes(profile.role);
-  // One scorer per match: only the person holding the scorer seat can score.
-  const canScore = roleOk && match.scorer_id === profile.id;
-  const matchOver = match.status === "Completed" || match.status === "Abandoned";
-
   return (
     <>
-    <ScorerBar
-      matchId={match.id}
-      scorerId={match.scorer_id ?? null}
-      scorerName={match.scorer_name ?? null}
-      handoverTo={match.handover_to ?? null}
-      handoverToName={match.handover_to_name ?? null}
-      meId={profile.id}
-      roleOk={roleOk}
-      isSuperAdmin={profile.role === "Super Admin"}
-      matchOver={matchOver}
-    />
+    {scorerBar}
     <ScoringClient
       match={match}
       teamA={teamA}

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Field, SectionHeader, SeamDivider } from "@/components/ui";
-import { saveMatchSetup } from "./actions";
+import { addGuestPlayer, saveMatchSetup } from "./actions";
 
 type Player = { id: string; full_name: string; team_id: string };
 type XiRow = { player_id: string; team_id: string; is_captain: boolean; is_wicket_keeper: boolean };
@@ -40,6 +40,21 @@ export default function MatchSetup({ match, teamA, teamB, squadA, squadB, xiRows
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [newName, setNewName] = useState<Record<string, string>>({});
+  const [addBusy, setAddBusy] = useState(false);
+
+  // Guest teams: add a player by name and put them straight into the XI.
+  async function addPlayer(teamId: string) {
+    const name = (newName[teamId] || "").trim();
+    if (!name) return;
+    setAddBusy(true); setErr("");
+    const res: any = await addGuestPlayer(match.id, teamId, name);
+    setAddBusy(false);
+    if (res.error) { setErr(res.error); return; }
+    setNewName((p) => ({ ...p, [teamId]: "" }));
+    setPicks((p) => ({ ...p, [res.id]: { c: false, wk: false } }));
+    router.refresh();
+  }
 
   function toggle(id: string) {
     setPicks((prev) => {
@@ -103,6 +118,14 @@ export default function MatchSetup({ match, teamA, teamB, squadA, squadB, xiRows
             </div>
           );
         })}
+        {team.isGuest && (
+          <div className="flex gap-2 mt-3">
+            <input value={newName[team.id] || ""} placeholder="Add a player by name"
+              onChange={(e: any) => setNewName((p) => ({ ...p, [team.id]: e.target.value }))}
+              onKeyDown={(e: any) => { if (e.key === "Enter") { e.preventDefault(); addPlayer(team.id); } }} />
+            <Button variant="subtle" size="sm" onClick={() => addPlayer(team.id)} disabled={addBusy}>Add</Button>
+          </div>
+        )}
       </Card>
     );
   };

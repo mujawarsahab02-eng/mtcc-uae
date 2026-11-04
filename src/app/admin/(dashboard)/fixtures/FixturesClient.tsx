@@ -227,7 +227,6 @@ export default function FixturesClient({ initialMatches, teams, canManage, isSup
       <div className="space-y-2">
         {matches.length === 0 && <LightCard className="p-8 text-center text-sm text-slateText">No matches scheduled yet.</LightCard>}
         {matches.map((m) => {
-          const bothTeamsPicked = !!m.team_a_id && !!m.team_b_id;
           return (
             <LightCard key={m.id} className="p-4">
               <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -242,13 +241,9 @@ export default function FixturesClient({ initialMatches, teams, canManage, isSup
                 <div className="flex flex-col items-end gap-2">
                   <LightStatusBadge status={m.status} />
                   {canManage && m.status !== "Completed" && (
-                    bothTeamsPicked ? (
-                      <Link href={`/admin/scoring/${m.id}`} onClick={(e: any) => e.stopPropagation()}>
-                        <LightButton variant="orange" size="sm">⚡ Score</LightButton>
-                      </Link>
-                    ) : (
-                      <span className="text-[11px] text-slateText">Pick both teams to score</span>
-                    )
+                    <Link href={`/admin/scoring/${m.id}`} onClick={(e: any) => e.stopPropagation()}>
+                      <LightButton variant="orange" size="sm">⚡ Score</LightButton>
+                    </Link>
                   )}
                   {(m.status === "Completed" || m.status === "Live") && (
                     <Link href={`/matches/${m.id}`} onClick={(e: any) => e.stopPropagation()} className="text-[11px] text-blue underline">
