@@ -196,8 +196,12 @@ async function renumberInnings(supabase: any, inningsId: string) {
 async function playerNames(supabase: any, ids: (string | null)[]) {
   const clean = ids.filter(Boolean) as string[];
   if (!clean.length) return (_: string | null) => "—";
-  const { data: people } = await supabase.from("player_public").select("id, full_name").in("id", clean);
-  return (id: string | null) => (people ?? []).find((p: any) => p.id === id)?.full_name || "—";
+  const [{ data: people }, { data: guests }] = await Promise.all([
+    supabase.from("player_public").select("id, full_name").in("id", clean),
+    supabase.from("guest_players").select("id, full_name").in("id", clean),
+  ]);
+  const all = [...(people ?? []), ...(guests ?? [])];
+  return (id: string | null) => all.find((p: any) => p.id === id)?.full_name || "—";
 }
 
 export async function saveMatchSetup(matchId: string, payload: {
@@ -660,4 +664,76 @@ export async function updateResult(matchId: string, payload: {
   await logAudit({ action: "Match Result Edited", entity: "Match", entityId: matchId, field: "result", newValue: payload.resultType });
   revalidateMatch(matchId);
   return { ok: true };
+}
+
+
+// ---- Free-flow scoring: guest teams and players -----------------------------------
+// A side with no registered team is scored as a guest team: the scorer types the
+// team name and the player names. They live in their own tables, so they never
+// show up in the real Teams / Players / Auction / registration numbers.
+function cleanNames(list: string[] | undefined) {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of list ?? []) {
+    const n = String(raw).replace(/\s+/g, " ").trim();
+    if (n && !seen.has(n.toLowerCase())) { seen.add(n.toLowerCase()); out.push(n.slice(0, 60)); }
+  }
+  return out;
+}
+
+export async function setupGuestTeams(matchId: string, payload: {
+  a?: { name: string; players: string[] }; b?: { name: string; players: string[] };
+}): Promise<any> {
+  const g: any = await guard(matchId);
+  if (g.error) return g;
+  const supabase = createClient();
+  const { data: match } = await supabase.from("matches").select("team_a_id, team_b_id").eq("id", matchId).single();
+  if (!match) return { error: "Match not found." };
+
+  const sides: { key: "a" | "b"; col: "team_a_id" | "team_b_id"; data?: { name: string; players: string[] } }[] = [
+    { key: "a", col: "team_a_id", data: payload.a },
+    { key: "b", col: "team_b_id", data: payload.b },
+  ];
+  // Validate everything first so nothing is half-created.
+  for (const s of sides) {
+    if (match[s.col]) continue;
+    const name = (s.data?.name ?? "").trim();
+    if (!name) return { error: `Enter a name for Team ${s.key.toUpperCase()}.` };
+    if (cleanNames(s.data?.players).length < 2) return { error: `Add at least 2 players for ${name}.` };
+  }
+  const names = sides.filter((s) => !match[s.col]).map((s) => (s.data!.name).trim().toLowerCase());
+  if (names.length === 2 && names[0] === names[1]) return { error: "The two teams need different names." };
+
+  for (const s of sides) {
+    if (match[s.col]) continue;
+    const name = s.data!.name.trim().slice(0, 60);
+    const { data: team, error } = await supabase.from("guest_teams").insert({ match_id: matchId, name }).select("id").single();
+    if (error || !team) return { error: error?.message || "Could not create the team." };
+    const { error: pErr } = await supabase.from("guest_players").insert(
+      cleanNames(s.data!.players).map((full_name) => ({ match_id: matchId, team_id: team.id, full_name }))
+    );
+    if (pErr) return { error: pErr.message };
+    const { error: mErr } = await supabase.from("matches").update({ [s.col]: team.id }).eq("id", matchId);
+    if (mErr) return { error: mErr.message };
+  }
+
+  await logAudit({ action: "Guest Teams Created", entity: "Match", entityId: matchId, field: "teams", newValue: "guest" });
+  revalidateMatch(matchId);
+  return { ok: true };
+}
+
+export async function addGuestPlayer(matchId: string, teamId: string, name: string): Promise<any> {
+  const g: any = await guard(matchId);
+  if (g.error) return g;
+  const clean = cleanNames([name])[0];
+  if (!clean) return { error: "Enter the player's name." };
+  const supabase = createClient();
+  const { data: team } = await supabase.from("guest_teams").select("id").eq("id", teamId).eq("match_id", matchId).maybeSingle();
+  if (!team) return { error: "Players can only be added to a guest team." };
+  const { data: dupe } = await supabase.from("guest_players").select("id").eq("team_id", teamId).ilike("full_name", clean).maybeSingle();
+  if (dupe) return { error: `${clean} is already in this team.` };
+  const { data, error } = await supabase.from("guest_players").insert({ match_id: matchId, team_id: teamId, full_name: clean }).select("id").single();
+  if (error) return { error: error.message };
+  revalidateMatch(matchId);
+  return { ok: true, id: data.id };
 }

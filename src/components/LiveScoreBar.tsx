@@ -41,11 +41,13 @@ export default function LiveScoreBar() {
 
       const ids = live.map((m: any) => m.id);
       const teamIds = Array.from(new Set(live.flatMap((m: any) => [m.team_a_id, m.team_b_id]).filter(Boolean)));
-      const [{ data: inns }, { data: teams }] = await Promise.all([
+      const [{ data: inns }, { data: regTeams }, { data: guestTeams }] = await Promise.all([
         supabase.from("innings").select("match_id, innings_number, batting_team_id, total_runs, total_wickets, legal_balls, target, overs_limit, status, opening_striker_id").in("match_id", ids),
         supabase.from("team_public").select("id, name").in("id", teamIds),
+        supabase.from("guest_teams").select("id, name").in("match_id", ids),
       ]);
       if (cancelled) return;
+      const teams = [...(regTeams ?? []), ...(guestTeams ?? [])];
       const nameOf = (id: string | null) => (teams ?? []).find((t: any) => t.id === id)?.name || "TBA";
 
       setItems(live.map((m: any) => {

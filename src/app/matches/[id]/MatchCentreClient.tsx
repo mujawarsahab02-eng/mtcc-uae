@@ -7,11 +7,12 @@ import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui";
 import { computeInningsState, economy, formatOvers, runRate, strikeRate, ballLabel, SHOT_ZONES, type BallRow } from "@/lib/scoring";
 // Shared with the scorer's screen so fans and scorers see identical cards.
+import { AnalysisView, MatchDetailsCard, TeamsView } from "./MatchExtras";
 import { OversView, PartnershipsView, ScorecardView, ThisOverChips, type InningsView } from "@/app/admin/(dashboard)/scoring/[matchId]/MatchTabs";
 
-type Tab = "Live" | "Commentary" | "Scorecard" | "Wagon Wheel" | "Overs" | "Partnerships";
+type Tab = "Live" | "Scorecard" | "Commentary" | "Analysis" | "Teams" | "Wagon Wheel" | "Overs" | "Partnerships";
 
-export default function MatchCentreClient({ match, teamA, teamB, players, xiCounts, settings, initialInnings1, initialInnings2, initialBalls1, initialBalls2 }: any) {
+export default function MatchCentreClient({ match, teamA, teamB, players, xiCounts, squads, settings, initialInnings1, initialInnings2, initialBalls1, initialBalls2 }: any) {
   const router = useRouter();
   const isLive = match.status === "Live";
   const [tab, setTab] = useState<Tab>(isLive ? "Live" : initialInnings1 ? "Scorecard" : "Live");
@@ -58,7 +59,28 @@ export default function MatchCentreClient({ match, teamA, teamB, players, xiCoun
     : match.winner_id ? `${teamName(match.winner_id)} won${match.margin ? " by " + match.margin : ""}`
     : null;
 
-  const tabs: Tab[] = ["Live", "Commentary", "Scorecard", "Wagon Wheel", "Overs", "Partnerships"];
+  const tabs: Tab[] = ["Live", "Scorecard", "Commentary", "Analysis", "Teams", "Wagon Wheel", "Overs", "Partnerships"];
+
+  const tossLine = (() => {
+    if (!match.toss_winner_id) return null;
+    const dec = match.batting_first_id ? (match.batting_first_id === match.toss_winner_id ? "bat" : "bowl") : null;
+    return `Toss: ${teamName(match.toss_winner_id)}${dec ? ` opt to ${dec}` : " won the toss"}`;
+  })();
+  const fmtTime = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Dubai" }) : null);
+  const inn1 = views[0]?.innings, inn2 = views[1]?.innings;
+  const detailRows: [string, string | null | undefined][] = [
+    ["Match", `${match.stage || "Match"}${match.match_number ? ` · Match ${match.match_number}` : ""}`],
+    ["Date", match.match_date],
+    ["Scheduled", match.match_time],
+    ["Ground", match.ground],
+    ["Overs", settings.oversLimit ? `${settings.oversLimit} per side` : null],
+    ["Toss", tossLine ? tossLine.replace("Toss: ", "") : null],
+    ["1st innings", inn1 ? `${fmtTime(inn1.created_at) ?? ""}${inn1.updated_at ? " – " + fmtTime(inn1.updated_at) : ""}` : null],
+    ["2nd innings", inn2 ? `${fmtTime(inn2.created_at) ?? ""}${isLive || !inn2.updated_at ? "" : " – " + fmtTime(inn2.updated_at)}` : null],
+    ["Man of the Match", match.man_of_match],
+    ["Last updated", (() => { const u = [inn1?.updated_at, inn2?.updated_at].filter(Boolean).sort().pop(); return u ? `${new Date(u).toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: "Asia/Dubai" })} at ${fmtTime(u)}` : null; })()],
+  ];
+  const teamsForView = [teamA, teamB].filter(Boolean) as { id: string; name: string }[];
 
   return (
     <div className="min-h-screen bg-bg pb-28">
@@ -84,6 +106,7 @@ export default function MatchCentreClient({ match, teamA, teamB, players, xiCoun
         {/* Summary strip: both innings at a glance */}
         {views.length > 0 && (
           <div className="rounded-2xl border p-4 mb-4" style={{ borderColor: "rgba(212,175,55,0.3)", background: "linear-gradient(160deg, rgba(212,175,55,0.07), rgba(255,122,61,0.04))" }}>
+            {tossLine && <div className="text-[11px] text-mutedDim mb-1">{tossLine}</div>}
             {views.map((v) => (
               <div key={v.innings.id} className="flex items-baseline justify-between py-1">
                 <span className={`text-sm ${v === current && isLive ? "font-bold" : "text-muted"}`}>{v.battingName}</span>
@@ -95,6 +118,10 @@ export default function MatchCentreClient({ match, teamA, teamB, players, xiCoun
             {isLive && current && (
               <div className="text-xs mt-2 flex flex-wrap gap-x-4 gap-y-1 text-mutedDim">
                 <span>CRR <b className="text-ink">{runRate(current.state.totalRuns, current.state.legalBalls)}</b></span>
+                {!current.innings.target && current.state.legalBalls > 0 && (
+                  <span>Projected <b className="text-ink">{Math.round((current.state.totalRuns / current.state.legalBalls) * current.oversLimit * 6)}</b></span>
+                )}
+                {current.innings.target && <span>Target <b className="text-ink">{current.innings.target}</b></span>}
                 {current.innings.target && (() => {
                   const need = Math.max(0, current.innings.target - current.state.totalRuns);
                   const left = Math.max(0, current.oversLimit * 6 - current.state.legalBalls);
@@ -135,11 +162,17 @@ export default function MatchCentreClient({ match, teamA, teamB, players, xiCoun
               <LivePanel view={current} views={views} isLive={isLive} playerName={playerName} onAllCommentary={() => setTab("Commentary")} />
             )}
             {tab === "Commentary" && <CommentaryFeed views={views} />}
+            {tab === "Analysis" && <AnalysisView views={views} />}
+            {tab === "Teams" && <TeamsView teams={teamsForView} squads={squads ?? {}} playerName={playerName} />}
             {tab === "Scorecard" && <ScorecardView views={views} playerName={playerName} />}
             {tab === "Wagon Wheel" && <WagonWheel views={views} playerName={playerName} />}
             {tab === "Overs" && <OversView views={views} playerName={playerName} />}
             {tab === "Partnerships" && <PartnershipsView views={views} playerName={playerName} />}
           </>
+        )}
+
+        {views.length > 0 && (
+          <div className="mt-4"><MatchDetailsCard rows={detailRows} /></div>
         )}
 
         {match.cricheroes_url && (
