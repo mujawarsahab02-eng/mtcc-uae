@@ -81,7 +81,7 @@ export default async function MatchesPage({ searchParams }: { searchParams: { f?
       footer = m.status === "Abandoned" ? "Match abandoned" : m.is_tie ? "Match tied"
         : m.winner_id ? `${teamName(m.winner_id)} won${m.margin ? " by " + m.margin : ""}` : "Result awaited";
     } else {
-      footer = m.match_time ? `Starts ${m.match_time}` : "Time to be announced";
+      footer = m.match_time ? `Starts ${String(m.match_time).slice(0, 5)}` : "Time to be announced";
     }
     return (
       <Link key={m.id} href={`/matches/${m.id}`}
