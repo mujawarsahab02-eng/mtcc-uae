@@ -334,11 +334,13 @@ export async function recordBall(inningsId: string, matchId: string, payload: {
   isWicket: boolean; wicketType: string | null; dismissedPlayerId: string | null;
   fielderId: string | null; newBatsmanId: string | null; shotZone: string | null;
 }): Promise<any> {
-  const g: any = await guard(matchId);
-  if (g.error) return g;
-
   const supabase = createClient();
-  const { data: innings } = await supabase.from("innings").select("*").eq("id", inningsId).single();
+  // Run the permission check and the innings lookup together to save a round trip per ball.
+  const [g, { data: innings }]: [any, any] = await Promise.all([
+    guard(matchId),
+    supabase.from("innings").select("*").eq("id", inningsId).single(),
+  ]);
+  if (g.error) return g;
   if (!innings) return { error: "Innings not found." };
   if (innings.status === "Completed") return { error: "This innings has already ended." };
 
@@ -353,7 +355,10 @@ export async function recordBall(inningsId: string, matchId: string, payload: {
   const ballInOver = (innings.legal_balls % 6) + 1;
 
   const dismissedId = payload.isWicket ? (payload.dismissedPlayerId || innings.current_striker_id) : null;
-  const nameOf = await playerNames(supabase, [innings.current_striker_id, innings.current_bowler_id, dismissedId, payload.fielderId]);
+  const [nameOf, seqNo] = await Promise.all([
+    playerNames(supabase, [innings.current_striker_id, innings.current_bowler_id, dismissedId, payload.fielderId]),
+    nextSequence(supabase, inningsId),
+  ]);
   const zone = SHOT_ZONES.find((z) => z.key === payload.shotZone) || null;
 
   const commentary = buildCommentary({
@@ -372,7 +377,7 @@ export async function recordBall(inningsId: string, matchId: string, payload: {
 
   const { error } = await supabase.from("balls").insert({
     innings_id: inningsId,
-    sequence_no: await nextSequence(supabase, inningsId),
+    sequence_no: seqNo,
     over_number: overNumber,
     ball_in_over: ballInOver,
     striker_id: innings.current_striker_id,
