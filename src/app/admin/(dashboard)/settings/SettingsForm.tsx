@@ -257,14 +257,11 @@ export default function SettingsForm({ settings, canEdit, canToggleOverseas, cur
         </LightFormSection>
 
         <LightFormSection title="Competition Rules">
-          <LightField label="Qualification Rules"><textarea value={draft.qualification_rules || ""} onChange={set("qualification_rules")} /></LightField>
-          <LightField label="Points Rules"><textarea value={draft.points_rules || ""} onChange={set("points_rules")} /></LightField>
-          <LightField label="Net Run Rate Rules"><textarea value={draft.nrr_rules || ""} onChange={set("nrr_rules")} /></LightField>
-          <LightField label="Tie / Super Over Rules"><textarea value={draft.tie_break_rules || ""} onChange={set("tie_break_rules")} /></LightField>
-          <LightField label="General Tournament Rules" hint="One rule per line — shown as a numbered list on the public Rules page"><textarea value={draft.general_rules || ""} onChange={set("general_rules")} rows={5} /></LightField>
-          <LightField label="Match Conditions" hint="Powerplay, no-ball, wide-ball, LBW/byes — whatever differs from standard play"><textarea value={draft.match_conditions_rules || ""} onChange={set("match_conditions_rules")} rows={5} /></LightField>
-          <LightField label="Substitution Rules"><textarea value={draft.substitution_rules || ""} onChange={set("substitution_rules")} rows={3} /></LightField>
-          <LightField label="Super Over Rules"><textarea value={draft.super_over_rules || ""} onChange={set("super_over_rules")} rows={3} /></LightField>
+          <LightField label="Awards" hint="One per line"><textarea value={draft.tie_break_rules || ""} onChange={set("tie_break_rules")} /></LightField>
+          <LightField label="General Rules" hint="One rule per line — shown as a numbered list on the public Rules page"><textarea value={draft.general_rules || ""} onChange={set("general_rules")} rows={5} /></LightField>
+          <LightField label="Playing Rules" hint="One rule per line"><textarea value={draft.match_conditions_rules || ""} onChange={set("match_conditions_rules")} rows={5} /></LightField>
+          <LightField label="Conduct & Committee" hint="One rule per line"><textarea value={draft.substitution_rules || ""} onChange={set("substitution_rules")} rows={3} /></LightField>
+          <LightField label="Ball & Time" hint="One rule per line"><textarea value={draft.super_over_rules || ""} onChange={set("super_over_rules")} rows={3} /></LightField>
         </LightFormSection>
         <LightFormSection title="Privacy Policy">
           <p className="text-[11px] text-slateText mb-3">Shown on the public /privacy page.</p>

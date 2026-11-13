@@ -13,16 +13,11 @@ export default async function RulesPage() {
   const { data: settings } = await supabase.from("tournament_settings").select("*").eq("id", 1).single();
 
   const sections: { title: string; text: string | undefined; numbered?: boolean }[] = [
-    { title: "General Tournament Rules", text: settings?.general_rules, numbered: true },
-    { title: "Player Eligibility", text: settings?.player_eligibility_rules },
-    { title: "Qualification", text: settings?.qualification_rules },
-    { title: "Points System", text: settings?.points_rules },
-    { title: "Net Run Rate", text: settings?.nrr_rules },
-    { title: "Match Conditions", text: settings?.match_conditions_rules, numbered: true },
-    { title: "Tie / Super Over", text: settings?.tie_break_rules },
-    { title: "Super Over Details", text: settings?.super_over_rules, numbered: true },
-    { title: "Substitutions", text: settings?.substitution_rules, numbered: true },
-    { title: "Terms & Conditions", text: settings?.terms_and_conditions },
+    { title: "General Rules", text: settings?.general_rules, numbered: true },
+    { title: "Playing Rules", text: settings?.match_conditions_rules, numbered: true },
+    { title: "Ball & Time", text: settings?.super_over_rules, numbered: true },
+    { title: "Conduct & Committee", text: settings?.substitution_rules, numbered: true },
+    { title: "Awards", text: settings?.tie_break_rules, numbered: true },
   ].filter((s: { title: string; text: string | undefined; numbered?: boolean }) => s.text && s.text.trim().length > 0);
 
   return (
@@ -32,7 +27,7 @@ export default async function RulesPage() {
       <div className="bg-cream py-12 text-center px-6">
         <div className="text-xs uppercase tracking-[0.3em] text-orange font-bold mb-2">Know The Game</div>
         <h1 className="font-display font-black text-3xl text-navyText mb-2">{settings?.tournament_name || "Tournament"} Rules</h1>
-        <p className="text-sm text-slateText">Please read carefully before registering or participating.</p>
+        <p className="text-sm text-slateText">Please read carefully before the match.</p>
       </div>
 
       <div className="max-w-5xl mx-auto px-5 py-10">
