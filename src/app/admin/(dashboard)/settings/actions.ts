@@ -12,6 +12,8 @@ export async function saveSettings(next: Record<string, any>): Promise<any> {
     return { error: "You do not have permission to edit Tournament Settings." };
   }
 
+  if ("feedback_closes_on" in next && !next.feedback_closes_on) next = { ...next, feedback_closes_on: null };
+
   const supabase = createClient();
   const { data: before } = await supabase.from("tournament_settings").select("*").eq("id", 1).single();
 
