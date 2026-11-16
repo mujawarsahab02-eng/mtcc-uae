@@ -85,6 +85,7 @@ export default function SettingsForm({ settings, canEdit, canToggleOverseas, cur
         <LightFormSection title="Schedule & Venue">
           <div className="grid grid-cols-2 gap-3">
             <LightField label="Tournament Date"><input type="date" value={draft.tournament_date || ""} onChange={set("tournament_date")} /></LightField>
+            <LightField label="Feedback Form Closes On" hint="Optional. After this date /feedback shows a thank-you message instead of the form"><input type="date" value={draft.feedback_closes_on || ""} onChange={set("feedback_closes_on")} /></LightField>
             <LightField label="Number of Grounds"><input type="number" value={draft.number_of_grounds ?? 1} onChange={setNum("number_of_grounds")} /></LightField>
           </div>
           <div className="grid grid-cols-2 gap-3">

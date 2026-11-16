@@ -116,6 +116,11 @@ export default async function LandingPage() {
                 {regClosed ? "Sign In / Sign Up →" : "Register Now →"}
               </Button>
             </Link>
+            <Link href="/feedback">
+              <Button variant="ghost" size="lg" className="!px-10 !py-4 !text-lg border-2 border-white/25 text-white hover:-translate-y-0.5 transition-transform">
+                Share Your Feedback
+              </Button>
+            </Link>
             <a href="#details">
               <Button variant="ghost" size="lg" className="!px-10 !py-4 !text-lg border-2 border-white/25 text-white hover:-translate-y-0.5 transition-transform">
                 Tournament Information
