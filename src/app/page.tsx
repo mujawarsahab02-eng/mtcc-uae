@@ -14,6 +14,8 @@ export default async function LandingPage() {
   const supabase = createClient();
   const { data: settings } = await supabase.from("tournament_settings").select("*").eq("id", 1).single();
   const { data: sponsors } = await supabase.from("sponsors").select("*").order("sort_order");
+  const { data: glimpse } = await (supabase as any).from("gallery_items").select("id,thumb_path,title").eq("kind","photo").eq("featured",true).eq("hidden",false).order("created_at",{ascending:false}).limit(5);
+  const galleryBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/gallery/`;
   const { count: playerCount } = await supabase.from("players").select("*", { count: "exact", head: true });
   const { data: teams } = await supabase.from("team_public").select("*");
   const { data: auctionRow } = await supabase.from("auction_state").select("status").eq("id", 1).single();
@@ -421,6 +423,26 @@ export default async function LandingPage() {
           </div>
         </div>
       </div>
+
+      {/* ================= A GLIMPSE OF SEASON 1 ================= */}
+      {glimpse && glimpse.length > 0 && (
+        <div className="bg-white py-16">
+          <div className="max-w-6xl mx-auto px-6 text-center">
+            <div className="text-xs uppercase tracking-[0.3em] text-orange font-bold mb-2">Season 1 · 15 Nov 2026</div>
+            <h2 className="font-display text-3xl sm:text-4xl font-bold uppercase text-navyText mb-8">A Glimpse of Season 1</h2>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {glimpse.map((g: any) => (
+                <Link key={g.id} href="/gallery" className="block overflow-hidden rounded-xl bg-black/5">
+                  <img src={galleryBase + g.thumb_path} alt={g.title ?? "MTCC Season 1"} loading="lazy" className="w-full h-48 object-cover hover:scale-105 transition-transform duration-300" />
+                </Link>
+              ))}
+            </div>
+            <div className="mt-8">
+              <Link href="/gallery"><Button variant="primary" size="lg">View full gallery</Button></Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================= SECTION 11 — SPONSORS ================= */}
       {generalSponsors.length > 0 && (
