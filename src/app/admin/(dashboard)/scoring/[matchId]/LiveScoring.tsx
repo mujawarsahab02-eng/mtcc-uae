@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Field } from "@/components/ui";
-import { allowedWicketTypes, economy, formatOvers, runRate, strikeRate, SHOT_ZONES } from "@/lib/scoring";
+import { allowedWicketTypes, computeInningsState, economy, formatOvers, runRate, strikeRate, SHOT_ZONES, type BallRow } from "@/lib/scoring";
 import { recordBall, undoLastBall, setNewBowler, swapStrike, retireBatter, setInningsOvers, endInnings } from "./actions";
 import { OversView, PartnershipsView, ScorecardView, ThisOverChips, type InningsView } from "./MatchTabs";
 
@@ -24,7 +24,7 @@ function Pad({ label, sub, tone, onClick, disabled }: { label: string; sub?: str
   return (
     <button
       type="button" onClick={onClick} disabled={disabled}
-      className="h-14 rounded-xl border font-bold flex flex-col items-center justify-center leading-none active:scale-95 transition-transform disabled:opacity-40"
+      className="h-16 rounded-xl border font-bold flex flex-col items-center justify-center leading-none active:scale-95 transition-transform disabled:opacity-40"
       style={TONES[tone]}
     >
       <span className="text-xl">{label}</span>
@@ -60,7 +60,71 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
   playerName: (id: string | null) => string; canScore: boolean;
 }) {
   const router = useRouter();
-  const { innings, balls, state, oversLimit } = view;
+  const { innings, oversLimit } = view;
+
+  // Instant scoring: a tapped ball is shown on screen straight away (an "op"), while the
+  // save runs in the background, one ball after another. Server data is frozen until the
+  // saves finish and one fresh copy arrives, so nothing is counted twice.
+  type Op = { kind: "add"; ball: any } | { kind: "undo" };
+  const [ops, setOps] = useState<Op[]>([]);
+  const [frozen, setFrozen] = useState<any[] | null>(null);
+  const [synced, setSynced] = useState<string | null>(null); // signature of the frozen balls once saves are done
+  const queue = useRef<Promise<any>>(Promise.resolve());
+  const inflight = useRef(0);
+  const failedMsg = useRef<string | null>(null);
+  const opsRef = useRef<Op[]>([]);
+  const frozenRef = useRef<any[] | null>(null);
+  const seq = useRef(0);
+  const sig = (bs: any[]) => bs.map((b) => b.id).join(",");
+
+  let balls: any[] = frozen ?? view.balls;
+  for (const op of ops) balls = op.kind === "add" ? [...balls, op.ball] : balls.slice(0, -1);
+  const state = ops.length
+    ? computeInningsState(
+        balls as BallRow[],
+        { striker: innings.opening_striker_id, nonStriker: innings.opening_non_striker_id, bowler: innings.opening_bowler_id },
+        maxWickets, oversLimit
+      )
+    : view.state;
+
+  function clearOps() { setOps([]); setFrozen(null); setSynced(null); opsRef.current = []; frozenRef.current = null; }
+
+  // Drop the on-screen guess once the server has sent the saved balls back.
+  useEffect(() => {
+    if (synced !== null && sig(view.balls) !== synced) clearOps();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view.balls, synced]);
+  // Safety net: never stay on a guess for long.
+  useEffect(() => {
+    if (synced === null) return;
+    const t = setTimeout(() => { clearOps(); router.refresh(); }, 6000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [synced]);
+
+  function optimistic(op: Op, call: () => Promise<any>) {
+    if (opsRef.current.length === 0) { frozenRef.current = view.balls; setFrozen(view.balls); }
+    opsRef.current = [...opsRef.current, op];
+    setOps(opsRef.current);
+    setErr("");
+    inflight.current++;
+    queue.current = queue.current.then(async () => {
+      let res: any = { ok: true };
+      if (!failedMsg.current) {
+        try { res = await call(); } catch { res = { error: "Connection problem. That ball was not saved. Please check your internet." }; }
+        if (res?.error) failedMsg.current = res.error;
+      }
+      inflight.current--;
+      if (inflight.current > 0) return;
+      if (failedMsg.current) {
+        setErr(failedMsg.current); failedMsg.current = null;
+        clearOps(); router.refresh();
+      } else {
+        setSynced(sig(frozenRef.current ?? []));
+        router.refresh();
+      }
+    });
+  }
 
   const [tab, setTab] = useState<Tab>("Score");
   const [sheet, setSheet] = useState<Sheet>(null);
@@ -83,11 +147,12 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
   const [oversInput, setOversInput] = useState(String(oversLimit));
   const [targetInput, setTargetInput] = useState(innings.target ? String(innings.target) : "");
 
-  const strikerId: string | null = innings.current_striker_id;
-  const nonStrikerId: string | null = innings.current_non_striker_id;
-  const bowlerId: string | null = innings.current_bowler_id;
+  const strikerId: string | null = state.striker;
+  const nonStrikerId: string | null = state.nonStriker;
+  const bowlerId: string | null = state.bowler;
+  const isFreeHit: boolean = state.isFreeHit;
 
-  const needsNewBowler = innings.legal_balls > 0 && innings.legal_balls % 6 === 0 && bowlerId === innings.last_over_bowler_id;
+  const needsNewBowler = state.legalBalls > 0 && state.legalBalls % 6 === 0 && bowlerId === state.lastOverBowler;
   const remainingBatters = battingSquad.filter((p) => !state.batting[p.id]?.out && p.id !== strikerId && p.id !== nonStrikerId);
   const bowlerBalls = (id: string) => state.bowling[id]?.legalBalls ?? 0;
   const atBowlerCap = (id: string) => !!maxBowlerOvers && bowlerBalls(id) >= maxBowlerOvers * 6;
@@ -106,6 +171,7 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
 
   async function run(fn: () => Promise<any>, after?: () => void) {
     setBusy(true); setErr("");
+    await queue.current;
     const res: any = await fn();
     setBusy(false);
     if (res?.error) { setErr(res.error); return false; }
@@ -124,19 +190,39 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
     return { runsOffBat, extraType, extraRuns };
   }
 
+  function mkBall(p: { runsOffBat: number; extraType: Extra; extraRuns: number }, extra: { isWicket?: boolean; wicketType?: string | null; dismissed?: string | null; fielderId?: string | null; newBatsmanId?: string | null }) {
+    return {
+      id: `tmp-${++seq.current}`,
+      striker_id: state.striker, non_striker_id: state.nonStriker, bowler_id: state.bowler,
+      runs_off_bat: p.runsOffBat, extra_type: p.extraType, extra_runs: p.extraRuns,
+      is_wicket: !!extra.isWicket, wicket_type: extra.wicketType ?? null,
+      dismissed_player_id: extra.isWicket ? (extra.dismissed || state.striker) : null,
+      new_batsman_id: extra.newBatsmanId ?? null, fielder_id: extra.fielderId ?? null, event_type: null,
+      over_number: Math.floor(state.legalBalls / 6), ball_in_over: (state.legalBalls % 6) + 1, commentary: "",
+    };
+  }
+
   function submit(extraType: Extra, runs: number) {
-    if (busy) return;
+    if (busy || state.isInningsComplete) return;
     const p = payloadFor(extraType, runs);
     const zone = (extraType === null || extraType === "no_ball") && p.runsOffBat > 0 ? shotZone : null;
-    return run(() => recordBall(innings.id, match.id, {
+    const ball = mkBall(p, {});
+    closeSheet(); setShotZone(null);
+    optimistic({ kind: "add", ball }, () => recordBall(innings.id, match.id, {
       ...p, isWicket: false, wicketType: null, dismissedPlayerId: null, fielderId: null, newBatsmanId: null, shotZone: zone,
-    }), () => setShotZone(null));
+    }));
+  }
+
+  function undo() {
+    if (busy || balls.length === 0) return;
+    if (innings.declared && ops.length === 0) return run(() => undoLastBall(innings.id, match.id));
+    optimistic({ kind: "undo" }, () => undoLastBall(innings.id, match.id));
   }
 
   // Wicket sheet
   const wExtra: Extra = wDelivery === "normal" ? null : wDelivery;
   // Retirements have their own "Retire batter" button.
-  const wOptions = allowedWicketTypes(wExtra, innings.is_free_hit).filter((w) => !w.startsWith("Retired"));
+  const wOptions = allowedWicketTypes(wExtra, isFreeHit).filter((w) => !w.startsWith("Retired"));
   const wCounts = true;
   const wIsLastWicket = wCounts && state.totalWickets + 1 >= maxWickets;
   const wNeedsNewBatter = !wIsLastWicket && remainingBatters.length > 0;
@@ -150,11 +236,14 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
     if (wNeedsNewBatter && !wNewBatter) { setErr("Choose the incoming batter."); return; }
     const p = payloadFor(wExtra, wShowsRuns ? wRuns : 0);
     const dismissed = wCanPickBatter && wNonStriker ? nonStrikerId : strikerId;
-    return run(() => recordBall(innings.id, match.id, {
+    if (busy || state.isInningsComplete) return;
+    const fielder = wShowsFielder ? wFielder || null : null;
+    const newBat = wNeedsNewBatter ? wNewBatter : null;
+    const ball = mkBall(p, { isWicket: true, wicketType: wType, dismissed, fielderId: fielder, newBatsmanId: newBat });
+    closeSheet();
+    optimistic({ kind: "add", ball }, () => recordBall(innings.id, match.id, {
       ...p, isWicket: true, wicketType: wType, dismissedPlayerId: dismissed,
-      fielderId: wShowsFielder ? wFielder || null : null,
-      newBatsmanId: wNeedsNewBatter ? wNewBatter : null,
-      shotZone: null,
+      fielderId: fielder, newBatsmanId: newBat, shotZone: null,
     }));
   }
 
@@ -178,7 +267,7 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
     return run(() => setInningsOvers(innings.id, match.id, Number(oversInput), t));
   }
 
-  const bowlerOptions = bowlingSquad.filter((p) => p.id !== innings.last_over_bowler_id && (needsNewBowler || p.id !== bowlerId));
+  const bowlerOptions = bowlingSquad.filter((p) => p.id !== state.lastOverBowler && (needsNewBowler || p.id !== bowlerId));
 
   const header = (
     <Card className="p-4 mb-3">
@@ -189,7 +278,7 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
           <div className="text-xs text-muted">{formatOvers(state.legalBalls)} of {oversLimit} ov · CRR {runRate(state.totalRuns, state.legalBalls)}</div>
         </div>
         <div className="text-right text-xs">
-          {innings.is_free_hit && <div className="font-bold text-orange mb-1">FREE HIT</div>}
+          {isFreeHit && <div className="font-bold text-orange mb-1">FREE HIT</div>}
           {partnership && <div className="text-mutedDim">P'ship <b className="text-ink">{partnership.runs} ({partnership.balls})</b></div>}
         </div>
       </div>
@@ -277,7 +366,7 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
         <Chip active={wDelivery === "wide"} onClick={() => { setWDelivery("wide"); setWType(""); }}>Wide</Chip>
         <Chip active={wDelivery === "no_ball"} onClick={() => { setWDelivery("no_ball"); setWType(""); }}>No ball</Chip>
       </div>
-      <div className="text-[11px] text-mutedDim mb-1.5">How out{innings.is_free_hit ? " (free hit: run out only)" : ""}</div>
+      <div className="text-[11px] text-mutedDim mb-1.5">How out{isFreeHit ? " (free hit: run out only)" : ""}</div>
       <div className="flex gap-2 flex-wrap mb-3">
         {wOptions.map((w) => <Chip key={w} active={wType === w} onClick={() => setWType(w)}>{w}</Chip>)}
       </div>
@@ -359,7 +448,7 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
       </div>
       {err && <div className="text-xs mb-2 text-red">{err}</div>}
       <Button variant="primary" className="w-full" onClick={submitBowler} disabled={busy || !newBowlerId}>{busy ? "Saving…" : "Confirm bowler"}</Button>
-      {needsNewBowler && <Button variant="subtle" size="sm" className="w-full mt-2" onClick={() => run(() => undoLastBall(innings.id, match.id))} disabled={busy}>Undo last ball</Button>}
+      {needsNewBowler && <Button variant="subtle" size="sm" className="w-full mt-2" onClick={undo} disabled={busy}>Undo last ball</Button>}
     </Card>
   );
   else if (sheet === "overs") panel = sheetCard("Change overs (rain / bad light)", (
@@ -404,7 +493,7 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
   );
 
   const pad = (
-    <Card className="p-4 mb-3">
+    <Card className="p-4 mb-3 sticky bottom-2 z-10 shadow-[0_-8px_30px_rgba(0,0,0,0.45)]">
       {shotRow}
       <div className="grid grid-cols-4 gap-2 mb-2">
         <Pad label="0" sub="dot" tone="run" onClick={() => submit(null, 0)} disabled={busy} />
@@ -425,7 +514,7 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
         <Pad label="LB" sub="leg bye" tone="extra" onClick={() => { closeSheet(); setSheet("leg_bye"); }} disabled={busy} />
       </div>
       {err && !sheet && <div className="text-xs mt-3 text-red">{err}</div>}
-      <Button variant="subtle" className="w-full mt-3" onClick={() => run(() => undoLastBall(innings.id, match.id))} disabled={busy || balls.length === 0}>↶ Undo last ball</Button>
+      <Button variant="subtle" className="w-full mt-3" onClick={undo} disabled={busy || balls.length === 0}>↶ Undo last ball</Button>
       <div className="flex gap-2 mt-2">
         <SmallAction onClick={() => { closeSheet(); setOversInput(String(oversLimit)); setTargetInput(innings.target ? String(innings.target) : ""); setSheet("overs"); }} disabled={busy}>Change overs{innings.innings_number === 2 ? " / target" : ""}</SmallAction>
         <SmallAction onClick={() => { closeSheet(); setSheet("end"); }} disabled={busy}>End innings</SmallAction>
@@ -434,6 +523,7 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
   );
 
   const commentary = [...balls].reverse().slice(0, 8);
+  const viewsEff = views.map((v) => (v.innings.id === innings.id ? { ...v, balls, state } : v));
 
   return (
     <div>
@@ -447,9 +537,9 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
         ))}
       </div>
 
-      {tab === "Scorecard" && <ScorecardView views={views} playerName={playerName} />}
-      {tab === "Overs" && <OversView views={views} playerName={playerName} />}
-      {tab === "Partnerships" && <PartnershipsView views={views} playerName={playerName} />}
+      {tab === "Scorecard" && <ScorecardView views={viewsEff} playerName={playerName} />}
+      {tab === "Overs" && <OversView views={viewsEff} playerName={playerName} />}
+      {tab === "Partnerships" && <PartnershipsView views={viewsEff} playerName={playerName} />}
 
       {tab === "Score" && (
         <>

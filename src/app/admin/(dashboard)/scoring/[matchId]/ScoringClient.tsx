@@ -29,12 +29,15 @@ export default function ScoringClient({
   const [showAdmin, setShowAdmin] = useState(false);
 
   useEffect(() => {
+    // Refresh at most once in a burst of changes (a saved ball fires several events).
+    let timer: any = null;
+    const refreshSoon = () => { if (timer) return; timer = setTimeout(() => { timer = null; router.refresh(); }, 600); };
     const channel = supabase
       .channel(`scoring-${match.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "innings", filter: `match_id=eq.${match.id}` }, () => router.refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "balls" }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "innings", filter: `match_id=eq.${match.id}` }, refreshSoon)
+      .on("postgres_changes", { event: "*", schema: "public", table: "balls" }, refreshSoon)
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { if (timer) clearTimeout(timer); supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match.id]);
 

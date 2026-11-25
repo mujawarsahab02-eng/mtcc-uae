@@ -110,10 +110,17 @@ async function handleInningsCompletion(supabase: any, matchId: string, innings: 
   }).eq("id", matchId);
 }
 
-async function recomputeAndPersist(supabase: any, inningsId: string, matchId: string) {
-  const { data: innings } = await supabase.from("innings").select("*").eq("id", inningsId).single();
-  const { data: balls } = await supabase.from("balls").select("*").eq("innings_id", inningsId).order("sequence_no");
-  const rules = await getRules(supabase, matchId, innings.batting_team_id);
+async function recomputeAndPersist(supabase: any, inningsId: string, matchId: string, preloaded?: any) {
+  let innings = preloaded;
+  if (!innings) {
+    const { data } = await supabase.from("innings").select("*").eq("id", inningsId).single();
+    innings = data;
+  }
+  // Balls and the rules lookup are independent, so fetch them together.
+  const [{ data: balls }, rules] = await Promise.all([
+    supabase.from("balls").select("*").eq("innings_id", inningsId).order("sequence_no"),
+    getRules(supabase, matchId, innings.batting_team_id),
+  ]);
   const oversLimit: number = innings.overs_limit ?? rules.oversLimit;
 
   const state = computeInningsState(
@@ -398,7 +405,7 @@ export async function recordBall(inningsId: string, matchId: string, payload: {
   });
   if (error) return { error: error.message };
 
-  await recomputeAndPersist(supabase, inningsId, matchId);
+  await recomputeAndPersist(supabase, inningsId, matchId, innings);
 
   revalidateMatch(matchId);
   return { ok: true };
