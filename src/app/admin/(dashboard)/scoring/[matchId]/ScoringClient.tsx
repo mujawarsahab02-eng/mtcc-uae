@@ -15,10 +15,10 @@ type Player = { id: string; full_name: string; team_id: string };
 type XiRow = { player_id: string; team_id: string; is_captain: boolean; is_wicket_keeper: boolean };
 
 export default function ScoringClient({
-  match, teamA, teamB, squadA, squadB, xiRows, settings,
+  match, teamA, teamB, squadA, squadB, xiRows, suggestedXi, settings,
   initialInnings1, initialInnings2, initialBalls1, initialBalls2, canScore, isSuperAdmin,
 }: {
-  match: any; teamA: any; teamB: any; squadA: Player[]; squadB: Player[]; xiRows: XiRow[];
+  match: any; teamA: any; teamB: any; squadA: Player[]; squadB: Player[]; xiRows: XiRow[]; suggestedXi?: XiRow[];
   settings: { playingXI: number; oversLimit: number };
   initialInnings1: any; initialInnings2: any; initialBalls1: any[]; initialBalls2: any[];
   canScore: boolean; isSuperAdmin: boolean;
@@ -114,7 +114,7 @@ export default function ScoringClient({
       if (!canScore) return <Card className="p-8 text-center text-sm text-mutedDim">This match hasn't started yet.</Card>;
       return (
         <MatchSetup
-          match={match} teamA={teamA} teamB={teamB} squadA={squadA} squadB={squadB} xiRows={xiRows} settings={settings}
+          match={match} teamA={teamA} teamB={teamB} squadA={squadA} squadB={squadB} xiRows={xiRows} suggestedXi={suggestedXi} settings={settings}
           onSaved={() => setEditingSetup(false)}
           onCancel={match.overs_per_innings ? () => setEditingSetup(false) : undefined}
         />

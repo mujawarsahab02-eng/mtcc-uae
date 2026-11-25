@@ -22,8 +22,8 @@ function RoleChip({ label, on, onClick }: { label: string; on: boolean; onClick:
 
 // Before the first ball: overs, bowler cap, toss, CricHeroes link and both
 // Playing XIs. With afterStart (Super Admin), only the Playing XIs can change.
-export default function MatchSetup({ match, teamA, teamB, squadA, squadB, xiRows, settings, afterStart, onSaved, onCancel }: {
-  match: any; teamA: any; teamB: any; squadA: Player[]; squadB: Player[]; xiRows: XiRow[];
+export default function MatchSetup({ match, teamA, teamB, squadA, squadB, xiRows, suggestedXi, settings, afterStart, onSaved, onCancel }: {
+  match: any; teamA: any; teamB: any; squadA: Player[]; squadB: Player[]; xiRows: XiRow[]; suggestedXi?: XiRow[];
   settings: { playingXI: number; oversLimit: number }; afterStart?: boolean;
   onSaved: () => void; onCancel?: () => void;
 }) {
@@ -36,6 +36,11 @@ export default function MatchSetup({ match, teamA, teamB, squadA, squadB, xiRows
   const [picks, setPicks] = useState<Record<string, { c: boolean; wk: boolean }>>(() => {
     const init: Record<string, { c: boolean; wk: boolean }> = {};
     for (const r of xiRows) init[r.player_id] = { c: r.is_captain, wk: r.is_wicket_keeper };
+    // Nothing saved yet: start from each team's previous Playing XI (only players still in the squad).
+    if (xiRows.length === 0 && suggestedXi && suggestedXi.length > 0) {
+      const inSquad = new Set([...squadA, ...squadB].map((p) => p.id));
+      for (const r of suggestedXi) if (inSquad.has(r.player_id)) init[r.player_id] = { c: r.is_captain, wk: r.is_wicket_keeper };
+    }
     return init;
   });
   const [busy, setBusy] = useState(false);
@@ -168,6 +173,11 @@ export default function MatchSetup({ match, teamA, teamB, squadA, squadB, xiRows
         </Card>
       )}
 
+      {!afterStart && xiRows.length === 0 && suggestedXi && suggestedXi.length > 0 && (
+        <Card className="p-3 mb-4 text-xs text-mutedDim">
+          Playing XIs are pre-selected from each team's previous match. Change anyone who is different today.
+        </Card>
+      )}
       {teamList(teamA, squadA)}
       {teamList(teamB, squadB)}
 
