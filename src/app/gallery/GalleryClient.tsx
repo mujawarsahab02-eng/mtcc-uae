@@ -159,7 +159,7 @@ export default function GalleryClient({ items, partners }: { items: GalleryItem[
             {cur.kind === "video" && cur.video_id ? (
               <iframe
                 className="w-full max-w-4xl aspect-video rounded-lg"
-                src={`https://www.youtube-nocookie.com/embed/${cur.video_id}?autoplay=1&rel=0`}
+                src={`https://www.youtube-nocookie.com/embed/${cur.video_id}?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3`}
                 allow="autoplay; encrypted-media; picture-in-picture"
                 allowFullScreen
               />
