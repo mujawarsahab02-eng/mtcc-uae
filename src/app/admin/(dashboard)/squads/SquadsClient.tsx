@@ -1,10 +1,41 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { changeSquad } from "./actions";
 import { LightBadge, LightButton, LightCard, LightSectionHeader, LightSeamDivider } from "@/components/ui/light";
 
-export default function SquadsClient({ teams, players, settings }: any) {
+const ROLES = ["Batsman", "Bowler", "All-Rounder", "Wicketkeeper-Batsman"];
+
+export default function SquadsClient({ teams, players, settings, available = [], canEdit }: any) {
+  const router = useRouter();
   const [previewTeam, setPreviewTeam] = useState<any>(null);
+  // Squad editor: mode "replace" (outgoing set) or "add"
+  const [edit, setEdit] = useState<null | { mode: "replace" | "add"; outgoing?: any }>(null);
+  const [pick, setPick] = useState("");
+  const [newName, setNewName] = useState("");
+  const [role, setRole] = useState("Batsman");
+  const [points, setPoints] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  function openEdit(mode: "replace" | "add", outgoing?: any) {
+    setEdit({ mode, outgoing }); setPick(""); setNewName(""); setRole(outgoing?.playing_role || "Batsman"); setPoints(""); setMsg("");
+  }
+  async function saveEdit(removeOnly = false) {
+    if (!previewTeam || !edit) return;
+    if (!removeOnly && !pick && !newName.trim()) { setMsg("Choose an unsold player or type a new name."); return; }
+    setBusy(true); setMsg("");
+    const res: any = await changeSquad({
+      teamId: previewTeam.id, outgoingId: edit.outgoing?.id ?? null,
+      incomingId: removeOnly ? null : pick || null, newName: removeOnly ? null : newName,
+      role, points: points === "" ? null : Number(points),
+    });
+    setBusy(false);
+    if (res.error) { setMsg(res.error); return; }
+    setEdit(null);
+    router.refresh();
+  }
 
   const squadFor = (teamId: string) => players.filter((p: any) => p.team_id === teamId);
 
@@ -124,11 +155,45 @@ export default function SquadsClient({ teams, players, settings }: any) {
                 {squadFor(previewTeam.id).map((p: any, i: number) => (
                   <div key={p.id} className="flex items-center justify-between py-2 border-b last:border-0 border-black/5">
                     <div><span className="text-sm font-semibold text-navyText">{i + 1}. {p.full_name}</span><span className="text-[11px] ml-2 text-slateText">{p.playing_role} · {p.category}</span></div>
-                    <span className="text-xs font-mono text-orange">{p.sold_points} pts</span>
+                    <span className="flex items-center gap-3">
+                      <span className="text-xs font-mono text-orange">{p.sold_points} pts</span>
+                      {canEdit && p.team_role !== "Owner" && <button type="button" className="text-xs font-semibold underline text-navyText" onClick={() => openEdit("replace", p)}>Replace</button>}
+                    </span>
                   </div>
                 ))}
                 {squadFor(previewTeam.id).length === 0 && <div className="text-sm text-slateText">No players purchased yet.</div>}
               </div>
+              {canEdit && !edit && (
+                <div className="mb-4"><LightButton variant="subtle" size="sm" onClick={() => openEdit("add")}>+ Add player</LightButton></div>
+              )}
+              {canEdit && edit && (
+                <div className="mb-5 p-4 rounded-xl border border-black/10 bg-[#FAFAF7]">
+                  <div className="text-sm font-bold text-navyText mb-3">
+                    {edit.mode === "replace" ? `Replace ${edit.outgoing.full_name}` : "Add a player to this squad"}
+                  </div>
+                  <label className="block text-xs font-semibold text-slateText mb-1">Pick an unsold player</label>
+                  <select className="w-full mb-3" value={pick} onChange={(e) => { setPick(e.target.value); if (e.target.value) setNewName(""); }}>
+                    <option value="">— none —</option>
+                    {available.map((a: any) => <option key={a.id} value={a.id}>{a.full_name} · {a.playing_role}</option>)}
+                  </select>
+                  <label className="block text-xs font-semibold text-slateText mb-1">…or type a new player's name</label>
+                  <input className="w-full mb-3" value={newName} placeholder="Full name" onChange={(e) => { setNewName(e.target.value); if (e.target.value) setPick(""); }} />
+                  {newName.trim() && (
+                    <div className="mb-3">
+                      <label className="block text-xs font-semibold text-slateText mb-1">Role</label>
+                      <select className="w-full" value={role} onChange={(e) => setRole(e.target.value)}>{ROLES.map((r) => <option key={r}>{r}</option>)}</select>
+                    </div>
+                  )}
+                  <label className="block text-xs font-semibold text-slateText mb-1">Points{edit.mode === "replace" ? " (blank = same as the player leaving)" : ""}</label>
+                  <input className="w-full mb-3" type="number" value={points} placeholder={edit.mode === "replace" ? String(edit.outgoing.sold_points ?? 0) : "0"} onChange={(e) => setPoints(e.target.value)} />
+                  {msg && <div className="text-xs text-red mb-3">{msg}</div>}
+                  <div className="flex flex-wrap gap-2">
+                    <LightButton variant="primary" size="sm" onClick={() => saveEdit()} disabled={busy}>{edit.mode === "replace" ? "Replace player" : "Add player"}</LightButton>
+                    {edit.mode === "replace" && <LightButton variant="danger" size="sm" onClick={() => { if (window.confirm(`Remove ${edit.outgoing.full_name} from the squad without a replacement?`)) saveEdit(true); }} disabled={busy}>Remove only</LightButton>}
+                    <LightButton variant="ghost" size="sm" onClick={() => setEdit(null)} disabled={busy}>Cancel</LightButton>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <LightButton variant="ghost" size="sm" onClick={() => printSquad(previewTeam)}>PDF / Print Squad</LightButton>
                 <LightButton variant="orange" size="sm" onClick={() => downloadSquadImage(previewTeam)}>Download Squad Card (PNG)</LightButton>
