@@ -6,6 +6,8 @@ import Logo from "@/components/Logo";
 import PublicNav from "@/components/PublicNav";
 import Footer from "@/components/Footer";
 import HeroCountdown from "@/components/HeroCountdown";
+import ChampionsBanner from "@/components/ChampionsBanner";
+import { SEASON1, WHATSAPP_PARTNER } from "@/lib/season";
 import { IconWallet, IconUsers, IconTrophy, IconCalendar, IconGavel, IconShieldCheck, IconClipboardCheck, IconHandshake, IconList, IconRefresh, IconCricketBall, IconStar, IconGlobe } from "@/components/Icons";
 
 export const revalidate = 10;
@@ -110,9 +112,28 @@ export default async function LandingPage() {
             {settings?.format ?? "One-Day Tennis Cricket Championship on Grass"}
           </p>
 
-          <HeroCountdown date={settings?.tournament_date} venue={settings?.venue} />
+          {SEASON1.complete ? <ChampionsBanner /> : <HeroCountdown date={settings?.tournament_date} venue={settings?.venue} />}
 
-          <div className="fade-up flex flex-col sm:flex-row gap-4 mb-10" style={{ animationDelay: "0.38s" }}>
+          {SEASON1.complete ? (
+            <div className="fade-up flex flex-col sm:flex-row gap-4 mb-10" style={{ animationDelay: "0.38s" }}>
+              <Link href="/season-2">
+                <Button variant="primary" size="lg" className="!px-10 !py-4 !text-lg shadow-[0_8px_30px_rgba(212,175,55,0.4)] hover:-translate-y-0.5 transition-all">
+                  Season 2: Register Interest →
+                </Button>
+              </Link>
+              <Link href="/gallery">
+                <Button variant="ghost" size="lg" className="!px-10 !py-4 !text-lg border-2 border-white/25 text-white hover:-translate-y-0.5 transition-transform">
+                  Season 1 Gallery
+                </Button>
+              </Link>
+              <Link href="/feedback">
+                <Button variant="ghost" size="lg" className="!px-10 !py-4 !text-lg border-2 border-white/25 text-white hover:-translate-y-0.5 transition-transform">
+                  Share Your Feedback
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="fade-up flex flex-col sm:flex-row gap-4 mb-10" style={{ animationDelay: "0.38s" }}>
             <Link href={regClosed ? "/account" : "/register"}>
               <Button variant="primary" size="lg" className="!px-10 !py-4 !text-lg shadow-[0_8px_30px_rgba(212,175,55,0.4)] hover:-translate-y-0.5 transition-all">
                 {regClosed ? "Sign In / Sign Up →" : "Register Now →"}
@@ -129,6 +150,7 @@ export default async function LandingPage() {
               </Button>
             </a>
           </div>
+          )}
 
           {/* Live registration indicator — HUD/futuristic styling */}
           <div className="fade-up relative w-full max-w-sm rounded-2xl overflow-hidden" style={{ animationDelay: "0.46s", padding: 1 }}>
@@ -139,7 +161,9 @@ export default async function LandingPage() {
               <span className="absolute bottom-1.5 left-1.5 w-3 h-3 border-b-2 border-l-2 rounded-bl" style={{ borderColor: "#D4AF37" }} />
               <span className="absolute bottom-1.5 right-1.5 w-3 h-3 border-b-2 border-r-2 rounded-br" style={{ borderColor: "#D4AF37" }} />
 
-              {regClosed ? (
+              {SEASON1.complete ? (
+                <div className="text-center text-goldBright font-bold text-sm uppercase tracking-wide font-mono">Season 2 · Coming soon</div>
+              ) : regClosed ? (
                 <div className="text-center text-orange font-bold text-sm uppercase tracking-wide font-mono">Registration Closed</div>
               ) : (
                 <>
@@ -177,7 +201,11 @@ export default async function LandingPage() {
           </div>
 
           <div className="fade-up mt-8" style={{ animationDelay: "0.5s" }}>
-            {auctionDone ? (
+            {SEASON1.complete ? (
+              <div className="text-white/70 text-sm sm:text-base">
+                Want your brand in Season 2? <a href={WHATSAPP_PARTNER} target="_blank" rel="noopener noreferrer" className="text-goldBright font-semibold underline">Partner with us on WhatsApp</a>
+              </div>
+            ) : auctionDone ? (
               <div className="text-white/70 text-sm sm:text-base">
                 The auction has concluded. <span className="text-goldBright font-semibold">Please contact the organisers.</span>
               </div>
@@ -320,9 +348,14 @@ export default async function LandingPage() {
         </svg>
         <div className="relative z-10 max-w-3xl mx-auto px-6 text-center">
           <IconGavel className="w-10 h-10 text-goldBright mx-auto mb-5" />
-          <h2 className="font-display font-black text-3xl sm:text-4xl text-white mb-4 leading-tight">Your Name. Your Game.<br />The Auction Awaits.</h2>
-          <p className="text-white/60 mb-8">Build the squad. Manage the purse. Chase the championship.</p>
-          {auctionDone ? (
+          <h2 className="font-display font-black text-3xl sm:text-4xl text-white mb-4 leading-tight">{SEASON1.complete ? <>Season 1 Is Done.<br />Season 2 Is Next.</> : <>Your Name. Your Game.<br />The Auction Awaits.</>}</h2>
+          <p className="text-white/60 mb-8">{SEASON1.complete ? "Players, teams and partners: tell us you are in and we will be in touch." : "Build the squad. Manage the purse. Chase the championship."}</p>
+          {SEASON1.complete ? (
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/season-2"><Button variant="primary" size="lg" className="!px-8 hover:-translate-y-0.5 transition-transform">Register interest for Season 2</Button></Link>
+              <a href={WHATSAPP_PARTNER} target="_blank" rel="noopener noreferrer"><Button variant="ghost" size="lg" className="!px-8 border-2 border-white/25 text-white">Partner with us</Button></a>
+            </div>
+          ) : auctionDone ? (
             <div className="text-white/70">The auction has concluded. <span className="text-goldBright font-semibold">Please contact the organisers.</span></div>
           ) : (
             <div className="flex flex-col sm:flex-row gap-4 justify-center">

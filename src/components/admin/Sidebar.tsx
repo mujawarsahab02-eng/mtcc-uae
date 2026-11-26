@@ -19,6 +19,7 @@ const NAV: { href: string; label: string; icon: string; roles?: UserRole[] }[] =
   { href: "/admin/squads", label: "Team Squads", icon: "🏆" },
   { href: "/admin/sponsors", label: "Sponsors", icon: "🤝" },
   { href: "/admin/fixtures", label: "Fixtures & Results", icon: "📅" },
+  { href: "/admin/season2", label: "Season 2 Interest", icon: "📋" },
   { href: "/admin/gallery", label: "Gallery", icon: "🖼️" },
   { href: "/admin/feedback", label: "Feedback", icon: "💬" },
   { href: "/admin/users", label: "User & Roles", icon: "👤", roles: ["Super Admin"] },

@@ -13,6 +13,7 @@ const RULES: { prefix: string; roles: UserRole[] }[] = [
   { prefix: "/admin/squads", roles: ["Super Admin", "Tournament Admin", "Auction Admin"] },
   { prefix: "/admin/sponsors", roles: ["Super Admin", "Tournament Admin"] },
   { prefix: "/admin/settings", roles: ["Super Admin", "Tournament Admin"] },
+  { prefix: "/admin/season2", roles: ["Super Admin", "Tournament Admin"] },
   { prefix: "/admin/gallery", roles: ["Super Admin", "Tournament Admin"] },
   { prefix: "/admin/feedback", roles: ["Super Admin", "Tournament Admin"] },
   { prefix: "/admin/broadcast", roles: ["Super Admin", "Tournament Admin"] },
