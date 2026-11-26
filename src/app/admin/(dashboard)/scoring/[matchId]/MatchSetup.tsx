@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Field, SectionHeader, SeamDivider } from "@/components/ui";
 import { addGuestPlayer, saveMatchSetup } from "./actions";
+import { changeSquad } from "../../squads/actions";
 
 type Player = { id: string; full_name: string; team_id: string };
 type XiRow = { player_id: string; team_id: string; is_captain: boolean; is_wicket_keeper: boolean };
@@ -99,6 +100,21 @@ export default function MatchSetup({ match, teamA, teamB, squadA, squadB, xiRows
     else { onSaved(); router.refresh(); }
   }
 
+  // Squad change for a real team (a player backed out / a replacement joined).
+  const [chg, setChg] = useState<{ teamId: string; name: string; outgoing: string } | null>(null);
+  const [chgMsg, setChgMsg] = useState("");
+  const [chgBusy, setChgBusy] = useState(false);
+  async function saveChange() {
+    if (!chg) return;
+    if (!chg.name.trim()) { setChgMsg("Type the new player's name."); return; }
+    setChgBusy(true); setChgMsg("");
+    const res: any = await changeSquad({ teamId: chg.teamId, outgoingId: chg.outgoing || null, newName: chg.name });
+    setChgBusy(false);
+    if (res.error) { setChgMsg(res.error); return; }
+    setChg(null);
+    router.refresh();
+  }
+
   const teamList = (team: any, squad: Player[]) => {
     const count = squad.filter((p) => picks[p.id]).length;
     return (
@@ -110,6 +126,27 @@ export default function MatchSetup({ match, teamA, teamB, squadA, squadB, xiRows
           </span>
         </div>
         {squad.length === 0 && <div className="text-xs text-mutedDim">No players in this squad yet.</div>}
+        {!afterStart && team.id && !String(team.id).startsWith("guest") && (
+          chg && chg.teamId === team.id ? (
+            <div className="p-3 mb-3 rounded-lg border border-line">
+              <div className="text-xs font-bold mb-2">Add or replace a player in {team.name}</div>
+              <input className="w-full mb-2" placeholder="New player's full name" value={chg.name} onChange={(e) => setChg({ ...chg, name: e.target.value })} />
+              <select className="w-full mb-2" value={chg.outgoing} onChange={(e) => setChg({ ...chg, outgoing: e.target.value })}>
+                <option value="">Just add (nobody leaves)</option>
+                {squad.map((p) => <option key={p.id} value={p.id}>Replaces {p.full_name}</option>)}
+              </select>
+              {chgMsg && <div className="text-xs text-red mb-2">{chgMsg}</div>}
+              <div className="flex gap-2">
+                <Button variant="primary" size="sm" onClick={saveChange} disabled={chgBusy}>{chgBusy ? "Saving…" : "Save"}</Button>
+                <Button variant="subtle" size="sm" onClick={() => setChg(null)} disabled={chgBusy}>Cancel</Button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" className="text-xs underline text-goldBright mb-2" onClick={() => { setChgMsg(""); setChg({ teamId: team.id, name: "", outgoing: "" }); }}>
+              + Player backed out or new player? Add / replace
+            </button>
+          )
+        )}
         {squad.map((p) => {
           const sel = picks[p.id];
           return (
