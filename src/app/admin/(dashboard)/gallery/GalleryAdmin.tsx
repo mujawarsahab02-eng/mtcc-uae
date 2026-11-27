@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { LightButton, LightCard, LightField, LightSectionHeader, LightSeamDivider } from "@/components/ui/light";
-import { GALLERY_CATEGORIES, galleryUrl, videoThumb, type GalleryItem } from "@/lib/gallery";
+import { galleryUrl, videoThumb, type GalleryItem } from "@/lib/gallery";
 import { addGalleryPhotos, addGalleryVideo, bulkGallery, updateGalleryItem } from "./actions";
 
 // Resize in the browser so the website stays fast: full photo max 1600px, grid preview max 640px.
@@ -86,9 +86,9 @@ export default function GalleryAdmin({ initialItems, canManage }: { initialItems
   const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<GalleryItem[]>(initialItems);
-  const [category, setCategory] = useState<string>("Match Action");
+  const category = "Other"; // categories are no longer used; photos and videos only
   const [featuredNew, setFeaturedNew] = useState(false);
-  const [auto, setAuto] = useState(true);
+  const auto = false;
   const folderRef = useRef<HTMLInputElement>(null);
   const lastClicked = useRef<number | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
@@ -98,20 +98,19 @@ export default function GalleryAdmin({ initialItems, canManage }: { initialItems
   const [filter, setFilter] = useState("All");
   const [limit, setLimit] = useState(PAGE);
   const [sel, setSel] = useState<Set<string>>(new Set());
-  const [bulkCat, setBulkCat] = useState<string>("Match Action");
   const [busy, setBusy] = useState(false);
 
   const counts = useMemo(() => {
     const m: Record<string, number> = { All: items.length };
     for (const i of items) {
-      const k = i.hidden ? "Hidden" : i.kind === "video" ? "Videos" : i.category;
+      const k = i.hidden ? "Hidden" : i.kind === "video" ? "Videos" : "Photos";
       m[k] = (m[k] || 0) + 1;
     }
     return m;
   }, [items]);
 
   const shown = items.filter((i) =>
-    filter === "All" ? true : filter === "Hidden" ? i.hidden : filter === "Videos" ? i.kind === "video" && !i.hidden : i.category === filter && !i.hidden && i.kind === "photo"
+    filter === "All" ? true : filter === "Hidden" ? i.hidden : filter === "Videos" ? i.kind === "video" && !i.hidden : i.kind === "photo" && !i.hidden
   );
 
   async function handleFiles(list: FileList | null) {
@@ -208,12 +207,12 @@ export default function GalleryAdmin({ initialItems, canManage }: { initialItems
     }
   }
 
-  async function bulk(op: "hide" | "show" | "delete" | "category") {
+  async function bulk(op: "hide" | "show" | "delete") {
     const ids = Array.from(sel);
     if (!ids.length) return;
     if (op === "delete" && !window.confirm(`Delete ${ids.length} item(s) permanently? This cannot be undone.`)) return;
     setBusy(true);
-    const res: any = await bulkGallery(ids, op, op === "category" ? bulkCat : undefined);
+    const res: any = await bulkGallery(ids, op);
     setBusy(false);
     if (res.error) {
       setMsg(res.error);
@@ -222,7 +221,7 @@ export default function GalleryAdmin({ initialItems, canManage }: { initialItems
     setItems((prev) =>
       op === "delete"
         ? prev.filter((i) => !sel.has(i.id))
-        : prev.map((i) => (sel.has(i.id) ? { ...i, ...(op === "hide" ? { hidden: true } : op === "show" ? { hidden: false } : { category: bulkCat }) } : i))
+        : prev.map((i) => (sel.has(i.id) ? { ...i, hidden: op === "hide" } : i))
     );
     setSel(new Set());
     router.refresh();
@@ -245,8 +244,8 @@ export default function GalleryAdmin({ initialItems, canManage }: { initialItems
     });
   }
 
-  const tabs = ["All", ...GALLERY_CATEGORIES.filter((c) => counts[c]), ...(counts["Videos"] ? ["Videos"] : []), ...(counts["Hidden"] ? ["Hidden"] : [])];
-  const featuredCount = items.filter((i) => i.featured && !i.hidden && i.kind === "photo").length;
+  const tabs = ["All", "Photos", "Videos", ...(counts["Hidden"] ? ["Hidden"] : [])];
+  const featuredCount = items.filter((i) => i.featured && !i.hidden).length;
 
   return (
     <div className="-mx-4 sm:-mx-6 -mt-20 md:-mt-8 -mb-16 px-4 sm:px-6 pt-20 md:pt-8 pb-16 bg-adminBg light-form" style={{ minHeight: "100vh" }}>
@@ -261,19 +260,10 @@ export default function GalleryAdmin({ initialItems, canManage }: { initialItems
         <>
           <LightCard className="p-5 mb-5">
             <div className="text-xs font-bold uppercase tracking-wide mb-3 text-slateText">Add photos</div>
-            <div className="grid sm:grid-cols-2 gap-3 mb-3">
-              <LightField label="Category for this upload">
-                <select value={category} onChange={(e: any) => setCategory(e.target.value)}>
-                  {GALLERY_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-                </select>
-              </LightField>
-              <label className="flex items-center gap-2 text-sm text-navyText mt-6">
-                <input type="checkbox" className="!w-auto" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
-                Sort automatically (by folder name, or 4 Oct photos as Auction Night). Otherwise the category on the left is used.
-              </label>
+            <div className="mb-3">
               <label className="flex items-center gap-2 text-sm text-navyText mt-6">
                 <input type="checkbox" className="!w-auto" checked={featuredNew} onChange={(e) => setFeaturedNew(e.target.checked)} />
-                Show on the homepage "Glimpse of Season 1"
+                Show on the homepage "A Glimpse of Season 1"
               </label>
             </div>
             <label
@@ -288,12 +278,6 @@ export default function GalleryAdmin({ initialItems, canManage }: { initialItems
               </div>
               <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
             </label>
-            <div className="mt-3 text-xs text-slateText">
-              Have photos in folders named like "Auction", "Owners", "Champions" or "Match"? Choose the whole parent folder and each photo goes to the right category by itself.{" "}
-              <button type="button" className="underline font-semibold text-navyText" onClick={() => folderRef.current?.click()}>Choose a folder</button>
-              <input ref={folderRef} type="file" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)}
-                {...({ webkitdirectory: "", directory: "" } as any)} />
-            </div>
             {progress && (
               <div className="mt-3">
                 <div className="h-2 rounded-full bg-black/10 overflow-hidden">
@@ -338,7 +322,7 @@ export default function GalleryAdmin({ initialItems, canManage }: { initialItems
           ))}
         </div>
         <div className="text-xs text-slateText mb-3">
-          {featuredCount} photo(s) are shown on the homepage. The homepage shows the 5 newest featured photos.
+          {featuredCount} item(s) are marked for the homepage. The homepage shows the 5 newest photos or videos marked this way.
         </div>
 
         {canManage && sel.size > 0 && (
@@ -346,10 +330,6 @@ export default function GalleryAdmin({ initialItems, canManage }: { initialItems
             <span className="text-xs font-bold text-navyText">{sel.size} selected</span>
             <LightButton variant="subtle" size="sm" onClick={() => bulk("hide")} disabled={busy}>Hide</LightButton>
             <LightButton variant="subtle" size="sm" onClick={() => bulk("show")} disabled={busy}>Show</LightButton>
-            <select className="!w-auto text-xs" value={bulkCat} onChange={(e: any) => setBulkCat(e.target.value)}>
-              {GALLERY_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-            </select>
-            <LightButton variant="subtle" size="sm" onClick={() => bulk("category")} disabled={busy}>Set category</LightButton>
             <LightButton variant="danger" size="sm" onClick={() => bulk("delete")} disabled={busy}>Delete</LightButton>
             <button type="button" className="text-xs underline text-slateText" onClick={() => setSel(new Set())}>Clear</button>
           </div>
@@ -379,22 +359,15 @@ export default function GalleryAdmin({ initialItems, canManage }: { initialItems
                   <>
                     <input defaultValue={i.title ?? ""} placeholder="Caption (optional)" className="text-xs"
                       onBlur={(e: any) => { if ((e.target.value || null) !== (i.title || null)) patch(i, { title: e.target.value || null }); }} />
-                    {i.kind === "photo" && (
-                      <select className="text-xs" value={i.category} onChange={(e: any) => patch(i, { category: e.target.value })}>
-                        {GALLERY_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-                      </select>
-                    )}
                     <div className="flex items-center justify-between text-[11px]">
-                      {i.kind === "photo" ? (
-                        <button type="button" onClick={() => patch(i, { featured: !i.featured })} style={{ color: i.featured ? "#B8921F" : "#566274", fontWeight: 700 }}>
-                          {i.featured ? "★ Featured" : "☆ Feature"}
-                        </button>
-                      ) : <span />}
+                      <button type="button" onClick={() => patch(i, { featured: !i.featured })} style={{ color: i.featured ? "#B8921F" : "#566274", fontWeight: 700 }}>
+                        {i.featured ? "★ On homepage" : "☆ Homepage"}
+                      </button>
                       <button type="button" onClick={() => patch(i, { hidden: !i.hidden })} className="text-slateText underline">{i.hidden ? "Show" : "Hide"}</button>
                     </div>
                   </>
                 ) : (
-                  <div className="text-xs text-slateText">{i.title || i.category}</div>
+                  <div className="text-xs text-slateText">{i.title || (i.kind === "video" ? "Video" : "Photo")}</div>
                 )}
               </div>
             </div>

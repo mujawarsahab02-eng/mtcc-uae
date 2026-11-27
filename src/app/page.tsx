@@ -16,7 +16,7 @@ export default async function LandingPage() {
   const supabase = createClient();
   const { data: settings } = await supabase.from("tournament_settings").select("*").eq("id", 1).single();
   const { data: sponsors } = await supabase.from("sponsors").select("*").order("sort_order");
-  const { data: glimpse } = await (supabase as any).from("gallery_items").select("id,thumb_path,title").eq("kind","photo").eq("featured",true).eq("hidden",false).order("created_at",{ascending:false}).limit(5);
+  const { data: glimpse } = await (supabase as any).from("gallery_items").select("id,kind,thumb_path,video_id,title").eq("featured",true).eq("hidden",false).order("created_at",{ascending:false}).limit(5);
   const galleryBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/gallery/`;
   const { count: playerCount } = await supabase.from("players").select("*", { count: "exact", head: true });
   const { data: teams } = await supabase.from("team_public").select("*");
@@ -465,13 +465,16 @@ export default async function LandingPage() {
             <h2 className="font-display text-3xl sm:text-4xl font-bold uppercase text-navyText mb-8">A Glimpse of Season 1</h2>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               {glimpse.map((g: any) => (
-                <Link key={g.id} href="/gallery" className="block overflow-hidden rounded-xl bg-black/5">
-                  <img src={galleryBase + g.thumb_path} alt={g.title ?? "MTCC Season 1"} loading="lazy" className="w-full h-48 object-cover hover:scale-105 transition-transform duration-300" />
+                <Link key={g.id} href="/gallery" className="relative block overflow-hidden rounded-xl bg-black/5">
+                  <img src={g.kind === "video" ? `https://i.ytimg.com/vi/${g.video_id}/hqdefault.jpg` : galleryBase + g.thumb_path} alt={g.title ?? "MTCC Season 1"} loading="lazy" className="w-full h-48 object-cover hover:scale-105 transition-transform duration-300" />
+                  {g.kind === "video" && (
+                    <span className="absolute inset-0 flex items-center justify-center"><span className="w-12 h-12 rounded-full bg-black/60 text-white flex items-center justify-center">▶</span></span>
+                  )}
                 </Link>
               ))}
             </div>
             <div className="mt-8">
-              <Link href="/gallery"><Button variant="primary" size="lg">View full gallery</Button></Link>
+              <Link href="/gallery"><Button variant="primary" size="lg">View all photos and videos</Button></Link>
             </div>
           </div>
         </div>

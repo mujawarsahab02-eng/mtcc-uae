@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GALLERY_CATEGORIES, galleryUrl, videoThumb, type GalleryItem } from "@/lib/gallery";
+import { galleryUrl, videoThumb, type GalleryItem } from "@/lib/gallery";
 
 const WA = "https://wa.me/971555585757?text=" + encodeURIComponent("Hi MTCC U.A.E., I would like to partner with you for Season 2.");
 const PAGE = 24;
@@ -15,11 +15,8 @@ export default function GalleryClient({ items, partners }: { items: GalleryItem[
   const videos = items.filter((i) => i.kind === "video");
   const hero = photos.find((i) => i.featured) ?? photos[0];
 
-  const tabs = useMemo(
-    () => ["All", ...GALLERY_CATEGORIES.filter((c) => photos.some((p) => p.category === c)), ...(videos.length ? ["Videos"] : [])],
-    [photos, videos.length]
-  );
-  const list = tab === "All" ? items : tab === "Videos" ? videos : photos.filter((p) => p.category === tab);
+  const tabs = useMemo(() => ["All", ...(photos.length ? ["Photos"] : []), ...(videos.length ? ["Videos"] : [])], [photos.length, videos.length]);
+  const list = tab === "All" ? items : tab === "Videos" ? videos : photos;
   const shown = list.slice(0, limit);
   const cur = open !== null ? list[open] : null;
 
@@ -90,7 +87,7 @@ export default function GalleryClient({ items, partners }: { items: GalleryItem[
               <button key={i.id} type="button" onClick={() => setOpen(idx)} className="relative block w-full mb-3 rounded-xl overflow-hidden bg-black/5 group" style={{ breakInside: "avoid" }}>
                 <img
                   src={i.kind === "video" ? videoThumb(i) : galleryUrl(i.thumb_path)}
-                  alt={i.title ?? `MTCC Season 1 ${i.category}`}
+                  alt={i.title ?? "MTCC Season 1"}
                   loading="lazy"
                   width={i.width ?? undefined}
                   height={i.height ?? undefined}
@@ -170,7 +167,7 @@ export default function GalleryClient({ items, partners }: { items: GalleryItem[
             )}
             <button type="button" onClick={() => step(1)} className="absolute right-2 z-10 w-10 h-10 rounded-full bg-black/50 text-white text-xl" aria-label="Next">›</button>
           </div>
-          <div className="p-3 text-center text-white/80 text-sm" onClick={(e) => e.stopPropagation()}>{cur.title ?? cur.category}</div>
+          <div className="p-3 text-center text-white/80 text-sm" onClick={(e) => e.stopPropagation()}>{cur.title ?? ""}</div>
         </div>
       )}
     </main>
