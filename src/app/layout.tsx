@@ -13,7 +13,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: "Maharashtra Tennis Cricket Championship U.A.E. | MTCC UAE",
-  description: "Official Maharashtra Tennis Cricket Championship U.A.E. website — player registration, auction, teams, standings, tournament rules and championship updates.",
+  description: "MTCC U.A.E.: the Maharashtra Tennis Cricket Championship in the UAE. Season 1 champions Shams 11 Dubai. Results, teams, gallery and Season 2 updates.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
