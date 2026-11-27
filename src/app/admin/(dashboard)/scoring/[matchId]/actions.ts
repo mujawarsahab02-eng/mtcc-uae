@@ -742,3 +742,44 @@ export async function addGuestPlayer(matchId: string, teamId: string, name: stri
   revalidateMatch(matchId);
   return { ok: true, id: data.id };
 }
+
+// Fix a batter picked by mistake: swap one player for another everywhere in this innings
+// (opening pair, every ball, dismissals) and rebuild the score. The new player must not have batted yet.
+export async function correctBatter(inningsId: string, matchId: string, oldId: string, newId: string): Promise<any> {
+  const g: any = await guard(matchId);
+  if (g.error) return g;
+  if (!oldId || !newId || oldId === newId) return { error: "Choose a different player." };
+
+  const supabase = createClient();
+  const { data: innings } = await supabase.from("innings").select("*").eq("id", inningsId).single();
+  if (!innings) return { error: "Innings not found." };
+  if (innings.status === "Completed") return { error: "This innings has ended. Use the admin match controls to correct it." };
+
+  const { data: balls } = await supabase.from("balls").select("striker_id, non_striker_id, new_batsman_id, dismissed_player_id").eq("innings_id", inningsId);
+  const used = new Set<string>([innings.opening_striker_id, innings.opening_non_striker_id].filter(Boolean));
+  for (const b of balls ?? []) for (const id of [b.striker_id, b.non_striker_id, b.new_batsman_id, b.dismissed_player_id]) if (id) used.add(id);
+  if (!used.has(oldId)) return { error: "That player is not batting in this innings." };
+  if (used.has(newId)) return { error: "That player has already batted in this innings." };
+
+  const [{ data: p }, { data: gp }] = await Promise.all([
+    supabase.from("players").select("id").eq("id", newId).maybeSingle(),
+    supabase.from("guest_players").select("id").eq("id", newId).maybeSingle(),
+  ]);
+  if (!p && !gp) return { error: "Player not found." };
+
+  for (const col of ["striker_id", "non_striker_id", "new_batsman_id", "dismissed_player_id"]) {
+    const { error } = await supabase.from("balls").update({ [col]: newId }).eq("innings_id", inningsId).eq(col, oldId);
+    if (error) return { error: error.message };
+  }
+  const open: any = {};
+  if (innings.opening_striker_id === oldId) open.opening_striker_id = newId;
+  if (innings.opening_non_striker_id === oldId) open.opening_non_striker_id = newId;
+  if (Object.keys(open).length) {
+    const { error } = await supabase.from("innings").update(open).eq("id", inningsId);
+    if (error) return { error: error.message };
+  }
+
+  await recomputeAndPersist(supabase, inningsId, matchId);
+  revalidateMatch(matchId);
+  return { ok: true };
+}

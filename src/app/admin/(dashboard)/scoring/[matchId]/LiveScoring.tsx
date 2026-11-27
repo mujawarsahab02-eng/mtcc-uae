@@ -4,12 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Field } from "@/components/ui";
 import { allowedWicketTypes, economy, formatOvers, runRate, strikeRate, SHOT_ZONES } from "@/lib/scoring";
-import { recordBall, undoLastBall, setNewBowler, swapStrike, retireBatter, setInningsOvers, endInnings } from "./actions";
+import { recordBall, undoLastBall, setNewBowler, swapStrike, retireBatter, correctBatter, setInningsOvers, endInnings } from "./actions";
 import { OversView, PartnershipsView, ScorecardView, ThisOverChips, type InningsView } from "./MatchTabs";
 
 type Player = { id: string; full_name: string; team_id: string };
 type Extra = null | "wide" | "no_ball" | "bye" | "leg_bye";
-type Sheet = null | "wide" | "no_ball" | "bye" | "leg_bye" | "wicket" | "retire" | "bowler" | "overs" | "end";
+type Sheet = null | "wide" | "no_ball" | "bye" | "leg_bye" | "wicket" | "retire" | "fixbat" | "bowler" | "overs" | "end";
 type Tab = "Score" | "Scorecard" | "Overs" | "Partnerships";
 
 const TONES: Record<string, { borderColor: string; color: string; background: string }> = {
@@ -88,6 +88,10 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
   const bowlerId: string | null = innings.current_bowler_id;
 
   const needsNewBowler = innings.legal_balls > 0 && innings.legal_balls % 6 === 0 && bowlerId === innings.last_over_bowler_id;
+  const [fixNonStriker, setFixNonStriker] = useState(false);
+  const [fixNew, setFixNew] = useState("");
+  // Players who have not batted yet can replace a batter picked by mistake.
+  const fixCandidates = battingSquad.filter((p) => !state.batting[p.id] && p.id !== strikerId && p.id !== nonStrikerId);
   const remainingBatters = battingSquad.filter((p) => !state.batting[p.id]?.out && p.id !== strikerId && p.id !== nonStrikerId);
   const bowlerBalls = (id: string) => state.bowling[id]?.legalBalls ?? 0;
   const atBowlerCap = (id: string) => !!maxBowlerOvers && bowlerBalls(id) >= maxBowlerOvers * 6;
@@ -101,7 +105,7 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
   function closeSheet() {
     setSheet(null); setErr("");
     setWDelivery("normal"); setWType(""); setWNonStriker(false); setWFielder(""); setWRuns(0); setWNewBatter("");
-    setRNonStriker(false); setRType("Retired Hurt"); setRNewBatter(""); setNewBowlerId("");
+    setRNonStriker(false); setRType("Retired Hurt"); setRNewBatter(""); setNewBowlerId(""); setFixNonStriker(false); setFixNew("");
   }
 
   async function run(fn: () => Promise<any>, after?: () => void) {
@@ -156,6 +160,12 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
       newBatsmanId: wNeedsNewBatter ? wNewBatter : null,
       shotZone: null,
     }));
+  }
+
+  function submitFixBatter() {
+    const oldId = fixNonStriker ? nonStrikerId : strikerId;
+    if (!oldId || !fixNew) { setErr("Choose the correct player."); return; }
+    return run(() => correctBatter(innings.id, match.id, oldId, fixNew));
   }
 
   function submitRetire() {
@@ -236,11 +246,17 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
       )}
       <div className="mt-3"><ThisOverChips state={state} /></div>
       {canScore && (
+        <>
         <div className="flex gap-2 mt-3">
           <SmallAction onClick={() => run(() => swapStrike(innings.id, match.id))} disabled={busy}>⇄ Swap strike</SmallAction>
           <SmallAction onClick={() => { closeSheet(); setSheet("retire"); }} disabled={busy}>Retire batter</SmallAction>
           <SmallAction onClick={() => { closeSheet(); setSheet("bowler"); }} disabled={busy || needsNewBowler}>Change bowler</SmallAction>
         </div>
+        <div className="mt-2">
+          <button type="button" onClick={() => { closeSheet(); setSheet("fixbat"); }} disabled={busy}
+            className="text-xs underline text-goldBright disabled:opacity-40">Picked the wrong batter? Change batter</button>
+        </div>
+        </>
       )}
     </Card>
   );
@@ -316,6 +332,23 @@ export default function LiveScoring({ match, teamA, teamB, view, views, battingS
       )}
       {wType && wIsLastWicket && <div className="text-xs text-orange mb-2">This is the last wicket. The innings ends.</div>}
       <Button variant="primary" className="w-full" onClick={submitWicket} disabled={busy || !wType}>{busy ? "Saving…" : "Confirm wicket"}</Button>
+    </div>
+  ));
+  else if (sheet === "fixbat") panel = sheetCard("Change batter (picked by mistake)", (
+    <div>
+      <div className="text-xs text-mutedDim mb-3">Replaces the batter everywhere in this innings, including the balls already scored. Use it only to correct a wrong selection.</div>
+      <div className="flex gap-2 flex-wrap mb-3">
+        <Chip active={!fixNonStriker} onClick={() => setFixNonStriker(false)}>{playerName(strikerId)} (striker)</Chip>
+        <Chip active={fixNonStriker} onClick={() => setFixNonStriker(true)}>{playerName(nonStrikerId)}</Chip>
+      </div>
+      <Field label="Correct batter">
+        <select value={fixNew} onChange={(e: any) => setFixNew(e.target.value)}>
+          <option value="">Select</option>
+          {fixCandidates.map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+        </select>
+      </Field>
+      {fixCandidates.length === 0 && <div className="text-xs text-orange mb-2">Everyone else in this squad has already batted.</div>}
+      <Button variant="primary" className="w-full" onClick={submitFixBatter} disabled={busy || !fixNew}>{busy ? "Saving…" : "Change batter"}</Button>
     </div>
   ));
   else if (sheet === "retire") panel = sheetCard("Retire batter", (
