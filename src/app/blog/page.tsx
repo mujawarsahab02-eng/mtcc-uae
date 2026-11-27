@@ -19,15 +19,15 @@ export default function BlogPage() {
       <div className="bg-cream py-14 text-center px-6">
         <div className="text-xs uppercase tracking-[0.3em] text-orange font-bold mb-3">Season 1 Story</div>
         <h1 className="font-display font-black text-4xl sm:text-5xl text-navyText mb-4">How MTCC Began</h1>
-        <p className="text-slateText max-w-xl mx-auto italic">It started with one message from Aman Chandiwala: why not a Maharashtra Premier League for the UAE?</p>
+        <p className="text-slateText max-w-xl mx-auto italic">It started when Aman Chandiwala and Mudassir Khan came to Kaish Mujawar with an idea: why not a Maharashtra Premier League for the UAE?</p>
       </div>
 
       <article className="max-w-2xl mx-auto px-5 pb-16 pt-10">
         <p className={P}>
-          About three months before the first ball, that idea reached a group of friends who already believed in it. The Maharashtrian community in the UAE had no cricket platform of its own, the way the South Indian communities have theirs. We wanted one that comes back every season, every year.
+          About three months before the first ball, the idea took shape among a group of friends who already believed in it. The Maharashtrian community in the UAE had no cricket platform of its own, the way the South Indian communities have theirs. We wanted one that comes back every season, every year.
         </p>
         <p className={P}>
-          Kaish Mujawar brought in Saeem Mukadam and Vijay Iyer, who had run a successful tournament about four years earlier. Rahil Sarguru of Imperial Aura Events had been pushing for a tournament for a long time, and he joined too. With Aman Chandiwala and Mudassir Khan, the six of us became the core organisers. Noman was with us all along as part of the team.
+          Aman Chandiwala and Mudassir Khan approached Kaish Mujawar with the idea. Kaish then brought in Saeem Mukadam and Vijay Iyer, who had run a successful tournament about four years earlier. Rahil Sarguru of Imperial Aura Events had been pushing for a tournament for a long time, and he joined too. Together, the six of us became the core organisers. Noman was with us all along as part of the team.
         </p>
 
         <figure className="my-8">
