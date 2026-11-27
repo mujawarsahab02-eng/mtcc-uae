@@ -50,8 +50,15 @@ export default function BlogPage() {
         <p className={P}>
           To keep it all in one place, we created a WhatsApp group where we discussed everything: what&rsquo;s working, what&rsquo;s not, how will it happen. Most of this tournament was planned there.
         </p>
+        <h2 className={H}>Convincing the owners</h2>
         <p className={P}>
-          Aman and Mudassir gathered the teams and convinced the owners to take part. Without the owners saying yes, there would have been no tournament. We named it the Maharashtra Tennis Cricket Championship U.A.E. and made it auction-based: eight teams, a player auction, and a website built for the tournament, with live scores and squads.
+          This was the thing that made it real. Mudassir Khan and Aman Chandiwala convinced the team owners to buy their teams and take part. An entry fee of AED 1,500 was not a small amount, and it was no easy yes. They explained the rules to each owner, again and again, and they kept answering the owners&rsquo; questions, because owners ask a lot of questions, and every one of them deserved an answer. We always put Mudassir at the front to explain things.
+        </p>
+        <p className={P}>
+          When all the teams were confirmed and the entry fees were in, we knew from every side that the tournament was happening. Without the owners saying yes, there would have been no MTCC.
+        </p>
+        <p className={P}>
+          We named it the Maharashtra Tennis Cricket Championship U.A.E. and made it auction-based: eight teams, a player auction, and a website built for the tournament, with live scores and squads.
         </p>
 
         <h2 className={H}>The auction</h2>
@@ -62,7 +69,7 @@ export default function BlogPage() {
           There was no single person in charge of one thing. On the ground, all of us worked together: Aman, Mudassir, Noman, Saeem, Tariq, Saqib, Irbas and Kaish. We worked out together how every ground would run, and we followed each task through to the end.
         </p>
         <p className={P}>
-          A few things deserve a mention. Vijay was the point of contact for the organising committee and ran the day, including the toss. Rahil looked after the sponsors and the influencers who came to the ground. Aman and Saeem went out to arrange the trophy, and they did a big part of that work. Before the day, Vijay and Saeem went looking for sponsors, and Aman, Mudassir and Noman took on the arrangements and the registrations.
+          A few things deserve a mention. Vijay was the point of contact for the organising committee and ran the day, including the toss. Rahil looked after the sponsors and the influencers who came to the ground. Aman and Saeem went out to arrange the trophy, and they did a big part of that work. Before the day, Vijay and Saeem went looking for sponsors, and Aman, Mudassir and Noman took on the arrangements, the entry fees and the player registrations.
         </p>
         <p className={P}>
           Even while playing in the tournament himself, Kaish kept an eye on everything, and he built the tournament website on his own.
