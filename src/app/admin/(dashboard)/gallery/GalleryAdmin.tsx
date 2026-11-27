@@ -30,6 +30,57 @@ async function toJpeg(file: File, maxSide: number, quality: number) {
 
 const PAGE = 60;
 
+// Work out a category from a folder name such as "Auction Night" or "Owners photos".
+function categoryFromPath(path: string): string | null {
+  const p = path.toLowerCase();
+  const rules: [RegExp, string][] = [
+    [/auction/, "Auction Night"], [/runner/, "Runner-up"], [/champion|winner|trophy/, "Champions"],
+    [/owner/, "Owners"], [/committee|organi[sz]er/, "Committee"], [/celebrat/, "Celebrations"],
+    [/crowd|fans|audience/, "Crowd"], [/team/, "Teams"], [/match|action|game|play/, "Match Action"],
+  ];
+  for (const [re, cat] of rules) if (re.test(p)) return cat;
+  return null;
+}
+
+// Read the date a photo was taken (EXIF) before we resize it. Returns YYYY-MM-DD or null.
+async function exifDate(file: File): Promise<string | null> {
+  try {
+    const buf = await file.slice(0, 131072).arrayBuffer();
+    const v = new DataView(buf);
+    if (v.getUint16(0) !== 0xffd8) return null;
+    let off = 2;
+    while (off + 4 < v.byteLength) {
+      const marker = v.getUint16(off);
+      const len = v.getUint16(off + 2);
+      if (marker === 0xffe1 && v.getUint32(off + 4) === 0x45786966) {
+        const t = off + 10;
+        const little = v.getUint16(t) === 0x4949;
+        const u16 = (o: number) => v.getUint16(t + o, little);
+        const u32 = (o: number) => v.getUint32(t + o, little);
+        const readTag = (ifd: number, want: number): number | null => {
+          const n = u16(ifd);
+          for (let i = 0; i < n; i++) {
+            const e = ifd + 2 + i * 12;
+            if (u16(e) === want) return u32(e + 8);
+          }
+          return null;
+        };
+        const exifPtr = readTag(u32(4), 0x8769);
+        if (exifPtr === null) return null;
+        const dtPtr = readTag(exifPtr, 0x9003) ?? readTag(exifPtr, 0x9004);
+        if (dtPtr === null) return null;
+        let str = "";
+        for (let i = 0; i < 10; i++) str += String.fromCharCode(v.getUint8(t + dtPtr + i));
+        const m = str.match(/^(\d{4}):(\d{2}):(\d{2})$/);
+        return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+      }
+      if (marker < 0xff00) return null;
+      off += 2 + len;
+    }
+  } catch { /* no usable EXIF */ }
+  return null;
+}
+
 export default function GalleryAdmin({ initialItems, canManage }: { initialItems: GalleryItem[]; canManage: boolean }) {
   const router = useRouter();
   const supabase = createClient();
@@ -37,6 +88,9 @@ export default function GalleryAdmin({ initialItems, canManage }: { initialItems
   const [items, setItems] = useState<GalleryItem[]>(initialItems);
   const [category, setCategory] = useState<string>("Match Action");
   const [featuredNew, setFeaturedNew] = useState(false);
+  const [auto, setAuto] = useState(true);
+  const folderRef = useRef<HTMLInputElement>(null);
+  const lastClicked = useRef<number | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
   const [msg, setMsg] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
@@ -102,7 +156,14 @@ export default function GalleryAdmin({ initialItems, canManage }: { initialItems
           if (a.error) throw new Error(a.error.message);
           const b = await supabase.storage.from("gallery").upload(thumbPath, thumb.blob, { contentType: "image/jpeg", cacheControl: "31536000" });
           if (b.error) throw new Error(b.error.message);
-          pending.push({ id, path, thumb_path: thumbPath, width: full.w, height: full.h, category, featured: featuredNew });
+          let cat = category;
+          if (auto) {
+            const rel = (f as any).webkitRelativePath as string | undefined;
+            const fromFolder = rel ? categoryFromPath(rel.split("/").slice(0, -1).join("/")) : null;
+            if (fromFolder) cat = fromFolder;
+            else if ((await exifDate(f)) === "2026-10-04") cat = "Auction Night";
+          }
+          pending.push({ id, path, thumb_path: thumbPath, width: full.w, height: full.h, category: cat, featured: featuredNew });
           done++;
           if (pending.length >= 10) await flush();
         } catch (e: any) {
@@ -167,6 +228,15 @@ export default function GalleryAdmin({ initialItems, canManage }: { initialItems
     router.refresh();
   }
 
+  function clickSel(id: string, idx: number, shift: boolean) {
+    const list = shown.slice(0, limit);
+    if (shift && lastClicked.current !== null) {
+      const [a, b] = [Math.min(lastClicked.current, idx), Math.max(lastClicked.current, idx)];
+      setSel((prev) => { const n = new Set(prev); for (let i = a; i <= b; i++) n.add(list[i].id); return n; });
+    } else toggleSel(id);
+    lastClicked.current = idx;
+  }
+
   function toggleSel(id: string) {
     setSel((prev) => {
       const n = new Set(prev);
@@ -198,6 +268,10 @@ export default function GalleryAdmin({ initialItems, canManage }: { initialItems
                 </select>
               </LightField>
               <label className="flex items-center gap-2 text-sm text-navyText mt-6">
+                <input type="checkbox" className="!w-auto" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
+                Sort automatically (by folder name, or 4 Oct photos as Auction Night). Otherwise the category on the left is used.
+              </label>
+              <label className="flex items-center gap-2 text-sm text-navyText mt-6">
                 <input type="checkbox" className="!w-auto" checked={featuredNew} onChange={(e) => setFeaturedNew(e.target.checked)} />
                 Show on the homepage "Glimpse of Season 1"
               </label>
@@ -214,6 +288,12 @@ export default function GalleryAdmin({ initialItems, canManage }: { initialItems
               </div>
               <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
             </label>
+            <div className="mt-3 text-xs text-slateText">
+              Have photos in folders named like "Auction", "Owners", "Champions" or "Match"? Choose the whole parent folder and each photo goes to the right category by itself.{" "}
+              <button type="button" className="underline font-semibold text-navyText" onClick={() => folderRef.current?.click()}>Choose a folder</button>
+              <input ref={folderRef} type="file" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)}
+                {...({ webkitdirectory: "", directory: "" } as any)} />
+            </div>
             {progress && (
               <div className="mt-3">
                 <div className="h-2 rounded-full bg-black/10 overflow-hidden">
@@ -279,16 +359,19 @@ export default function GalleryAdmin({ initialItems, canManage }: { initialItems
             Select all shown
           </button>
         )}
+        {canManage && shown.length > 0 && (
+          <span className="text-xs text-slateText ml-3">Tip: tick one photo, then hold Shift and tick another to select everything between them.</span>
+        )}
 
         {shown.length === 0 && <div className="text-sm text-slateText py-6 text-center">Nothing here yet.</div>}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {shown.slice(0, limit).map((i) => (
+          {shown.slice(0, limit).map((i, idx) => (
             <div key={i.id} className="rounded-xl border border-black/10 overflow-hidden bg-white" style={{ opacity: i.hidden ? 0.5 : 1 }}>
               <div className="relative">
                 <img src={i.kind === "video" ? videoThumb(i) : galleryUrl(i.thumb_path)} alt={i.title ?? ""} loading="lazy" className="w-full h-28 object-cover bg-black/5" />
                 {i.kind === "video" && <span className="absolute left-2 top-2 text-[10px] font-bold px-2 py-0.5 rounded bg-black/70 text-white">VIDEO</span>}
                 {canManage && (
-                  <input type="checkbox" className="!w-auto absolute right-2 top-2" checked={sel.has(i.id)} onChange={() => toggleSel(i.id)} />
+                  <input type="checkbox" className="!w-auto absolute right-2 top-2 scale-125" checked={sel.has(i.id)} onChange={() => {}} onClick={(e: any) => clickSel(i.id, idx, e.shiftKey)} />
                 )}
               </div>
               <div className="p-2 space-y-1.5">
